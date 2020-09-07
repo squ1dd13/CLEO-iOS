@@ -1,17 +1,16 @@
 #include "Game/Script.hpp"
-#include "HookManager.hpp"
 #include "Headers/Debug.hpp"
-#include "substrate.h"
+#include "Headers/substrate.h"
 #include <mach-o/dyld.h>
 #include "Game/Memory.hpp"
 #include <os/log.h>
+#include "Headers/Util.hpp"
 
+// TODO: Use a vector of scripts.
 static WorkingScript theScript;
 
-typedef void (*rna)(WorkingScript *, short);
-static rna readArgumentsAddress = rna(0x1001cf474);
+DeclareFunctionType(RunScriptFunc, void *, WorkingScript *);
 
-typedef void *(*RunScriptFunc)(WorkingScript *);
 static RunScriptFunc runScript = RunScriptFunc(/*HookManager::getSlide() + */ 0x1001d1360);
 
 typedef uint8 (*OpcodeHandler)(WorkingScript *, uint16);
@@ -22,7 +21,7 @@ uint64 getHandlerTableOffset(unsigned opcode) {
 }
 
 WorkingScript *calculatePCVar3(WorkingScript *script, uint64 handlerOffset) {
-    uint64 *handlerTable = (uint64 *)(0x1005c11d8 + HookManager::getSlide());
+    uint64 *handlerTable = Memory::slid<uint64 *>(0x1005c11d8);
     return (WorkingScript *)((long long)&script->nextScript + (*(long long *)((long long)handlerTable + handlerOffset + 8) >> 1));
 }
 
@@ -30,7 +29,7 @@ uint32 fetchScriptTime() {
     return Memory::fetch<uint32>(0x1007d3af8);
 }
 
-int nextIfConditionCount(WorkingScript *script) {
+int getIfConditions(WorkingScript *script) {
     // Read the byte after the type identifier.
     int numType = int(*(char *)(uint64(script->currentPointer) + 1));
 
@@ -45,6 +44,9 @@ int nextIfConditionCount(WorkingScript *script) {
     return -1;
 }
 
+// Reimplementation of the game's actual handling code.
+// May seem unnecessary, but it makes debugging easier and is functionally equivalent.
+// It also allows us to modify the behaviour completely.
 uint8 processInstruction(WorkingScript *script) {
     uint16 readOpcode = *(uint16 *)script->currentPointer;
     script->currentPointer += 2;
@@ -64,9 +66,9 @@ uint8 processInstruction(WorkingScript *script) {
     }
 
     Debug::assertf(handler != nullptr, "null handler for opcode %x", actualOpcode);
-    // Debug::logf("opcode %x has handler %p", actualOpcode, handler);
+    Debug::logf("opcode %x has handler %p", actualOpcode, handler);
     uint64 instructionOffset = (uint64(script->currentPointer) - 2) - uint64(script->startPointer);
-    // Debug::logf("%x: %04x", instructionOffset, actualOpcode);
+    Debug::logf("%x: %04x", instructionOffset, actualOpcode);
 
     // FIXME: We should be passing pCVar3 for < A8C opcodes.
     uint8 result = handler(script, actualOpcode);
@@ -204,9 +206,10 @@ void conditionHandlerHook(WorkingScript *script, int flag) {
 }
 
 void runHooks() {
-    Debug::logf("ASLR slide is 0x%llx (%llu decimal)", HookManager::getSlide(), HookManager::getSlide());
+    Debug::logf("ASLR slide is 0x%llx (%llu decimal)", Memory::getASLRSlide(), Memory::getASLRSlide());
     Debug::logf("sizeof(WorkingScript) = %d", sizeof(WorkingScript));
 
-    advanceScriptsOrig = AdvanceFunc(HookManager::HookAddress(0x1001d0f40, (void *)advanceScripts));
+    advanceScriptsOrig = Memory::hook(0x1001d0f40, advanceScripts);
+    // advanceScriptsOrig = AdvanceFunc(HookManager::HookAddress(0x1001d0f40, (void *)advanceScripts));
     // conditionHandlerOrig = ConditionHandler(HookManager::HookAddress(0x1001df890, (void *)conditionHandlerHook));
 }

@@ -48,6 +48,14 @@ namespace Memory {
 
         return kernelReturn == KERN_SUCCESS;
     }
+
+    template <typename OriginalAddress, typename Replacement>
+    inline Replacement hook(OriginalAddress address, Replacement replacement) {
+        void *original = slid<void *>(address);
+        MSHookFunction((void *)original, (void *)replacement, (void **)&original);
+
+        return Replacement(original);
+    }
 };
 
 #endif

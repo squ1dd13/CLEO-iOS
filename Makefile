@@ -6,7 +6,7 @@ CC=/usr/local/opt/llvm/bin/clang
 CXX=/usr/local/opt/llvm/bin/clang++
 include ~/theos/makefiles/common.mk
 TWEAK_NAME = CSiOS
-CSiOS_FILES = HookManager.cpp Main.xm Hooks/Debug.xm
+CSiOS_FILES = Main.xm Hooks/Debug.xm
 CSiOS_CFLAGS = -fobjc-arc -Wno-format-security -Wno-auto-var-id -Wno-deprecated -Wno-deprecated-declarations -Wno-unused-function
 CSiOS_CFLAGS += -std=c++17 -stdlib=libc++
 CSiOS_LIBRARIES = c++
