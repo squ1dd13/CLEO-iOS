@@ -1,6 +1,8 @@
-#include "Debug.hpp"
+#include "../Headers/Debug.hpp"
 std::vector<std::string> Debug::logStrings;
 
+// Uncomment for screen logging.
+// This is a *very* primitive system, so if the game runs too long it'll run out of memory.
 /*
 #ifdef SHOW_DEBUG_OVERLAY
 @import UIKit;

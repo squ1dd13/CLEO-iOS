@@ -1,6 +1,6 @@
 #include "Game/Script.hpp"
 #include "HookManager.hpp"
-#include "Hooks/Debug.hpp"
+#include "Headers/Debug.hpp"
 #include "substrate.h"
 #include <mach-o/dyld.h>
 #include "Game/Memory.hpp"
@@ -204,9 +204,6 @@ void conditionHandlerHook(WorkingScript *script, int flag) {
 }
 
 void runHooks() {
-    const char *shaderStr = "Out_Color = clamp(Out_Color, 0.0, 0.1);";
-    Memory::write(0x1005876b1, shaderStr, std::strlen(shaderStr));
-
     Debug::logf("ASLR slide is 0x%llx (%llu decimal)", HookManager::getSlide(), HookManager::getSlide());
     Debug::logf("sizeof(WorkingScript) = %d", sizeof(WorkingScript));
 

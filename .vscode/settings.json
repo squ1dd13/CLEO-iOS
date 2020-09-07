@@ -1,0 +1,20 @@
+{
+    "files.associations": {
+        "*.abc": "csharp",
+        "*.xm": "objective-cpp",
+        "*.al": "go",
+        "*.ps": "pseudocode",
+        "*.eng": "coffeescript",
+        "*.layout": "jsonc",
+        "*.mis": "csharp",
+        "*.bsdesign": "json",
+        "*.msd": "coffeescript",
+        "algorithm": "cpp",
+        "ostream": "cpp"
+    },
+    "files.exclude": {
+        "**/.*": true,
+        "**/package.deb": true,
+        "**/packages": true
+    }
+}

@@ -4,10 +4,10 @@
 #include "../Types.h"
 #include <mach-o/dyld.h>
 #include <memory>
-#include "../substrate.h"
+#include "../Headers/substrate.h"
 #include <mach-o/dyld.h>
 #include <mach/mach.h>
-#include "../Hooks/Debug.hpp"
+#include "../Headers/Debug.hpp"
 
 namespace Memory {
     inline uint64 getASLRSlide() {
