@@ -4,10 +4,10 @@
 #include <vector>
 #include <os/log.h>
 
-// #define SHOW_DEBUG_OVERLAY
-
 #ifndef DEBUG_HEADER
 #define DEBUG_HEADER
+
+// #define SHOW_DEBUG_OVERLAY
 
 struct Debug {
     static std::vector<std::string> logStrings;

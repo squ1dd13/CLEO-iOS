@@ -1,119 +1,86 @@
 
-#include "../Types.h"
+#include "../Headers/Types.h"
+#include <string>
 
-enum ConcreteType : uint8 {
-    End,
-    Signed32,
-    GlobalNumber,
-    LocalNumber,
-    Signed8,
-    Signed16,
-    Flt32,
-    GlobalNumberArray,
-    LocalNumberArray,
-    String8,
-    GlobalString8,
-    LocalString8,
-    GlobalString8Array,
-    LocalString8Array,
-    VarString,
-    String16,
-    GlobalString16,
-    LocalString16,
-    GlobalString16Array,
-    LocalString16Array,
-};
+#ifndef SCRIPT_HEADER
+#define SCRIPT_HEADER
 
-union AnyValue {
-    uint32 unsignedValue;
-    int32 signedValue;
-    float floatValue;
-    void *pointerValue;
-    char *stringValue;
-};
+// This class is a copy of what the game uses (so we can integrate our code with the game's).
+// However, there are also some utility methods and some reimplementations. These are only 
+//  used for custom scripts. Methods don't change the field positions, so the class can still
+//  be used with game code.
 
-#pragma pack(1)
-struct WorkingScript {
-    WorkingScript *nextScript;
-    WorkingScript *previousScript;
+// Unknown/unnamed fields have been left as individual bytes in case they're needed in the future.
+// It's easier to rename a single field than it is to split an array. I'm lazy.
+class GameScript {
+  public:
+    GameScript *nextScript;
+    GameScript *previousScript;
+
     char name[8];
-    uint8 * startPointer;
-    uint8 * currentPointer;
-    uint8 * callStack[8];
-    uint16 callStackPos; /* Created by retype action */
-    uint8 field_0x6a;
-    uint8 field_0x6b;
-    uint32 localStorage[42]; /* Created by retype action */
+
+    uint8 *startPointer;
+    uint8 *currentPointer;
+
+    uint8 *callStack[8];
+    uint16 callStackPos;
+
+  private:
+    uint8 field_0x6A, field_0x6B;
+
+  public:
+    // Unsure about size here (probably really 32 and not 42, but we don't use this ATM anyway).
+    uint32 localStorage[42];
+
+  private:
     uint8 field_0x114;
-    bool conditionResult; /* Created by retype action */
-    uint8 field_0x116;
-    uint8 field_0x117;
-    uint8 field_0x118;
-    uint8 field_0x119;
-    uint8 field_0x11a;
-    uint8 field_0x11b;
+
+  public:
+    bool conditionResult;
+
+  private:
+    uint8 field_0x116,
+        field_0x117,
+        field_0x118,
+        field_0x119,
+        field_0x11A,
+        field_0x11B;
+
+  public:
+    // When the script will next receive focus.
     uint32 activationTime;
-    uint16 conditionCount; /* Created by retype action */
+
+    uint16 conditionCount;
+
     bool instructionIsConditional;
-    uint8 field_0x123;
-    uint8 field_0x124;
-    uint8 field_0x125;
-    uint8 field_0x126;
-    uint8 field_0x127;
-    uint8 field_0x128;
-    uint8 field_0x129;
-    uint8 field_0x12a;
-    uint8 field_0x12b;
+
+  private:
+    uint8 field_0x123,
+        field_0x124,
+        field_0x125,
+        field_0x126,
+        field_0x127,
+        field_0x128,
+        field_0x129,
+        field_0x12A,
+        field_0x12B;
+
+  public:
     bool localStorageIsGlobalStorage;
-};
-#pragma options align=reset
 
+    static GameScript load(const std::string &path);
+    static uint32 time();
 
-// 112
+    // Reimplementations of game code (for the most part).
+    void executeBlock();
+    uint8 executeInstruction();
 
-// Based on https://github.com/DK22Pac/plugin-sdk/blob/master/plugin_sa/game_sa/CRunningScript.h
-/*
-struct Script {
-  public:
-    Script *nextScript;
-    Script *previousScript;
-    char name[8];
-    void *startAddress;
-    void *currentAddress;
-    void *addressStack[8];
-    uint16 stackSize;
+    void release();
 
   private:
-    uint8 pad[6];
+    static uint64 calculateHandlerOffset(unsigned opcode);
+} __attribute__((__packed__));
 
-  public:
-    AnyValue localVariables[32];
-    int timers[2];
-    bool active;
-    bool conditionalFlag;
-    bool useMissionCleanup;
-    bool external;
-    bool textBlockOverride;
+// static_assert(sizeof(GameScript) == 301, "sizeof(GameScript) must be 301");
 
-  private:
-    uint8 pad_[3];
-
-  public:
-    int wakeTime;
-    // ??
-    unsigned short m_nLogicalOp;
-    bool notFlag;
-    bool wastedBustedCheck;
-    bool wastedOrBusted;
-
-  private:
-    uint8 pad__[3];
-
-  public:
-    void *sceneSkipAddress;
-    bool isMission;
-
-  private:
-    uint8 pad___[3];
-} __attribute__((packed));
-*/
+#endif

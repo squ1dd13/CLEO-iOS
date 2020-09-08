@@ -10,7 +10,8 @@
         "*.bsdesign": "json",
         "*.msd": "coffeescript",
         "algorithm": "cpp",
-        "ostream": "cpp"
+        "ostream": "cpp",
+        "filesystem": "cpp"
     },
     "files.exclude": {
         "**/.*": true,

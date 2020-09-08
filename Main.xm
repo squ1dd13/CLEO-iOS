@@ -39,5 +39,9 @@
 %end
 
 %ctor {
-    runHooks();
+    inject();
+}
+
+%dtor {
+    cleanUp();
 }

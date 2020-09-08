@@ -1,7 +1,7 @@
 #ifndef GAME_MEMORY
 #define GAME_MEMORY
 
-#include "../Types.h"
+#include "../Headers/Types.h"
 #include <mach-o/dyld.h>
 #include <memory>
 #include "../Headers/substrate.h"
