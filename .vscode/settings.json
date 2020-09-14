@@ -11,7 +11,8 @@
         "*.msd": "coffeescript",
         "algorithm": "cpp",
         "ostream": "cpp",
-        "filesystem": "cpp"
+        "filesystem": "cpp",
+        "string": "cpp"
     },
     "files.exclude": {
         "**/.*": true,

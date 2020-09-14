@@ -1,10 +1,11 @@
 #include "ScriptSystem.hpp"
+#include "../Headers/Debug.hpp"
 #include <dirent.h>
 #include <stdio.h>
 #include <string.h>
 #include <sys/types.h>
 #include <unistd.h>
-#include "../Headers/Debug.hpp"
+#include "../Game/Text.hpp"
 
 bool hasExtension(string_ref path, std::string extension) {
     // Efficiency: 100
@@ -29,12 +30,18 @@ std::vector<std::string> findScripts(string_ref path) {
     std::vector<std::string> paths;
     while((entry = readdir(directory)) != nullptr) {
         std::string entryPath = entry->d_name;
-        
+
+        // TODO: Get extension once and check that (why didn't I do that before?)
         if(hasExtension(entryPath, "csa")) {
             Debug::logf("Found .csa (CLEO Android script) %s", path.c_str());
         } else if(hasExtension(entryPath, "cs") || hasExtension(entryPath, "cs3") || hasExtension(entryPath, "cs4")) {
-            Debug::logf("Found .cs or .cs* file. The script will be loaded, but will likely not run.");
+            Debug::logf("Found .cs or .cs* file. The script will be loaded, but will likely not work.");
         } else {
+            if(hasExtension(entryPath, "fxt")) {
+                Debug::logf("Found .fxt file.");
+                Text::loadFXT(path + "/" + entryPath);
+            }
+
             continue;
         }
 

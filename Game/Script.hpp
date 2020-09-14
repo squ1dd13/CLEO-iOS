@@ -75,6 +75,10 @@ class GameScript {
     void executeBlock();
     uint8 executeInstruction();
 
+    void readArguments(uint32 count);
+    void *readVariable();
+    void handleFlag(int flag);
+
     void release();
 
   private:

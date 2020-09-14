@@ -1,3 +1,8 @@
+#ifndef TYPES_HEADER
+#define TYPES_HEADER
+
+#define DeclareFunctionType(name, ret, ...) typedef ret (*name)( __VA_ARGS__ )
+
 #include <cstdint>
 #include <string>
 
@@ -15,3 +20,8 @@ using uint64 = uint64_t;
 using int64 = int64_t;
 
 using string_ref = const std::string &;
+
+using char16 = char16_t;
+using string16 = const char16_t *;
+
+#endif

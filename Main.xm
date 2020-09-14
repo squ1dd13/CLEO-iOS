@@ -1,6 +1,22 @@
 #include "Main.cpp"
 @import UIKit;
 
+@interface EAGLView : UIView
+@end
+
+%hook EAGLView
+
+-(void)createFramebuffer {
+    %orig;
+
+    float size[2] { float(self.bounds.size.width * self.layer.contentsScale), float(self.bounds.size.height * self.layer.contentsScale) };
+    Touch::setViewportSize(size[0], size[1]);
+    Debug::logf("contentsScale = %f", self.layer.contentsScale);
+    Debug::logf("VP size is { %f, %f }", size[0], size[1]);
+}
+
+%end
+
 @interface LegalSplash : UIViewController
 @end
 
