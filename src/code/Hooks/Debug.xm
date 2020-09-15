@@ -1,22 +1,19 @@
-#include "../Headers/Debug.hpp"
+#include "Util/Debug.hpp"
 std::vector<std::string> Debug::logStrings;
 
-// Uncomment for screen logging.
 // This is a *very* primitive system, so if the game runs too long it'll run out of memory.
-/*
-#ifdef SHOW_DEBUG_OVERLAY
 @import UIKit;
 
 @interface EAGLView : UIView
-@property (nonatomic, strong) UITextView *overlay;
+@property(nonatomic, strong) UITextView *overlay;
 @end
 
-
+%group ScreenLog
 %hook EAGLView
-%property (nonatomic, strong) UITextView *overlay;
+%property(nonatomic, strong) UITextView *overlay;
 
--(id)initWithCoder:(id)coder {
-    
+- (id)initWithCoder:(id)coder {
+
     EAGLView *orig = %orig;
 #ifdef SHOW_DEBUG_OVERLAY
     orig.overlay = [[UITextView alloc] initWithFrame:[[UIScreen mainScreen] bounds]];
@@ -31,8 +28,8 @@ std::vector<std::string> Debug::logStrings;
 }
 
 // Called every frame.
--(bool)presentFramebuffer {
-    #ifdef SHOW_DEBUG_OVERLAY
+- (bool)presentFramebuffer {
+#ifdef SHOW_DEBUG_OVERLAY
     if(Debug::needsUpdate()) {
         // Display log stuff.
         NSMutableString *addition = [NSMutableString string];
@@ -48,12 +45,16 @@ std::vector<std::string> Debug::logStrings;
             [self.overlay scrollRangeToVisible:bottom];
         }
     }
-    #endif
+#endif
 
     return %orig;
 }
 
+%end 
 %end
 
+%ctor {
+#ifdef SHOW_DEBUG_OVERLAY
+    %init(ScreenLog);
 #endif
-*/
+}

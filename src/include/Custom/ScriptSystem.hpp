@@ -1,5 +1,5 @@
-#include "../Game/Script.hpp"
-#include "../Headers/Types.h"
+#include "Game/Script.hpp"
+#include "Util/Types.h"
 #include <vector>
 
 #ifndef SCRIPT_SYSTEM

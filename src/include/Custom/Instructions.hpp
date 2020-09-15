@@ -3,9 +3,8 @@
 #ifndef CUSTOM_OPCODES
 #define CUSTOM_OPCODES
 
-#include "../Game/Script.hpp"
-#include "../Headers/Debug.hpp"
-#include "../Headers/Types.h"
+#include "Game/Script.hpp"
+#include "Core.hpp"
 
 namespace Instructions {
 

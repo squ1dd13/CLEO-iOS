@@ -4,14 +4,20 @@
             "name": "Mac",
             "includePath": [
                 "${workspaceFolder}/**",
-                "~/theos/vendor"
+                "~/theos/vendor",
+                "${workspaceFolder}/Headerz"
             ],
             "defines": [],
             "macFrameworkPath": [],
-            "compilerPath": "/usr/local/bin/gcc-9",
-            "cStandard": "gnu18",
-            "cppStandard": "gnu++14",
-            "intelliSenseMode": "clang-arm64"
+            "compilerPath": "/usr/local/bin/g++-9",
+            "cStandard": "c18",
+            "cppStandard": "c++20",
+            "intelliSenseMode": "clang-arm64",
+            "browse": {
+                "limitSymbolsToIncludedHeaders": true,
+                "path": []
+            },
+            "compilerArgs": []
         }
     ],
     "version": 4

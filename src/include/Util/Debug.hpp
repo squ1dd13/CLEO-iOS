@@ -16,7 +16,7 @@ struct Debug {
     static inline void logf(const std::string &format, Args... args) {
         // https://stackoverflow.com/a/26221725/8622854
         size_t size = snprintf(nullptr, 0, format.c_str(), args...) + 1;
-
+        
         if(size <= 0) {
             throw std::runtime_error("Formatting error.");
         }

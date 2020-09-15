@@ -3,7 +3,7 @@
 #ifndef UI_MENU_HEADER
 #define UI_MENU_HEADER
 
-#include "../Headers/Types.h"
+#include "Core.hpp"
 
 DeclareFunctionType(SelectionCallback, void);
 

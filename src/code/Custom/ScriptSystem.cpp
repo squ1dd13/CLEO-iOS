@@ -1,11 +1,11 @@
-#include "ScriptSystem.hpp"
-#include "../Headers/Debug.hpp"
+#include "Custom/ScriptSystem.hpp"
+#include "Util/Debug.hpp"
 #include <dirent.h>
 #include <stdio.h>
 #include <string.h>
 #include <sys/types.h>
 #include <unistd.h>
-#include "../Game/Text.hpp"
+#include "Game/Text.hpp"
 
 bool hasExtension(string_ref path, std::string extension) {
     // Efficiency: 100

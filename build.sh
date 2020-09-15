@@ -1,4 +1,5 @@
 # Hacky build script cos my Theos is fucked
+rm -r ./packages
 make clean package
 dpkg-deb -Z gzip -b .theos/_ ./package.deb
 tput bel

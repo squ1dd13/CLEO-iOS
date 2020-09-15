@@ -1,6 +1,6 @@
-#include "Instructions.hpp"
-#include "../Game/Memory.hpp"
-#include "../Game/Touch.hpp"
+#include "Custom/Instructions.hpp"
+#include "Game/Memory.hpp"
+#include "Game/Touch.hpp"
 #include <unordered_map>
 
 template <typename T>

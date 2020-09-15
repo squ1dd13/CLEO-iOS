@@ -4,8 +4,7 @@
 #include "Game/Script.hpp"
 #include "Game/Text.hpp"
 #include "Game/Touch.hpp"
-#include "Headers/Debug.hpp"
-#include "Headers/substrate.h"
+#include "Core.hpp"
 #include <mach-o/dyld.h>
 #include <os/log.h>
 #include <sstream>

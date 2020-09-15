@@ -1,8 +1,8 @@
-#include "Script.hpp"
-#include "Memory.hpp"
-#include "Touch.hpp"
+#include "Game/Script.hpp"
+#include "Game/Memory.hpp"
+#include "Game/Touch.hpp"
 #include <cstring>
-#include "../Custom/Instructions.hpp"
+#include "Custom/Instructions.hpp"
 
 GameScript GameScript::load(const std::string &path) {
     FILE *file = std::fopen(path.c_str(), "rb");

@@ -1,7 +1,7 @@
 #ifndef TOUCH_HEADER
 #define TOUCH_HEADER
 
-#include "../Headers/Types.h"
+#include "Core.hpp"
 
 namespace Touch {
 

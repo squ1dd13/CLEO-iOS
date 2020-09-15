@@ -1,5 +1,5 @@
 
-#include "../Headers/Types.h"
+#include "Core.hpp"
 #include <string>
 
 #ifndef SCRIPT_HEADER

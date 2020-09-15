@@ -1,7 +1,6 @@
-#include "Touch.hpp"
-#include "../Headers/Types.h"
-#include "../Headers/Debug.hpp"
-#include "Memory.hpp"
+#include "Game/Touch.hpp"
+#include "Core.hpp"
+#include "Game/Memory.hpp"
 #include <cmath>
 
 enum TouchStage : uint64 {
@@ -38,8 +37,6 @@ void handleTouch(float x, float y, TouchStage stage, double time) {
         "TouchDown",
         "TouchMoved"
     };
-
-    // Debug::logf("touch x %f y %f stage %s timestamp %f (in zone %d [vx = %f, vy = %f])", x, y, stageNames[stage], time, zoneForPoint(x, y), viewportWidth, viewportHeight);
 
     int zone = zoneForPoint(x, y);
     Debug::assertf(0 < zone && zone < 10, "Touch zone range error (%d)! Has the viewport size changed?", zone);
