@@ -5,6 +5,8 @@
 
 #include "Core.hpp"
 
+namespace Menus {
+
 DeclareFunctionType(SelectionCallback, void);
 
 struct NavigationItem {
@@ -26,5 +28,9 @@ struct Menu {
     uint32 navItemCount;
     NavigationItem *navItems;
 } __attribute__((packed));
+
+void hook();
+
+};
 
 #endif

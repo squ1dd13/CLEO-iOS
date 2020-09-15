@@ -31,13 +31,6 @@ static bool screenZones[9] {};
 // 0x1004e831c
 // This gets called by the Objective-C touch handler (touchesBegan:withEvent:) on EAGLView.
 void handleTouch(float x, float y, TouchStage stage, double time) {
-    static const char *stageNames[4] {
-        "TouchUp",
-        "TouchWhat",
-        "TouchDown",
-        "TouchMoved"
-    };
-
     int zone = zoneForPoint(x, y);
     Debug::assertf(0 < zone && zone < 10, "Touch zone range error (%d)! Has the viewport size changed?", zone);
 

@@ -10,6 +10,7 @@ bool touchAreaPressed(int n);
 void hook();
 
 void setViewportSize(float w, float h);
+
 };
 
 #endif
