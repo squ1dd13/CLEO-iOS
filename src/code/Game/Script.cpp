@@ -5,6 +5,8 @@
 #include "Custom/Instructions.hpp"
 
 GameScript GameScript::load(const std::string &path) {
+    // TODO: Remove normal limits on scripts - increase call stack size and local variable storage space.
+
     FILE *file = std::fopen(path.c_str(), "rb");
     std::fseek(file, 0, SEEK_END);
     long size = std::ftell(file);

@@ -9,6 +9,8 @@ namespace Menus {
 
 DeclareFunctionType(SelectionCallback, void);
 
+// Navigation items are the side-scrolling options you get in the pause menu 
+//  and the first screen of the "Options" menu.
 struct NavigationItem {
     // Type not added until most struct fields are known for the icons.
     void *icon;

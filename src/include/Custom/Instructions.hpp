@@ -11,6 +11,7 @@ namespace Instructions {
 DeclareFunctionType(Implementation, void, GameScript *);
 
 // Added with CLEO Android.
+// TODO: Learn about Android addressing modes.
 void getLabelAddress(GameScript *script);
 void getFunctionAddressByName(GameScript *script);
 void contextCallFunction(GameScript *script);
