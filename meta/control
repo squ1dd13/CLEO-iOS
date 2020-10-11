@@ -1,0 +1,9 @@
+Package: com.squ1dd13.csios
+Name: CSiOS
+Depends: mobilesubstrate
+Version: 0.0.2
+Architecture: iphoneos-arm
+Description: An awesome MobileSubstrate tweak!
+Maintainer: Squ1dd13
+Author: Squ1dd13
+Section: Tweaks
