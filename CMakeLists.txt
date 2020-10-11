@@ -23,7 +23,7 @@ file(GLOB_RECURSE SOURCE_FILES
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -arch arm64 -arch arm64e -fobjc-abi-version=2 -fobjc-arc -std=gnu++11 -stdlib=libc++ -isysroot ${CMAKE_OSX_SYSROOT}")
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -arch arm64 -arch arm64e -fobjc-abi-version=2 -fobjc-arc -isysroot ${CMAKE_OSX_SYSROOT}")
 
-add_library(csios-cmake SHARED ${SOURCE_FILES})
+add_library(csios-cmake SHARED ${SOURCE_FILES} src/include/Util/Macros.hpp)
 
 add_library(substrate SHARED IMPORTED)
 set_target_properties(substrate PROPERTIES

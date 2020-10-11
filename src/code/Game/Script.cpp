@@ -2,7 +2,7 @@
 #include "Game/Memory.hpp"
 #include "Game/Touch.hpp"
 #include <cstring>
-#include "Custom/Instructions.hpp"
+#include "Custom/Android.hpp"
 
 GameScript GameScript::load(const std::string &path) {
     // TODO: Remove normal limits on scripts - increase call stack size and local variable storage space.
@@ -97,7 +97,7 @@ uint8 GameScript::executeInstruction() {
     // The default handler is for opcodes outside the automatic handler range.
     OpcodeHandler handler = Memory::slid<OpcodeHandler>(0x10020980c);
 
-    auto customHandler = Instructions::getImplementation(actualOpcode);
+    auto customHandler = Android::getImplementation(actualOpcode);
     if(customHandler) {
         Debug::logf("opcode %x has a custom implementation", actualOpcode);
         customHandler(this);

@@ -56,6 +56,15 @@ void selectionCallback() {
     btn->text = "Custom button"_gxt;
     btn->callback = [](){
         Debug::logf("callback called");
+
+//        auto *okMenu = new NewMenus::NewMenu;
+//        Memory::slid<CreateMenuWithTitle>(0x10033d428)(okMenu, "Hello"_gxt, true);
+//        okMenu->vtable = Memory::slid<NewMenus::MenuVtable *>(0x1005bc7b8);
+//
+//        const char **subtitle = (const char **)(okMenu + 0x60);
+//        *subtitle = "You pressed the button!"_gxt;
+//
+//        okMenu->
     };
 
     btn->unkNumber = 0;

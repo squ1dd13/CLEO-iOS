@@ -6,6 +6,7 @@
 #include <UIKit/UIKit.h>
 #include <Custom/HookObjC.hpp>
 #include <Game/Touch.hpp>
+#include <Util/Macros.hpp>
 
 // Now we're writing real Objective-C++ rather than Logos.
 // This is good because it means pretty much any program can analyse our code.
@@ -17,6 +18,7 @@
 - (void)createFramebuffer {
     orig();
 
+    // We need to know the
     float size[2] {
         float(self.bounds.size.width * self.layer.contentsScale),
         float(self.bounds.size.height * self.layer.contentsScale)
@@ -67,21 +69,15 @@
 #include "Game/Menus.hpp"
 #include "Game/Text.hpp"
 
-// Uses the constructor and destructor as %ctor and %dtor.
-struct TweakManager {
-    TweakManager() {
-        Debug::logf("ASLR slide is 0x%llx (%llu decimal)", Memory::getASLRSlide(), Memory::getASLRSlide());
+@ctor {
+    Debug::logf("ASLR slide is 0x%llx (%llu decimal)", Memory::getASLRSlide(), Memory::getASLRSlide());
 
-        Scripts::hook();
-        Menus::hook();
-        Touch::hook();
-        Text::hook();
-    }
+    Scripts::hook();
+    Menus::hook();
+    Touch::hook();
+    Text::hook();
+}
 
-    ~TweakManager() {
-        Scripts::release();
-    }
-};
-
-// We need to create an instance so the constructor and destructor are called.
-static TweakManager mgr;
+@dtor {
+    Scripts::release();
+}

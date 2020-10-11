@@ -11,3 +11,6 @@ This project is in a very early stage of development and is not particularly use
 
 ## Building
 Build with CMake. You do not need Theos to build this – Logos is not used anywhere. You do need an iOS SDK though. `CMakeLists.txt` gives the path for Xcode's iOS SDK on macOS, but this may differ from the location of your SDK.
+
+## Issues
+* Android's `0DD1` opcode (`GetFuncAddrByCStrName`) cannot be implemented because the symbols have been stripped from the iOS version of the game.

@@ -1,4 +1,4 @@
-// Non-standard instruction support and custom instruction implementations.
+// Support for stuff added in the Android version.
 
 #ifndef CUSTOM_OPCODES
 #define CUSTOM_OPCODES
@@ -6,7 +6,7 @@
 #include "Game/Script.hpp"
 #include "Core.hpp"
 
-namespace Instructions {
+namespace Android {
 
 DeclareFunctionType(Implementation, void, GameScript *);
 
@@ -32,6 +32,6 @@ void checkButtonNotPressed(GameScript *script);
 // Meta.
 Implementation getImplementation(uint16 opcode);
 
-}; // namespace Instructions
+}; // namespace Android
 
 #endif
