@@ -26,6 +26,7 @@ void loadFXT(string_ref path);
 
 void hook();
 
+std::string registerString(const std::string& value);
 };
 
 #endif

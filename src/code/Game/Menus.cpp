@@ -3,6 +3,7 @@
 #include "Game/NewMenus.hpp"
 #include "Game/Text.hpp"
 #include "Util/Types.hpp"
+#include <Custom/Scripts.hpp>
 #include <cstring>
 
 DeclareFunctionType(OptionsMenuFunction, Menus::Menu *, Menus::Menu *);
@@ -51,24 +52,25 @@ void selectionCallback() {
 
     menu->vtable = Memory::slid<NewMenus::MenuVtable *>(0x1005ca0b0);//0x1005bc4c8 + 0x10);
 
-    Menus::Button *btn = new Menus::Button;
-    btn->unkPtr = (void *)(Memory::fetch<uint64>(0x1005bc7e8) + 0x10);
-    btn->text = "Custom button"_gxt;
-    btn->callback = [](){
-        Debug::logf("callback called");
+    static std::vector<std::string> registeredStrings;
+    Debug::logf("%d path(s)", Scripts::fileNames.size());
+    for(auto &path : Scripts::fileNames) {
+        Menus::Button *btn = new Menus::Button;
+        btn->unkPtr = (void *)(Memory::fetch<uint64>(0x1005bc7e8) + 0x10);
+        auto regd = Text::registerString(path);
+        registeredStrings.push_back(regd);
+        btn->text = registeredStrings.back().c_str(); //"Custom button"_gxt;
+        btn->callback = [](){
+            Debug::logf("callback called");
+        };
 
-//        auto *okMenu = new NewMenus::NewMenu;
-//        Memory::slid<CreateMenuWithTitle>(0x10033d428)(okMenu, "Hello"_gxt, true);
-//        okMenu->vtable = Memory::slid<NewMenus::MenuVtable *>(0x1005bc7b8);
-//
-//        const char **subtitle = (const char **)(okMenu + 0x60);
-//        *subtitle = "You pressed the button!"_gxt;
-//
-//        okMenu->
-    };
+        btn->unkNumber = 0;
+        Menus::addItemToMenu(menu, (void *)btn);
 
-    btn->unkNumber = 0;
-    Menus::addItemToMenu(menu, (void *)btn);
+        Debug::logf("add %s", path.c_str());
+    }
+
+
 
     int *numMenusPtr = Memory::slid<int *>(0x100867774);
     Debug::logf("menus = %d", *numMenusPtr);

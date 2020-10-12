@@ -7,6 +7,9 @@
 
 namespace Scripts {
 
+extern std::vector<GameScript> loadedScripts;
+extern std::vector<std::string> fileNames;
+
 // Load scripts and supporting files from the given directory.
 // configDirectory is for future config files.
 void load(string_ref scriptDirectory, string_ref configDirectory);

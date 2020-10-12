@@ -4,7 +4,7 @@ Jailbreak tweak for injecting CLEO scripts into GTA: SA on iOS. [Video demonstra
 ## Using
 This project is in a very early stage of development and is not particularly user-friendly at the moment, but it does work.
 * Install a `.deb` archive for this tweak to the device.
-* To install a script, place it in `/var/mobile/Media/Documents/CustomScripts`.
+* To install a script, place it in `/var/mobile/Documents/CS`.
 * Any supporting files (`.fxt` only at the moment) should also be placed there.
 * Expect decent results only with CLEO Android (`.csa`) scripts.
 * Custom textures are not yet supported.

@@ -19,4 +19,4 @@ dpkg-deb -Z gzip -b ./out/package ./out/package.deb
 
 # EXRTRA: Install the .deb file to a device.
 scp "./out/package.deb" root@192.168.1.226:/User/Downloads/package.deb
-ssh root@192.168.1.226 "dpkg -i /User/Downloads/package.deb"
+ssh root@192.168.1.226 "dpkg -i /User/Downloads/package.deb && (killall -9 gta3sa || echo 'GTA:SA not running')"

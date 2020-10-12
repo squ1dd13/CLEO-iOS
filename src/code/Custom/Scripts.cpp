@@ -1,15 +1,12 @@
 #include "Custom/Scripts.hpp"
 #include "Util/Debug.hpp"
-#include <ctype.h>
+#include <cctype>
 #include <algorithm>
 #include <dirent.h>
-#include <stdio.h>
-#include <string.h>
-#include <sys/types.h>
-#include <unistd.h>
 #include "Game/Text.hpp"
 
-static std::vector<GameScript> loadedScripts;
+std::vector<GameScript> Scripts::loadedScripts;
+std::vector<std::string> Scripts::fileNames;
 static std::string scriptDir, configDir;
 
 enum FileType {
@@ -45,8 +42,11 @@ std::vector<std::string> findScripts(string_ref path) {
     DIR *directory = opendir(path.c_str());
 
     if(!directory) {
+        screenLog.logf("Failed to find script directory");
         return {};
     }
+
+    screenLog.logf("Successfully found script directory");
 
     dirent *entry;
 
@@ -58,6 +58,7 @@ std::vector<std::string> findScripts(string_ref path) {
         switch(type) {
             case AndroidScript: {
                 Debug::logf("Found Android script '%s'", entry->d_name);
+                screenLog.logf("Found Android script '%s'", entry->d_name);
                 break;
             }
 
@@ -96,11 +97,25 @@ void Scripts::load(string_ref scriptDirectory, string_ref configDirectory) {
     loadedScripts.reserve(scriptPaths.size());
 
     for(string_ref path : scriptPaths) {
+        fileNames.push_back(path);
+        Debug::logf("load %s", path.c_str());
         loadedScripts.push_back(GameScript::load(path));
     }
+
+    Debug::logf("%d script(s) loaded", loadedScripts.size());
 }
 
 void Scripts::advance() {
+    static bool didPrint = false;
+    if(!didPrint) {
+        screenLog.logf("BEGIN SCRIPT LIST");
+        for(auto &path : fileNames) {
+            screenLog.logf("  %s", path.c_str());
+        }
+        screenLog.logf("END SCRIPT LIST");
+        didPrint = true;
+    }
+
     for(GameScript &script : loadedScripts) {
         // The script's activation time is the next time it will get focus.
         // wait(n) for any n != 0 offsets the activation time by n and returns 1
@@ -128,7 +143,9 @@ void advanceScripts() {
     static bool systemLoaded = false;
     if(!systemLoaded) {
         systemLoaded = true;
-        Scripts::load("/var/mobile/Media/Documents/CustomScripts", "");
+
+        // NOTE: Directory has changed.
+        Scripts::load("/var/mobile/Documents/CS", "");
     }
 
     // Advance custom scripts.

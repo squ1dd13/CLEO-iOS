@@ -15,6 +15,11 @@ const char *operator "" _gxt(const char *value, size_t length) {
     return Text::registered(key, value);
 }
 
+std::string Text::registerString(const std::string &value) {
+    auto key = std::to_string(std::hash<std::string>()(value));
+    return Text::registered(key, value);
+}
+
 DeclareFunctionType(GetGameStringFunc, const char16 *, void *, const char *);
 static void *textObject = Memory::slid<void *>(0x1008f5690);
 

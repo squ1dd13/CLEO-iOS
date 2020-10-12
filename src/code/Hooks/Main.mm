@@ -11,6 +11,8 @@
 // Now we're writing real Objective-C++ rather than Logos.
 // This is good because it means pretty much any program can analyse our code.
 
+static UITextView *overlay = nullptr;
+
 // @hookbase makes the hook class a subclass of the second argument.
 // In this case, it means we can use 'self' as a UIView * and not an NSObject *.
 @hookbase(EAGLView, UIView)
@@ -27,7 +29,43 @@
     Touch::setViewportSize(size[0], size[1]);
     Debug::logf("contentsScale = %f", self.layer.contentsScale);
     Debug::logf("VP size is { %f, %f }", size[0], size[1]);
+
+#ifdef LOG_OVERLAY
+    if(!overlay) {
+        overlay = [[UITextView alloc] initWithFrame:[[UIScreen mainScreen] bounds]];
+        overlay.userInteractionEnabled = false;
+        overlay.editable = false;
+        overlay.backgroundColor = [UIColor clearColor];
+        overlay.textColor = [UIColor whiteColor];
+        overlay.font = [UIFont fontWithName:@"Menlo" size:8.f];
+        [self addSubview:overlay];
+    }
+#endif
 }
+
+#ifdef LOG_OVERLAY
+- (bool)presentFramebuffer {
+    if(overlay && screenLog.updated) {
+        NSMutableString *str = [NSMutableString stringWithString:overlay.text];
+
+        for(const std::string &s : screenLog.log) {
+            [str appendFormat:@"%s\n", s.c_str()];
+        }
+
+        screenLog.updated = false;
+
+        overlay.text = str;
+
+        // TODO: Remove this?
+        if(overlay.text.length > 0) {
+            NSRange bottom = NSMakeRange(overlay.text.length - 1, 1);
+            [overlay scrollRangeToVisible:bottom];
+        }
+    }
+
+    return bool(orig());
+}
+#endif
 
 @end
 
