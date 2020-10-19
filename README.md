@@ -12,5 +12,8 @@ This project is in a very early stage of development and is not particularly use
 ## Building
 Build with CMake. You do not need Theos to build this – Logos is not used anywhere. You do need an iOS SDK though. `CMakeLists.txt` gives the path for Xcode's iOS SDK on macOS, but this may differ from the location of your SDK.
 
-## Issues
+## Known Issues
+* Due to the amount of content that Rockstar had to cut from the game to keep it 16-rated in Germany,
+the German game is a separate app from other regions. 
+**As such, CSiOS is currently incompatible with the German game.** This is unlikely to change in the future.
 * Android's `0DD1` opcode (`GetFuncAddrByCStrName`) cannot be implemented because the symbols have been stripped from the iOS version of the game.
