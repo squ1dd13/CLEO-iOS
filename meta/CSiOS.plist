@@ -1,1 +1,1 @@
-{ Filter = { Bundles = ( "com.rockstargames.gta3sa", "com.rockstargames.gtasager" ); }; }
+{ Filter = { Executables = ( "gta3sa", "gtasager" ); }; }
