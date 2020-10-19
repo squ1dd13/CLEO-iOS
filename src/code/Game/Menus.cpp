@@ -57,8 +57,10 @@ void selectionCallback() {
     for(auto &path : Scripts::fileNames) {
         Menus::Button *btn = new Menus::Button;
         btn->unkPtr = (void *)(Memory::fetch<uint64>(0x1005bc7e8) + 0x10);
+
         auto regd = Text::registerString(path);
         registeredStrings.push_back(regd);
+
         btn->text = registeredStrings.back().c_str(); //"Custom button"_gxt;
         btn->callback = [](){
             Debug::logf("callback called");

@@ -5,19 +5,25 @@
 #include <os/log.h>
 #include <queue>
 #import <sstream>
+#import <fstream>
 
 #ifndef DEBUG_HEADER
 #define DEBUG_HEADER
 
 #define SHOW_DEBUG_OVERLAY
 
-// BUG: Log gets cleared when game loads.
 class ScreenLog {
     static const size_t messageLimit = 30;
+    std::ofstream stream;
 
 public:
     std::deque<std::string> log;
     bool updated = false;
+
+    ScreenLog() {
+        // Open the log file, clearing it if it isn't empty.
+        stream = std::ofstream("/var/mobile/Documents/CSiOS.log", std::ofstream::out | std::ofstream::trunc);
+    }
 
     inline void commit(std::string s) {
         if(log.size() >= messageLimit) {
@@ -25,6 +31,8 @@ public:
             log.pop_front();
         }
 
+        stream << s << '\n';
+        stream.flush();
         log.push_back(s);
         updated = true;
     }

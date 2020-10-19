@@ -53,7 +53,7 @@ class GameScript {
 
     uint16 conditionCount;
 
-    bool instructionIsConditional;
+    bool invertReturn;
 
   private:
     uint8 field_0x123,

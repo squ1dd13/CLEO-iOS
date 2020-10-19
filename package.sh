@@ -13,7 +13,7 @@ codesign --force -s - "./out/package/Library/MobileSubstrate/DynamicLibraries/$1
 
 cp "./meta/control" "./out/package/DEBIAN/control"
 
-# TODO: Change compression to whatever the normal one is. (Circuliser used gzip and Kirb said it broke Chariz's scripts.)
+# TODOMAYBE: Change compression to whatever the normal one is. (Circuliser used gzip and Kirb said it broke Chariz's scripts.)
 # gzip is great though because the packages end up tiny.
 dpkg-deb -Z gzip -b ./out/package ./out/package.deb
 

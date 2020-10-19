@@ -19,6 +19,9 @@
 **/
 /* }}} */
 
+// Renamed substrate.h --> Substrate.hpp to fit with naming pattern and stop GitHub
+//  saying that it's Objective-C (which it isn't).
+
 #ifndef SUBSTRATE_H_
 #define SUBSTRATE_H_
 

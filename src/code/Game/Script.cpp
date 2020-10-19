@@ -35,7 +35,7 @@ uint32 GameScript::time() {
 void GameScript::executeBlock() {
     // Each call to executeBlock() executes a block of instructions (duh...).
     // The end of the block is whenever processInstruction() returns a non-zero value.
-    bool result = false;
+    bool result;
 
     do {
         result = executeInstruction();
@@ -44,6 +44,8 @@ void GameScript::executeBlock() {
 
 uint64 GameScript::calculateHandlerOffset(unsigned opcode) {
     // TODO: Examine and simplify this calculation.
+    // https://www.desmos.com/calculator/xyeaqddxgt
+    // https://repl.it/repls/PeriodicGlitteringSampler#main.py
     return (uint64((opcode & 0x7fff) * 1374389535llu) >> 33) & 0x3ffffff0;
 }
 
@@ -90,21 +92,21 @@ uint8 GameScript::executeInstruction() {
     currentPointer += 2;
 
     uint16 actualOpcode = readOpcode & 0x7FFF;
-    instructionIsConditional = ((readOpcode >> 0xF) & 1);
+    invertReturn = ((readOpcode >> 0xF) & 1);
 
-    Debug::logf("opcode %x (from %x)", actualOpcode, readOpcode);
+//    Debug::logf("opcode %x (from %x)", actualOpcode, readOpcode);
 
     // The default handler is for opcodes outside the automatic handler range.
     OpcodeHandler handler = Memory::slid<OpcodeHandler>(0x10020980c);
 
     auto customHandler = Android::getImplementation(actualOpcode);
     if(customHandler) {
-        Debug::logf("opcode %x has a custom implementation", actualOpcode);
+//        Debug::logf("opcode %x has a custom implementation", actualOpcode);
         customHandler(this);
         return 0;
     }
 
-    Debug::logf("  computing handler offset...");
+//    Debug::logf("  computing handler offset...");
     if(actualOpcode < 0xA8C) {
         // We have to find the correct handler.
         void **handlerTable = Memory::slid<void **>(0x1005c11d8);
@@ -113,11 +115,11 @@ uint8 GameScript::executeInstruction() {
         handler = OpcodeHandler(handlerTable[handlerOffset / 8]);
     }
 
-    Debug::assertf(handler != nullptr, "null handler for opcode %x", actualOpcode);
+//    Debug::assertf(handler != nullptr, "null handler for opcode %x", actualOpcode);
 
     // _FIXME: We should be passing pCVar3 for < A8C opcodes.
     // TODO: Clean up.
-    Debug::logf("  calling handler...");
+//    Debug::logf("  calling handler...");
     uint8 handlerReturn = handler(actualOpcode < 0xA8C ? calculatePCVar3(this, calculateHandlerOffset(actualOpcode)) : this, actualOpcode);
 
     return handlerReturn;

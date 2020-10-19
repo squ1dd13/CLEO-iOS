@@ -47,7 +47,7 @@ void Android::setMutexVar(GameScript *script) {
 
     uint32 *args = getArgumentsArray<uint32>();
 
-    Debug::logf("setMutexVar(value: %d, to: %d)", args[0], args[1]);
+//    Debug::logf("setMutexVar(value: %d, to: %d)", args[0], args[1]);
     mutexVars[args[0]] = args[1];
 }
 
@@ -61,11 +61,11 @@ bool processZoneQuery(GameScript *script, int pointIndex = 1) {
     int touchZone = Memory::slid<int *>(0x1007ad690)[pointIndex];
 
     if(0 < touchZone && touchZone < 10) {
-        Debug::logf("checking touch zone %d", touchZone);
+//        Debug::logf("checking touch zone %d", touchZone);
 
         bool zoneStatus = Touch::touchAreaPressed(touchZone);
         if(zoneStatus) {
-            Debug::logf("zone is pressed");
+//            Debug::logf("zone is pressed");
         }
 
         return zoneStatus;
