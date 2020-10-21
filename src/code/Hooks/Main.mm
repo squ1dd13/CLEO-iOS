@@ -104,14 +104,14 @@ static UITextView *overlay = nullptr;
 @end
 
 #include "Custom/Scripts.hpp"
-#include "Game/Menus.hpp"
 #include "Game/Text.hpp"
+
+// TODO: Load scripts in at end of game load sequence (0x100240178).
 
 @ctor {
     Debug::logf("ASLR slide is 0x%llx (%llu decimal)", Memory::getASLRSlide(), Memory::getASLRSlide());
 
     Scripts::hook();
-    Menus::hook();
     Touch::hook();
     Text::hook();
 }
