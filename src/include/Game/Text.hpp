@@ -4,9 +4,6 @@
 #include "Memory.hpp"
 #include <unordered_map>
 
-// Registers the string and returns the key.
-const char *operator "" _gxt(const char *, size_t);
-
 namespace Text {
 
 // Wrappers for game code.
@@ -15,7 +12,10 @@ std::u16string getGameStringUTF16(string_ref key);
 
 // Custom.
 void setGameString(string_ref key, string_ref value);
-void setGameStringUTF16(string_ref key, const std::u16string &value);
+std::string registerString(string_ref value);
+
+// Registers the string and returns the key.
+const char *operator "" _gxt(const char *, size_t);
 
 // Get a string value by a key, registering the key with the given value if it isn't found.
 // The key is returned.
@@ -26,7 +26,6 @@ void loadFXT(string_ref path);
 
 void hook();
 
-std::string registerString(const std::string& value);
 };
 
 #endif

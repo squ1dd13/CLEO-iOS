@@ -1,18 +1,14 @@
+#pragma once
 
-#include "Core.hpp"
-#include "Util/Types.hpp"
-#include <string>
+#include <Core.hpp>
 
-#ifndef SCRIPT_HEADER
-#define SCRIPT_HEADER
-
-// This class is a copy of what the game uses (so we can integrate our code with the game's).
-// However, there are also some utility methods and some reimplementations. These are only 
-//  used for custom scripts. Methods don't change the field positions, so the class can still
-//  be used with game code.
-
-// Unknown/unnamed fields have been left as individual bytes in case they're needed in the future.
-// It's easier to rename a single field than it is to split an array. I'm lazy.
+/*
+ * Class for custom game scripts. This is compatible with the game's script class,
+ *  but the member functions have been reimplemented with custom behaviour.
+ *
+ * Unknown/unnamed fields have been left as individual bytes in case they're needed in the future.
+ * It's easier to rename a single field than it is to split an array. I'm lazy.
+ */
 class GameScript {
   public:
     GameScript *nextScript;
@@ -80,12 +76,11 @@ class GameScript {
     void *readVariable();
     void handleFlag(int flag);
 
-    void release();
+    void free() const;
 
   private:
     static uint64 calculateHandlerOffset(unsigned opcode);
-} __attribute__((__packed__));
+} squished;
 
-// static_assert(sizeof(GameScript) == 301, "sizeof(GameScript) must be 301");
-
-#endif
+// Not the real size, but we hardly use any of it anyway.
+static_assert(sizeof(GameScript) == 301, "sizeof(GameScript) must be 301");

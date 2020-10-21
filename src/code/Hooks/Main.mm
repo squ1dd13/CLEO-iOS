@@ -11,6 +11,7 @@
 // Now we're writing real Objective-C++ rather than Logos.
 // This is good because it means pretty much any program can analyse our code.
 
+// One thing we can't easily do with macros is %property, so we have to use normal variables.
 static UITextView *overlay = nullptr;
 
 // @hookbase makes the hook class a subclass of the second argument.

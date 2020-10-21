@@ -6,6 +6,11 @@
 #include <sstream>
 #include <string>
 
+// Strings that have been added/modified. This is searched before the
+//  original game function is called, so replacements of existing strings
+//  will show up.
+static std::unordered_map<std::string, std::u16string> customStrings {};
+
 const char *operator "" _gxt(const char *value, size_t length) {
     // Null-terminate.
     // TODO: Make GXT string literal more efficient.
@@ -34,13 +39,6 @@ std::string forceASCII(const char *s) {
     return stream.str();
 }
 
-// Strings that have been added/modified. This is searched before the
-//  original game function is called, so replacements of existing strings
-//  will show up.
-static std::unordered_map<std::string, std::u16string> customStrings {
-    { "tweak_name", u"CSiOS" },
-};
-
 std::string Text::getGameString(string_ref key) {
     // This will mess up Japanese/Russian text, but the UTF16 version should
     //  be used if that's a concern.
@@ -56,10 +54,6 @@ void Text::setGameString(string_ref key, string_ref value) {
 
     std::u16string converted = converter.from_bytes(value);
     customStrings[key] = converted;
-}
-
-void Text::setGameStringUTF16(string_ref key, const std::u16string &value) {
-    customStrings[key] = value;
 }
 
 const char *Text::registered(string_ref key, string_ref value) {

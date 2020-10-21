@@ -130,7 +130,7 @@ void Scripts::advance() {
 
 void Scripts::release() {
     for(GameScript &script : loadedScripts) {
-        script.release();
+        script.free();
     }
 }
 
