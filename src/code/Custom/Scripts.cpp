@@ -4,108 +4,138 @@
 #include <algorithm>
 #include <dirent.h>
 #include "Game/Text.hpp"
+#include <Game/Addresses.hpp>
 
 std::vector<GameScript> Scripts::loadedScripts;
 std::vector<std::string> Scripts::fileNames;
 static std::string scriptDir, configDir;
 
-enum FileType {
-    AndroidScript, // .csa
-    WindowsScript, // .cs
-    TextExtension, // .fxt
+namespace Scripts {
 
-    OtherFile
-};
+class ScriptFile {
+    inline static std::string getExtension(string_ref path) {
+        auto dotPos = path.find_last_of('.');
+        if(dotPos == std::string::npos) {
+            return "";
+        }
 
-inline FileType getFileType(string_ref name) {
-    std::string extension = name.substr(name.find_last_of('.') + 1);
-    std::transform(extension.begin(), extension.end(), extension.begin(), ::tolower);
+        std::string ext = path.substr(dotPos + 1);
+        std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
 
-    if(extension == "csa") {
-        return AndroidScript;
+        return ext;
     }
 
-    if(extension == "cs") {
-        return WindowsScript;
+    GameScript loadAsScript() const {
+        return GameScript::load(path);
     }
 
-    if(extension == "fxt") {
-        return TextExtension;
+    void loadSupporting() const {
+        if(type == FileType::TextExtension) {
+            Text::loadFXT(path);
+        }
     }
+public:
+    // TODO: Put extensions in a map.
+    enum class FileType {
+        AndroidRunningScript, // .csa
+        AndroidInvokedScript, // .csi
+        WindowsScript,        // .cs
+        TextExtension,        // .fxt
 
-    // Enum system used so more types may go here...
+        OtherFile
+    };
 
-    return OtherFile;
-}
+    std::string path;
+    FileType type = FileType::OtherFile;
+    bool isSupportingFile;
 
-std::vector<std::string> findScripts(string_ref path) {
-    DIR *directory = opendir(path.c_str());
+    explicit ScriptFile(std::string name) {
+        path = std::move(name);
 
-    if(!directory) {
-        screenLog.logf("Failed to find script directory");
-        return {};
-    }
+        std::string ext = getExtension(path);
 
-    screenLog.logf("Successfully found script directory");
+        if(ext.starts_with("cs")) {
+            isSupportingFile = false;
 
-    dirent *entry;
-
-    std::vector<std::string> paths;
-    while((entry = readdir(directory)) != nullptr) {
-        std::string entryPath = entry->d_name;
-        FileType type = getFileType(entryPath);
-
-        switch(type) {
-            case AndroidScript: {
-                Debug::logf("Found Android script '%s'", entry->d_name);
-                screenLog.logf("Found Android script '%s'", entry->d_name);
-                break;
+            if(ext == "csa") {
+                // Android script. Starts when the game starts.
+                type = FileType::AndroidRunningScript;
+            } else if(ext == "csi") {
+                // Android script. Started manually by the player.
+                type = FileType::AndroidInvokedScript;
+            } else if(ext == "cs") {
+                // Windows script. *Very* unlikely to work.
+                type = FileType::WindowsScript;
             }
+        } else if(ext == "fxt") {
+            isSupportingFile = true;
 
-            case WindowsScript: {
-                // It would be cool if we could port scripts after loading them...
-                Debug::logf("Found Windows script (!!) '%s'... Expect a crash", entry->d_name);
-                break;
-            }
+            // Only other file type supported currently is .fxt.
+            type = FileType::TextExtension;
+        }
 
-            case TextExtension: {
-                Debug::logf("Found text extension file '%s'", entry->d_name);
-                Text::loadFXT(path + "/" + entryPath);
+        if(type == FileType::OtherFile) {
+            return;
+        }
+    }
+
+    static bool loadModDir(string_ref dirPath, std::vector<GameScript> &outScripts) {
+        DIR *directory = opendir(dirPath.c_str());
+
+        if(!directory) {
+            return false;
+        }
+
+        dirent *entry;
+        while((entry = readdir(directory))) {
+            std::string entryPath = dirPath + '/' + entry->d_name;
+
+            if(entry->d_type == DT_DIR) {
+                std::string name(entry->d_name);
+                if(name == ".." || name == ".") continue;
+
+                // Found another directory, so search it.
+                if(!loadModDir(entryPath, outScripts)) {
+                    screenLog.logf("Failed to open dir '%s'.", entryPath.c_str());
+                }
 
                 continue;
             }
 
-            default: {
-                Debug::logf("Ignoring '%s'", entry->d_name);
+            ScriptFile file(entryPath);
+
+            if(file.type == FileType::OtherFile) {
+                screenLog.logf("Ignoring file '%s' (unknown/unsupported type)", file.path.c_str());
                 continue;
+            }
+
+            if(!file.isSupportingFile) {
+                outScripts.push_back(file.loadAsScript());
+            } else {
+                // We only collect the scripts we create. Supporting files
+                //  are loaded as we discover them.
+                file.loadSupporting();
             }
         }
 
-        // If we're at this point, this is a script.
-        paths.push_back(path + "/" + entryPath);
+        return true;
     }
+};
 
-    closedir(directory);
-    return paths;
-}
-
-void Scripts::load(string_ref scriptDirectory, string_ref configDirectory) {
+void load(string_ref scriptDirectory, string_ref configDirectory) {
     scriptDir = scriptDirectory;
     configDir = configDirectory;
 
-    auto scriptPaths = findScripts(scriptDir);
-    loadedScripts.reserve(scriptPaths.size());
+    bool didOpenScriptDir = ScriptFile::loadModDir(scriptDir, loadedScripts);
 
-    for(string_ref path : scriptPaths) {
-        fileNames.push_back(path);
-        Debug::logf("load %s", path.c_str());
-        loadedScripts.push_back(GameScript::load(path));
+    if(!didOpenScriptDir) {
+        screenLog.logf("Failed to open script directory.");
+    } else {
+        screenLog.logf("%d script(s) loaded", loadedScripts.size());
     }
-
-    Debug::logf("%d script(s) loaded", loadedScripts.size());
 }
 
-void Scripts::advance() {
+void advance() {
     static bool didPrint = false;
     if(!didPrint) {
         screenLog.logf("BEGIN SCRIPT LIST");
@@ -128,33 +158,32 @@ void Scripts::advance() {
     }
 }
 
-void Scripts::release() {
+void unload() {
     for(GameScript &script : loadedScripts) {
-        script.free();
+        script.unload();
     }
 }
 
-DeclareFunctionType(AdvanceFunction, void);
-static AdvanceFunction advanceGameScripts;
+hookf(advanceGameScripts, Memory::Addresses::advanceGameScripts, {
+    // TODO: Move to game load sequence.
 
-void advanceScripts() {
-    // We want to load the Scripts only when the game is ready. Therefore,
-    //  loading it on the first advanceScripts call makes sense.
-    static bool systemLoaded = false;
-    if(!systemLoaded) {
-        systemLoaded = true;
+    // If this is the first call, we need to load our own scripts.
+    // Loading on the first FDE cycle ensures that the game is ready.
+    static bool customScriptsLoaded = false;
+    if(!customScriptsLoaded) {
+        customScriptsLoaded = true;
 
-        // NOTE: Directory has changed.
+        // No config directory at the moment.
         Scripts::load("/var/mobile/Documents/CS", "");
     }
 
-    // Advance custom scripts.
+    // Every time the game advances its scripts, we advance our own.
     Scripts::advance();
 
-    // Advance game scripts.
-    advanceGameScripts();
-}
+    // Original behaviour.
+    original();
+}, void)
 
-void Scripts::hook() {
-    advanceGameScripts = Memory::hook(0x1001d0f40, advanceScripts);
+void Scripts::hook() {}
+
 }

@@ -5,7 +5,7 @@
 #ifndef CSIOS_CMAKE_ADDRESSES_HPP
 #define CSIOS_CMAKE_ADDRESSES_HPP
 #include "Memory.hpp"
-#define NameAddress(address, name) constexpr uint64 name = address;
+#define NameAddress(address, name) constexpr uint64 name = address
 
 // Using Memory::Addresses to get memory addresses is longer to type,
 //  but improves code readability by explicitly stating what the address means.
@@ -21,6 +21,8 @@ NameAddress(0x1005c11d8, opcodeHandlerTable);
 NameAddress(0x10020980c, defaultOpcodeHandler);
 
 NameAddress(0x1007d3af8, scriptTime);
+
+NameAddress(0x1001d0f40, advanceGameScripts);
 
 }
 

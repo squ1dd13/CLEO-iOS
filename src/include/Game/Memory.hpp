@@ -58,22 +58,27 @@ inline Replacement hook(OriginalAddress address, Replacement replacement) {
     return Replacement(original);
 }
 
+template <typename Return = void, typename ...Args>
+inline Return call(uint64 address, Args... args) {
+    return Memory::slid<Return(*)(Args...)>(address)(args...);
+}
+
 }; // namespace Memory
 
 // %hookf equivalent. Creates a struct that contains the new implementation.
 // A single static instance of that struct is then created to run the constructor,
 //  which calls Memory::hook. %orig can be called with 'original'.
 #define hookf(name, addr, impl, ret, ...) typedef ret (*name##_funcptr)( __VA_ARGS__ );                                          \
-struct hookf_##name##_##addr { \
+struct hookf_##name##_ { \
                                       \
             static name##_funcptr original; \
            static ret name( __VA_ARGS__ )     impl                                                                               \
-           hookf_##name##_##addr() noexcept {                                                                                   \
+           hookf_##name##_() noexcept {                                                                                   \
                original = Memory::hook(addr, name); \
            }                                                      \
                                                                  \
 };                                                                       \
-name##_funcptr hookf_##name##_##addr::original; \
- static hookf_##name##_##addr hookf_##name##_##addr##_INSTANCE;
+name##_funcptr hookf_##name##_::original; \
+ static hookf_##name##_ hookf_##name##_##_INSTANCE;
 
 #endif

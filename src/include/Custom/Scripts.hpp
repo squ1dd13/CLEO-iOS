@@ -15,7 +15,7 @@ extern std::vector<std::string> fileNames;
 void load(string_ref scriptDirectory, string_ref configDirectory);
 
 // Stop all scripts and free up resources used by the script system.
-void release();
+void unload();
 
 // Advance scripts.
 void advance();

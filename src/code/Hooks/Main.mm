@@ -3,6 +3,8 @@
  * Everything starts from here.
  */
 
+//#define LOG_OVERLAY
+
 #include <UIKit/UIKit.h>
 #include <Custom/HookObjC.hpp>
 #include <Game/Touch.hpp>
@@ -47,7 +49,7 @@ static UITextView *overlay = nullptr;
 #ifdef LOG_OVERLAY
 - (bool)presentFramebuffer {
     if(overlay && screenLog.updated) {
-        NSMutableString *str = [NSMutableString stringWithString:overlay.text];
+        NSMutableString *str = [NSMutableString stringWithString:@""];
 
         for(const std::string &s : screenLog.log) {
             [str appendFormat:@"%s\n", s.c_str()];
@@ -118,5 +120,5 @@ static UITextView *overlay = nullptr;
 }
 
 @dtor {
-    Scripts::release();
+    Scripts::unload();
 }

@@ -65,13 +65,14 @@ bool processZoneQuery(GameScript *script, int pointIndex = 1) {
 
         bool zoneStatus = Touch::touchAreaPressed(touchZone);
         if(zoneStatus) {
+            screenLog.logf("touch zone %d is pressed", touchZone);
 //            Debug::logf("zone is pressed");
         }
 
         return zoneStatus;
     }
 
-    Debug::logf("ignoring invalid touch zone %d", touchZone);
+    screenLog.logf("ignoring invalid touch zone %d", touchZone);
     return false;
 }
 

@@ -10,7 +10,7 @@
  * It's easier to rename a single field than it is to split an array. I'm lazy.
  */
 class GameScript {
-  public:
+public:
     GameScript *nextScript;
     GameScript *previousScript;
 
@@ -22,20 +22,20 @@ class GameScript {
     uint8 *callStack[8];
     uint16 callStackPos;
 
-  private:
+private:
     uint8 field_0x6A, field_0x6B;
 
-  public:
+public:
     // Unsure about size here (probably really 32 and not 42, but we don't use this ATM anyway).
     uint32 localStorage[42];
 
-  private:
+private:
     uint8 field_0x114;
 
-  public:
+public:
     bool conditionResult;
 
-  private:
+private:
     uint8 field_0x116,
         field_0x117,
         field_0x118,
@@ -43,7 +43,7 @@ class GameScript {
         field_0x11A,
         field_0x11B;
 
-  public:
+public:
     // When the script will next receive focus.
     uint32 activationTime;
 
@@ -51,7 +51,7 @@ class GameScript {
 
     bool invertReturn;
 
-  private:
+private:
     uint8 field_0x123,
         field_0x124,
         field_0x125,
@@ -62,7 +62,7 @@ class GameScript {
         field_0x12A,
         field_0x12B;
 
-  public:
+public:
     bool localStorageIsGlobalStorage;
 
     static GameScript load(const std::string &path);
@@ -76,10 +76,10 @@ class GameScript {
     void *readVariable();
     void handleFlag(int flag);
 
-    void free() const;
-
-  private:
+    void unload() const;
+private:
     static uint64 calculateHandlerOffset(unsigned opcode);
+    GameScript *getAlternateScriptPointer(uint64 handlerOffset);
 } squished;
 
 // Not the real size, but we hardly use any of it anyway.

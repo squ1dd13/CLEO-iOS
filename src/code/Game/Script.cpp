@@ -1,18 +1,18 @@
-#include "Game/Script.hpp"
-#include <cstring>
-#include "Custom/Android.hpp"
 #include <Game/Addresses.hpp>
+#include <Game/Script.hpp>
+#include <Custom/Android.hpp>
 
 namespace Addresses = Memory::Addresses;
 
 GameScript GameScript::load(string_ref path) {
     FILE *scriptFile = std::fopen(path.c_str(), "rb");
 
-    // Get size.
+    // Get the file size.
     std::fseek(scriptFile, 0, SEEK_END);
     long size = std::ftell(scriptFile);
     std::rewind(scriptFile);
 
+    // This gets deleted by GameScript::free.
     auto scriptData = new uint8[size];
     std::fread(scriptData, 1, size, scriptFile);
 
@@ -29,10 +29,6 @@ GameScript GameScript::load(string_ref path) {
     return script;
 }
 
-uint32 GameScript::time() {
-    return Memory::fetch<uint32>(Addresses::scriptTime);
-}
-
 void GameScript::executeBlock() {
     // Each call to executeBlock() executes a block of instructions (duh...).
     // The end of the block is whenever processInstruction() returns a non-zero value.
@@ -43,35 +39,7 @@ void GameScript::executeBlock() {
     } while(!result);
 }
 
-uint64 GameScript::calculateHandlerOffset(unsigned opcode) {
-    // https://repl.it/repls/PeriodicGlitteringSampler#main.py
-    return (uint64((opcode & 0x7fff) * 1374389535llu) >> 33) & 0x3ffffff0;
-}
-
-DeclareFunctionType(OpcodeHandler, uint8, GameScript *, uint16);
-
-// 0x1001df890
-DeclareFunctionType(ProcessBool, void, GameScript *, int);
-void GameScript::handleFlag(int flag) {
-    Memory::slid<ProcessBool>(Addresses::scriptFlagHandler)(this, flag);
-}
-
-DeclareFunctionType(ReadNextArguments, void, GameScript *, uint32);
-void GameScript::readArguments(uint32 count) {
-    Memory::slid<ReadNextArguments>(Addresses::scriptReadNextArgs)(this, count);
-}
-
-DeclareFunctionType(ReadVariable, void *, GameScript *);
-void *GameScript::readVariable() {
-    return Memory::slid<ReadVariable>(Addresses::scriptReadVariable)(this);
-}
-
-// From decompiled code.
-GameScript *getAlternateScriptPointer(GameScript *script, uint64 handlerOffset) {
-    auto handlerTable = Memory::slid<uint64 *>(Addresses::opcodeHandlerTable);
-    return (GameScript *)((long long)&script->nextScript + (*(long long *)((long long)handlerTable + handlerOffset + 8) >> 1));
-}
-
+typedef uint8(*OpcodeHandler)(GameScript *, uint16);
 uint8 GameScript::executeInstruction() {
     uint16 opcodeMask = *(uint16 *)currentPointer;
     currentPointer += 2;
@@ -103,12 +71,39 @@ uint8 GameScript::executeInstruction() {
         uint64 handlerOffset = calculateHandlerOffset(opcode);
         handler = OpcodeHandler(handlerTable[handlerOffset / 8]);
 
-        passedScript = getAlternateScriptPointer(this, handlerOffset);
+        passedScript = getAlternateScriptPointer(handlerOffset);
     }
 
     return handler(passedScript, opcode);
 }
 
-void GameScript::free() const {
+// From decompiled code.
+GameScript *GameScript::getAlternateScriptPointer(uint64 handlerOffset) {
+    auto handlerTable = Memory::slid<uint64 *>(Addresses::opcodeHandlerTable);
+    return (GameScript *)((long long)&this->nextScript + (*(long long *)((long long)handlerTable + handlerOffset + 8) >> 1));
+}
+
+uint32 GameScript::time() {
+    return Memory::fetch<uint32>(Addresses::scriptTime);
+}
+
+uint64 GameScript::calculateHandlerOffset(unsigned opcode) {
+    // https://repl.it/repls/PeriodicGlitteringSampler#main.py
+    return (uint64((opcode & 0x7fff) * 1374389535llu) >> 33) & 0x3ffffff0;
+}
+
+void GameScript::handleFlag(int flag) {
+    Memory::call(Addresses::scriptFlagHandler, this, flag);
+}
+
+void GameScript::readArguments(uint32 count) {
+    Memory::call(Addresses::scriptReadNextArgs, this, count);
+}
+
+void *GameScript::readVariable() {
+    return Memory::call<void *>(Addresses::scriptReadVariable, this);
+}
+
+void GameScript::unload() const {
     delete[] startPointer;
 }

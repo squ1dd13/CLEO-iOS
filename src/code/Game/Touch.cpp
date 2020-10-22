@@ -28,24 +28,7 @@ static HandleTouchFunc origTouch;
 
 static bool screenZones[9] {};
 
-// 0x1004e831c
 // This gets called by the Objective-C touch handler (touchesBegan:withEvent:) on EAGLView.
-void handleTouch_old(float x, float y, TouchStage stage, double time) {
-    int zone = zoneForPoint(x, y);
-    Debug::assertf(0 < zone && zone < 10, "Touch zone range error (%d)! Has the viewport size changed?", zone);
-
-    if(stage == TouchStage::TouchUp) {
-        screenZones[zone] = false;
-    } else {
-        // NOTE: Not sure about Android behaviour for touch zones. Does a TouchMoved event in a zone count if there was no TouchDown?
-        // At the moment, the user has to touch the zone, so sliding your finger between zones won't work.
-        // I'm assuming that's how the Android version behaves.
-        screenZones[zone] |= stage == TouchStage::TouchDown;
-    }
-
-    origTouch(x, y, stage, time);
-}
-
 hookf(handleTouch, 0x1004e831c, {
     int zone = zoneForPoint(x, y);
     Debug::assertf(0 < zone && zone < 10, "Touch zone range error (%d)! Has the viewport size changed?", zone);
@@ -63,7 +46,9 @@ hookf(handleTouch, 0x1004e831c, {
 }, void, float x, float y, TouchStage stage, double time);
 
 bool Touch::touchAreaPressed(int n) {
-    return screenZones[n];
+    bool r = screenZones[n];
+    screenLog.logf("%d is touched? %d", int(r));
+    return r;
 }
 
 void Touch::hook() {
