@@ -7,8 +7,9 @@
 
 #include <UIKit/UIKit.h>
 #include <Custom/HookObjC.hpp>
-#include <Game/Touch.hpp>
+#include <Game/Interface.hpp>
 #include <Util/Macros.hpp>
+#include <Game/Memory.hpp>
 
 // Now we're writing real Objective-C++ rather than Logos.
 // This is good because it means pretty much any program can analyse our code.
@@ -20,6 +21,47 @@ static UITextView *overlay = nullptr;
 // In this case, it means we can use 'self' as a UIView * and not an NSObject *.
 @hookbase(EAGLView, UIView)
 
+void processTouches(UIView *view, NSSet *touches, Interface::Touch::Type type) {
+    if([touches count] == 0) {
+        return;
+    }
+
+    Interface::Touch::beginUpdates();
+    for(UITouch *touch in touches) {
+        auto oldPos = [touch previousLocationInView:view];
+        auto pos = [touch locationInView:view];
+
+        auto oldX = float(oldPos.x * view.layer.contentsScale);
+        auto oldY = float(oldPos.y * view.layer.contentsScale);
+
+        auto x = float(pos.x * view.layer.contentsScale);
+        auto y = float(pos.y * view.layer.contentsScale);
+
+        double time = [touch timestamp];
+
+        Interface::Touch(oldX, oldY, x, y, type, time).handle();
+
+//        Interface::customHandleTouch(oldX, oldY, x, y, type, time);
+//        Memory::call(0x1004e831c, x, y, type, time);
+    }
+}
+
+- (void)touchesBegan:(NSSet *)touches withEvent:(UIEvent *)event {
+    processTouches(self, touches, Interface::Touch::Type::Down);
+}
+
+- (void)touchesMoved:(NSSet<UITouch *> *)touches withEvent:(UIEvent *)event {
+    processTouches(self, touches, Interface::Touch::Type::Moved);
+}
+
+- (void)touchesEnded:(NSSet *)touches withEvent:(UIEvent *)event {
+    processTouches(self, touches, Interface::Touch::Type::Up);
+}
+
+- (void)touchesCancelled:(NSSet *)touches withEvent:(UIEvent *)event {
+    processTouches(self, touches, Interface::Touch::Type::Up);
+}
+
 - (void)createFramebuffer {
     orig();
 
@@ -29,7 +71,7 @@ static UITextView *overlay = nullptr;
         float(self.bounds.size.height * self.layer.contentsScale)
     };
 
-    Touch::setViewportSize(size[0], size[1]);
+    Interface::Touch::setViewportSize(size[0], size[1]);
     Debug::logf("contentsScale = %f", self.layer.contentsScale);
     Debug::logf("VP size is { %f, %f }", size[0], size[1]);
 
@@ -111,11 +153,16 @@ static UITextView *overlay = nullptr;
 
 // TODO: Load scripts in at end of game load sequence (0x100240178).
 
+hookf(loadGame, 0x100240178, {
+    original(datPath);
+    Interface::Touch::interceptTouches = true;
+}, void, char *datPath)
+
 @ctor {
     Debug::logf("ASLR slide is 0x%llx (%llu decimal)", Memory::getASLRSlide(), Memory::getASLRSlide());
 
     Scripts::hook();
-    Touch::hook();
+//    Interface::hook();
     Text::hook();
 }
 

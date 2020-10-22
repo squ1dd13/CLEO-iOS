@@ -1,6 +1,6 @@
 #include "Custom/Android.hpp"
 #include "Game/Memory.hpp"
-#include "Game/Touch.hpp"
+#include "Game/Interface.hpp"
 #include <unordered_map>
 
 template <typename T>
@@ -63,7 +63,7 @@ bool processZoneQuery(GameScript *script, int pointIndex = 1) {
     if(0 < touchZone && touchZone < 10) {
 //        Debug::logf("checking touch zone %d", touchZone);
 
-        bool zoneStatus = Touch::touchAreaPressed(touchZone);
+        bool zoneStatus = Interface::Touch::testZone(touchZone);//Interface::touchAreaPressed(touchZone);
         if(zoneStatus) {
             screenLog.logf("touch zone %d is pressed", touchZone);
 //            Debug::logf("zone is pressed");
