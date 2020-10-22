@@ -13,6 +13,8 @@ This project is in a very early stage of development and is not particularly use
 Build with CMake. You do not need Theos to build this – Logos is not used anywhere. You do need an iOS SDK though. `CMakeLists.txt` gives the path for Xcode's iOS SDK on macOS, but this may differ from the location of your SDK.
 
 ## Known Issues
+* CSiOS is **not compatible with the Odyssey jailbreak**, as it uses Saurik's Cydia Substrate. If CoolStar wants to replace 
+libraries that work completely fine then that's OK. I will not be adding support for Odyssey.
 * Due to the amount of content that Rockstar had to cut from the game to keep it 16-rated in Germany,
 the German game is a separate app from other regions. 
 **As such, CSiOS is currently incompatible with the German game.** This is unlikely to change in the future.
