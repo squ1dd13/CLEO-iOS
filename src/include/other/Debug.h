@@ -6,6 +6,7 @@
 #include <queue>
 #import <sstream>
 #import <fstream>
+#import <cstdio>
 
 #ifndef DEBUG_HEADER
 #define DEBUG_HEADER
@@ -46,10 +47,11 @@ public:
             throw std::runtime_error("Formatting error.");
         }
 
-        std::unique_ptr<char[]> buf(new char[size]);
-        snprintf(buf.get(), size, format.c_str(), args...);
+        char *buf = new char[size];
+        snprintf(buf, size, format.c_str(), args...);
 
-        commit(std::string(buf.get(), buf.get() + size - 1));
+        commit(std::string(buf, buf + size - 1));
+        delete[] buf;
     }
 };
 
@@ -73,6 +75,7 @@ struct Debug {
 #ifdef SHOW_DEBUG_OVERLAY
         logStrings.emplace_back(buf.get(), buf.get() + size - 1);
 #endif
+
         os_log(OS_LOG_DEFAULT, "[CSiOS] %{public}s", std::string(buf.get(), buf.get() + size - 1).c_str());
     }
 

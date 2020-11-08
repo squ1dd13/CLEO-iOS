@@ -1,4 +1,4 @@
-#include "Game/Text.hpp"
+#include "shared/Text.h"
 #include <codecvt>
 #include <fstream>
 #include <iostream>

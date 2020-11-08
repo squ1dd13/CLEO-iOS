@@ -1,6 +1,6 @@
-#include "Custom/Android.hpp"
-#include "Game/Memory.hpp"
-#include "Game/Interface.hpp"
+#include "scripts/Android.h"
+#include "shared/Memory.h"
+#include "shared/Interface.h"
 #include <unordered_map>
 
 template <typename T>
@@ -28,7 +28,7 @@ static std::unordered_map<uint16, Android::Implementation> implementations {
 };
 
 #define InstructionStub(func) \
-    void func(GameScript *script) { Debug::logf("Warning: %s is a stub. Expect a crash...", __func__); }
+    void func(Script *script) { Debug::logf("Warning: %s is a stub. Expect a crash...", __func__); }
 
 InstructionStub(Android::getLabelAddress);
 InstructionStub(Android::getFunctionAddressByName);
@@ -42,8 +42,8 @@ InstructionStub(Android::writeMemory);
 
 static std::unordered_map<uint32, uint32> mutexVars {};
 
-void Android::setMutexVar(GameScript *script) {
-    script->readArguments(2);
+void Android::setMutexVar(Script *script) {
+    script->ReadValueArgs(2);
 
     uint32 *args = getArgumentsArray<uint32>();
 
@@ -53,39 +53,31 @@ void Android::setMutexVar(GameScript *script) {
 
 InstructionStub(Android::getMutexVar);
 
-bool processZoneQuery(GameScript *script, int pointIndex = 1) {
+bool processZoneQuery(Script *script, int pointIndex = 1) {
     // Touch zone check.
-    script->readArguments(2);
+    script->ReadValueArgs(2);
 
     // 0x1007ad690 is the argument list address.
     int touchZone = Memory::slid<int *>(0x1007ad690)[pointIndex];
 
     if(0 < touchZone && touchZone < 10) {
-//        Debug::logf("checking touch zone %d", touchZone);
-
-        bool zoneStatus = Interface::Touch::testZone(touchZone);//Interface::touchAreaPressed(touchZone);
-        if(zoneStatus) {
-            screenLog.logf("touch zone %d is pressed", touchZone);
-//            Debug::logf("zone is pressed");
-        }
-
-        return zoneStatus;
+        return Interface::Touch::testZone(touchZone);
     }
 
     screenLog.logf("ignoring invalid touch zone %d", touchZone);
     return false;
 }
 
-void Android::checkButtonPressed(GameScript *script) {
-    script->handleFlag(processZoneQuery(script));
+void Android::checkButtonPressed(Script *script) {
+    script->UpdateBoolean(processZoneQuery(script));
 }
 
-void Android::checkButtonNotPressed(GameScript *script) {
-    script->handleFlag(!processZoneQuery(script));
+void Android::checkButtonNotPressed(Script *script) {
+    script->UpdateBoolean(!processZoneQuery(script));
 }
 
-void Android::getTouchPointState(GameScript *script) {
-    int *destination = (int *)(script->readVariable());
+void Android::getTouchPointState(Script *script) {
+    int *destination = (int *)(script->ReadVariableArg());
     *destination = processZoneQuery(script, 0);
 }
 

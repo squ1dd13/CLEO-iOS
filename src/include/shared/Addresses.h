@@ -2,10 +2,10 @@
 // Created on 21/10/2020.
 //
 
-#ifndef CSIOS_CMAKE_ADDRESSES_HPP
-#define CSIOS_CMAKE_ADDRESSES_HPP
+#ifndef CSIOS_CMAKE_ADDRESSES_H
+#define CSIOS_CMAKE_ADDRESSES_H
 
-#include "Memory.hpp"
+#include "shared/Memory.h"
 #define NameAddress(address, name) constexpr unsigned long long name = address
 
 // Using Memory::Addresses to get memory addresses is longer to type,
@@ -29,4 +29,4 @@ NameAddress(0x1004e831c, handleTouch);
 
 }
 
-#endif //CSIOS_CMAKE_ADDRESSES_HPP
+#endif //CSIOS_CMAKE_ADDRESSES_H

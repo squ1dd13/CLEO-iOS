@@ -1,7 +1,7 @@
 #ifndef TEXT_HEADER
 #define TEXT_HEADER
 
-#include "Memory.hpp"
+#include "shared/Memory.h"
 #include <unordered_map>
 
 namespace Text {

@@ -4,7 +4,7 @@
 #include <iostream>
 #include <set>
 #include <Foundation/Foundation.h>
-#include <Custom/HookObjC.hpp>
+#include "other/HookObjC.h"
 
 // Finds the original implementation of the method and calls it.
 void *callOrig(SEL hookedSelector, id target, ...) {

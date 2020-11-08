@@ -6,10 +6,11 @@
 //#define LOG_OVERLAY
 
 #include <UIKit/UIKit.h>
-#include <Custom/HookObjC.hpp>
-#include <Game/Interface.hpp>
-#include <Util/Macros.hpp>
-#include <Game/Memory.hpp>
+#include "other/HookObjC.h"
+#include "shared/Interface.h"
+#include "other/Macros.h"
+#include "shared/Memory.h"
+#include "shared/Text.h"
 
 // Now we're writing real Objective-C++ rather than Logos.
 // This is good because it means pretty much any program can analyse our code.
@@ -40,9 +41,6 @@ void processTouches(UIView *view, NSSet *touches, Interface::Touch::Type type) {
         double time = [touch timestamp];
 
         Interface::Touch(oldX, oldY, x, y, type, time).handle();
-
-//        Interface::customHandleTouch(oldX, oldY, x, y, type, time);
-//        Memory::call(0x1004e831c, x, y, type, time);
     }
 }
 
@@ -148,24 +146,21 @@ void processTouches(UIView *view, NSSet *touches, Interface::Touch::Type type) {
 
 @end
 
-#include "Custom/Scripts.hpp"
-#include "Game/Text.hpp"
-
-// TODO: Load scripts in at end of game load sequence (0x100240178).
+#include "scripts/ScriptManager.h"
 
 hookf(loadGame, 0x100240178, {
     original(datPath);
+
     Interface::Touch::interceptTouches = true;
+    ScriptManager::Init();
 }, void, char *datPath)
 
 @ctor {
     Debug::logf("ASLR slide is 0x%llx (%llu decimal)", Memory::getASLRSlide(), Memory::getASLRSlide());
 
-    Scripts::hook();
-//    Interface::hook();
     Text::hook();
 }
 
 @dtor {
-    Scripts::unload();
+    ScriptManager::UnloadAll();
 }

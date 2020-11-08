@@ -1,7 +1,7 @@
 #ifndef TOUCH_HEADER
 #define TOUCH_HEADER
 
-#include <Core.hpp>
+#include <Core.h>
 
 namespace Interface {
 

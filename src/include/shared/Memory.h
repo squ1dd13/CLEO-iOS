@@ -1,10 +1,11 @@
 #ifndef GAME_MEMORY
 #define GAME_MEMORY
 
-#include "Core.hpp"
+#include "Core.h"
 #include <mach-o/dyld.h>
 #include <mach/mach.h>
 #include <memory>
+#include "other/Substrate.h"
 
 namespace Memory {
 
