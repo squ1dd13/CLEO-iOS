@@ -36,13 +36,13 @@ inline bool write(AddressType addr, DataPointer data, size_t length) {
     kern_return_t kernelReturn = vm_protect(port, dest, length, false, VM_PROT_READ | VM_PROT_WRITE | VM_PROT_COPY);
 
     if(kernelReturn != KERN_SUCCESS) {
-        Debug::logf("vm_protect failure (%d)", kernelReturn);
+        Log::Print("vm_protect failure (%d)", kernelReturn);
         return false;
     }
 
     kernelReturn = vm_write(port, dest, vm_address_t(data), length);
     if(kernelReturn != KERN_SUCCESS) {
-        Debug::logf("vm_write failure (%d)", kernelReturn);
+        Log::Print("vm_write failure (%d)", kernelReturn);
         return false;
     }
 
@@ -69,7 +69,7 @@ inline Return call(uint64 address, Args... args) {
 // %hookf equivalent. Creates a struct that contains the new implementation.
 // A single static instance of that struct is then created to run the constructor,
 //  which calls Memory::hook. %orig can be called with 'original'.
-#define hookf(name, addr, impl, ret, ...) typedef ret (*name##_funcptr)( __VA_ARGS__ );                                          \
+#define HookFunction(name, addr, impl, ret, ...) typedef ret (*name##_funcptr)( __VA_ARGS__ );                                          \
 struct hookf_##name##_ { \
                                       \
             static name##_funcptr original; \

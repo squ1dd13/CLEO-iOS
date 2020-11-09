@@ -57,7 +57,7 @@ void ScriptManager::AdvanceScripts() {
     }
 }
 
-hookf(advanceGameScripts, Memory::Addresses::advanceGameScripts, {
+HookFunction(advanceGameScripts, Memory::Addresses::advanceGameScripts, {
     // Every time the game advances its scripts, we advance our own.
     ScriptManager::AdvanceScripts();
 

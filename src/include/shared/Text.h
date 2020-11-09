@@ -24,6 +24,8 @@ const char *registered(string_ref key, string_ref value);
 // For CLEO FXT files.
 void loadFXT(string_ref path);
 
+std::string forceASCII(const char *s);
+
 void hook();
 
 };

@@ -28,7 +28,7 @@ static std::unordered_map<uint16, Android::Implementation> implementations {
 };
 
 #define InstructionStub(func) \
-    void func(Script *script) { Debug::logf("Warning: %s is a stub. Expect a crash...", __func__); }
+    void func(Script *script) { /* Log::Print("Warning: %s is a stub. Expect a crash...", __func__); */ }
 
 InstructionStub(Android::getLabelAddress);
 InstructionStub(Android::getFunctionAddressByName);
@@ -47,7 +47,7 @@ void Android::setMutexVar(Script *script) {
 
     uint32 *args = getArgumentsArray<uint32>();
 
-//    Debug::logf("setMutexVar(value: %d, to: %d)", args[0], args[1]);
+//    Log::Print("setMutexVar(value: %d, to: %d)", args[0], args[1]);
     mutexVars[args[0]] = args[1];
 }
 
@@ -64,7 +64,7 @@ bool processZoneQuery(Script *script, int pointIndex = 1) {
         return Interface::Touch::testZone(touchZone);
     }
 
-    screenLog.logf("ignoring invalid touch zone %d", touchZone);
+    Log::Print("ignoring invalid touch zone %d", touchZone);
     return false;
 }
 

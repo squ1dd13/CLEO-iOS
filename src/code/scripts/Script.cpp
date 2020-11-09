@@ -20,12 +20,12 @@ Script::Script(const std::string &path) {
 
     auto size = st.st_size;
 
-    screenLog.logf("loading %s", path.c_str());
+    Log::Print("loading %s", path.c_str());
 
     std::FILE *scriptFile = std::fopen(path.c_str(), "rb");
 
     if (!scriptFile) {
-        screenLog.logf("failed to load script %s (unable to open file)", path.c_str());
+        Log::Print("failed to load script %s (unable to open file)", path.c_str());
     }
 
     // If we don't set activationTime to 0, it will get some junk value that may delay the script's launch.

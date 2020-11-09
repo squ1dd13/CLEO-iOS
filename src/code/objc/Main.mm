@@ -3,10 +3,8 @@
  * Everything starts from here.
  */
 
-//#define LOG_OVERLAY
-
 #include <UIKit/UIKit.h>
-#include "other/HookObjC.h"
+#include "other/Hook.h"
 #include "shared/Interface.h"
 #include "other/Macros.h"
 #include "shared/Memory.h"
@@ -70,8 +68,6 @@ void processTouches(UIView *view, NSSet *touches, Interface::Touch::Type type) {
     };
 
     Interface::Touch::setViewportSize(size[0], size[1]);
-    Debug::logf("contentsScale = %f", self.layer.contentsScale);
-    Debug::logf("VP size is { %f, %f }", size[0], size[1]);
 
 #ifdef LOG_OVERLAY
     if(!overlay) {
@@ -88,14 +84,14 @@ void processTouches(UIView *view, NSSet *touches, Interface::Touch::Type type) {
 
 #ifdef LOG_OVERLAY
 - (bool)presentFramebuffer {
-    if(overlay && screenLog.updated) {
+    if(overlay && Log::updated) {
         NSMutableString *str = [NSMutableString stringWithString:@""];
 
-        for(const std::string &s : screenLog.log) {
+        for(const std::string &s : Log::log) {
             [str appendFormat:@"%s\n", s.c_str()];
         }
 
-        screenLog.updated = false;
+        Log::updated = false;
 
         overlay.text = str;
 
@@ -116,8 +112,6 @@ void processTouches(UIView *view, NSSet *touches, Interface::Touch::Type type) {
 
 // We hook here to display the "CSiOS" splash screen.
 - (void)viewDidLoad {
-    Debug::logf("Showing splash screen");
-
     UILabel *customLabel = [[UILabel alloc] initWithFrame:self.view.bounds];
     customLabel.text = @"CSiOS";
     customLabel.textColor = [UIColor whiteColor];
@@ -133,7 +127,6 @@ void processTouches(UIView *view, NSSet *touches, Interface::Touch::Type type) {
     customLabel.alpha = 1.f;
 
     [UIView animateWithDuration:0.2 delay:1.0 options:UIViewAnimationOptionCurveEaseIn animations:^{
-        Debug::logf("Showing splash screen");
         customLabel.alpha = 0.0f;
     } completion:^(BOOL finished) {
         customLabel.hidden = true;
@@ -148,7 +141,7 @@ void processTouches(UIView *view, NSSet *touches, Interface::Touch::Type type) {
 
 #include "scripts/ScriptManager.h"
 
-hookf(loadGame, 0x100240178, {
+HookFunction(loadGame, 0x100240178, {
     original(datPath);
 
     Interface::Touch::interceptTouches = true;
@@ -156,7 +149,7 @@ hookf(loadGame, 0x100240178, {
 }, void, char *datPath)
 
 @ctor {
-    Debug::logf("ASLR slide is 0x%llx (%llu decimal)", Memory::getASLRSlide(), Memory::getASLRSlide());
+    Log::Print("ASLR slide is 0x%llx (%llu decimal)", Memory::getASLRSlide(), Memory::getASLRSlide());
 
     Text::hook();
 }

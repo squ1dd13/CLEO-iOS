@@ -28,7 +28,7 @@ std::string Text::registerString(const std::string &value) {
 DeclareFunctionType(GetGameStringFunc, const char16 *, void *, const char *);
 static void *textObject = Memory::slid<void *>(0x1008f5690);
 
-std::string forceASCII(const char *s) {
+std::string Text::forceASCII(const char *s) {
     std::stringstream stream;
 
     while(*s) {
@@ -99,7 +99,7 @@ void Text::loadFXT(string_ref path) {
         auto firstSpaceIter = std::find_if(fxtLine.begin(), fxtLine.end(), ::isspace);
         if(firstSpaceIter == fxtLine.end()) {
             // The game will crash later, so we don't need to worry about that now.
-            Debug::logf("error: FXT entry must have at least 1 separating space. (Line is '%s')", fxtLine.c_str());
+            Log::Print("error: FXT entry must have at least 1 separating space. (Line is '%s')", fxtLine.c_str());
             continue;
         }
 
@@ -107,20 +107,19 @@ void Text::loadFXT(string_ref path) {
         skipLeadingSpaces(valueStr);
 
         if(valueStr.empty()) {
-            Debug::logf("error: FXT value must not be empty. Set value will be '<empty>'. (Line is '%s')", fxtLine.c_str());
+            Log::Print("error: FXT value must not be empty. Set value will be '<empty>'. (Line is '%s')", fxtLine.c_str());
             valueStr = "<empty>";
         }
 
         std::string keyStr(fxtLine.begin(), firstSpaceIter);
         if(keyStr.empty()) {
             // This shouldn't actually happen.
-            Debug::logf("error: FXT key must not be empty. (Line is '%s')", fxtLine.c_str());
+            Log::Print("error: FXT key must not be empty. (Line is '%s')", fxtLine.c_str());
             continue;
         }
 
         valueStr = valueStr.substr(0, valueStr.find_first_of("\r\n"));
 
-        Debug::logf("(FXT) '%s' -> '%s'", keyStr.c_str(), valueStr.c_str());
         setGameString(keyStr, valueStr);
     }
 }
@@ -139,7 +138,7 @@ string16 getGameStringHook(void *self, const char *key) {
 
     auto ret = originalGetGameString(textObject, key);
 
-    // Debug::logf("'%s' --> '%s'", key, forceASCII((const char *)ret).c_str());
+    // Log::Print("'%s' --> '%s'", key, forceASCII((const char *)ret).c_str());
 
     return ret;
 }

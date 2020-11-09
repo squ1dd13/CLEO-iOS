@@ -91,7 +91,7 @@ void CdStreamThread(void *) {
     auto streamingBufferSize = Memory::fetch<uint32>(0x10072d320);
     void *streamingBuffer = Memory::fetch<void *>(0x10072d328);
 
-    screenLog.logf("Stream thread running");
+    Log::Print("Stream thread running");
 
     while (true) {
         dispatch_semaphore_wait(*semaphore, DISPATCH_TIME_FOREVER);
@@ -113,9 +113,9 @@ void CdStreamThread(void *) {
 
                 file = fopen("/var/mobile/Documents/clover.dff", "rb");
                 if (!file) {
-                    screenLog.logf("file did not open");
+                    Log::Print("file did not open");
                 } else {
-                    screenLog.logf("file opened, len = %d", len);
+                    Log::Print("file opened, len = %d", len);
                 }
 
                 int err = ReadBytes((FILE *) &file, stream->buffer, len);
@@ -130,7 +130,7 @@ void CdStreamThread(void *) {
             }
 
             if (stream->errorCode) {
-                screenLog.logf("stream read error!");
+                Log::Print("stream read error!");
             }
         }
 
@@ -155,6 +155,6 @@ void CdStreamThread(void *) {
     }
 }
 
-hookf(StreamingThread, 0x100177dac, {
+HookFunction(StreamingThread, 0x100177dac, {
     CdStreamThread(x);
 }, void, void *x);

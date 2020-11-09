@@ -26,6 +26,4 @@ public:
     HookManager::hookClassObjC(macro_tostr(zzzHook_##classname), #classname, false);\
 }
 
-// TODO: Add %hookf stuff here.
-
 #endif
