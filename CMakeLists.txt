@@ -1,4 +1,8 @@
 cmake_minimum_required(VERSION 3.17)
+
+set(CMAKE_C_COMPILER_WORKS 1)
+set(CMAKE_CXX_COMPILER_WORKS 1)
+
 project(csios-cmake CXX C)
 
 set(CMAKE_CXX_STANDARD 20)
@@ -6,7 +10,8 @@ set(CMAKE_CXX_STANDARD 20)
 set(iOS_TOOLCHAIN_BASE /home/squ1dd13/Documents/Projects/iOS-Toolchain/alternative/ios-arm64e-clang-toolchain)
 set(iOS_SDK_BASE /home/squ1dd13/Documents/Projects/iOS-Toolchain/SDK/iPhoneOS.sdk)
 
-include_directories(${CMAKE_CURRENT_SOURCE_DIR}/src/include)
+include_directories(${CMAKE_CURRENT_SOURCE_DIR}/src)
+include_directories(${CMAKE_CURRENT_SOURCE_DIR}/lib)
 
 include(meta/Core.cmake)
 
@@ -20,7 +25,7 @@ file(GLOB_RECURSE SOURCE_FILES
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-format-security -fobjc-abi-version=2 -fobjc-arc -o CSiOS.dylib")
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-format-security -fobjc-abi-version=2 -fobjc-arc -o CSiOS.dylib")
 
-add_library(csios-cmake SHARED ${SOURCE_FILES} src/include/other/Macros.h src/include/other/RenderWare.h src/code/shared/RenderWare.cpp src/code/scripts/ScriptManager.cpp src/include/scripts/ScriptManager.h src/code/scripts/Script.cpp src/include/scripts/Script.h src/code/shared/UserFolder.cpp src/include/shared/UserFolder.h src/code/mods/TextureHook.cpp src/include/mods/TextureHook.h src/code/mods/StreamHook.cpp src/include/mods/StreamHook.h src/code/shared/Debug.cpp)
+add_library(csios-cmake SHARED ${SOURCE_FILES} src/Macros.h src/RenderWare.h src/shared/RenderWare.cpp src/scripts/ScriptManager.cpp src/scripts/ScriptManager.h src/scripts/Script.cpp src/scripts/Script.h src/shared/UserFolder.cpp src/shared/UserFolder.h src/mods/TextureHook.cpp src/mods/TextureHook.h src/mods/StreamHook.cpp src/mods/StreamHook.h src/shared/Debug.cpp)
 
 message(${CMAKE_CXX_COMPILER})
 
@@ -49,6 +54,6 @@ set_target_properties(csios-cmake PROPERTIES
 )
 
 add_custom_command(TARGET csios-cmake POST_BUILD
-    COMMAND /bin/bash ${CMAKE_CURRENT_SOURCE_DIR}/package.sh CSiOS
+    COMMAND zsh ${CMAKE_CURRENT_SOURCE_DIR}/package.sh CSiOS
     WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
 )

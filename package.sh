@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/zsh
 # Takes 1 argument: the name of the output .dylib (but without the .dylib extension).
 
 echo_progress() {
@@ -30,20 +30,13 @@ dylibPath="./out/package/Library/MobileSubstrate/DynamicLibraries/$1.dylib"
 if ! command_exists codesign; then
   echo_progress "'codesign' not found. Trying 'ldid'..."
 
-  if ! command_exists ldid; then
-    echo "Error: No codesigning utility found."
-    exit 1
-  fi
-
-  ldid -S "$dylibPath"
+  # NOTE: This path is specific to me, so you will almost certainly have to change it.
+  /home/squ1dd13/Documents/Projects/iOS-Toolchain/alternative/ios-arm64e-clang-toolchain/bin/ldid -S "$dylibPath" || exit
 else
   codesign --force -s - "$dylibPath"
 fi
 
-# If we don't chmod the dylib with +x, it won't work.
-# Here we just set the permissions/owners to something 'normal'.
 chmod 0755 "$dylibPath"
-chown root:staff "$dylibPath"
 
 echo_progress "Packaging..."
 
@@ -53,7 +46,7 @@ dpkg-deb -Z gzip -b ./out/package ./out/package.deb
 
 echo_progress "Installing..."
 
-ssh_ip=iP8 #192.168.1.94 #$iP8
+ssh_ip=192.168.1.226
 
 # EXTRA: Install the .deb file to a device.
 scp "./out/package.deb" root@$ssh_ip:/User/Downloads/package.deb
