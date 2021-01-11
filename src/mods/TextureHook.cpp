@@ -271,8 +271,8 @@ struct TextureDatabaseRuntime {
 
 HookFunction(GetPNGFilename, 0x100133ed0, {
     auto r = original(a, b);
-    Log::Print("GetPNGFilename(%s) = %s", a, b);
-    Log::Print("*TDbR = %s", a);
+    Log("GetPNGFilename(%s) = %s", a, b);
+    Log("*TDbR = %s", a);
 
     std::strcpy(b, "/var/containers/Bundle/Application/467DA83E-6A0F-42F4-A712-3245F846E4CF/gta3sa.app/rockstar.png");
     return strlen(b);
@@ -289,7 +289,7 @@ HookFunction(TDbR_LFT, 0x100130368, {
             raster->palette[0] = 0;
         }
         if (raster && raster->originalPixels && raster->palette) {
-            Log::Print("messing with pixels");
+            Log("messing with pixels");
 
             for (unsigned i = 0; i < raster->originalWidth * raster->originalHeight; i += 2) {
                 raster->originalPixels[i] = raster->palette[0];
@@ -301,6 +301,6 @@ HookFunction(TDbR_LFT, 0x100130368, {
 }, void *, TextureDatabaseRuntime *self, uint32 index);
 
 HookFunction(TDbR_Load, 0x100131fd4, {
-    Log::Print("TDbR::Load(%s, %u, %u)", p1, p2, p3);
+    Log("TDbR::Load(%s, %u, %u)", p1, p2, p3);
     return original(p1, p2, p3);
 }, void *, char *p1, uint32 p2, uint32 p3);

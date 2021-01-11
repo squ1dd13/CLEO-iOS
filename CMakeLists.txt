@@ -53,7 +53,7 @@ set_target_properties(csios-cmake PROPERTIES
     OUTPUT_NAME "CSiOS"
 )
 
-add_custom_command(TARGET csios-cmake POST_BUILD
-    COMMAND zsh ${CMAKE_CURRENT_SOURCE_DIR}/package.sh CSiOS
-    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-)
+#add_custom_command(TARGET csios-cmake POST_BUILD
+#    COMMAND zsh ${CMAKE_CURRENT_SOURCE_DIR}/package.sh CSiOS
+#    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+#)

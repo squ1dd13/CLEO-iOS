@@ -151,7 +151,7 @@ HookFunction(loadGame, 0x100240178, {
 }, void, char *datPath)
 
 @ctor {
-    Log::Print("ASLR slide is 0x%llx (%llu decimal)", Memory::getASLRSlide(), Memory::getASLRSlide());
+    Log("ASLR slide is 0x%llx (%llu decimal)", Memory::getASLRSlide(), Memory::getASLRSlide());
 
     Text::hook();
 }

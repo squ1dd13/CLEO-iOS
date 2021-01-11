@@ -36,13 +36,37 @@ namespace Memory {
         kern_return_t kernelReturn = vm_protect(port, dest, length, false, VM_PROT_READ | VM_PROT_WRITE | VM_PROT_COPY);
 
         if (kernelReturn != KERN_SUCCESS) {
-            Log::Print("vm_protect failure (%d)", kernelReturn);
+            // https://stackoverflow.com/a/26221725/8622854
+            Log("vm_protect failure (%d)", kernelReturn);
+//        size_t size = (size_t)std::snprintf(nullptr, 0, format.c_str(), args...) + 1;
+//
+//        if (size <= 0) {
+//            throw std::runtime_error("Formatting error.");
+//        }
+//
+//        char *buf = new char[size];
+//        snprintf(buf, size, format.c_str(), args...);
+//
+//        Commit(std::string(buf, buf + size - 1));
+//        delete[] buf;
             return false;
         }
 
         kernelReturn = vm_write(port, dest, vm_address_t(data), length);
         if (kernelReturn != KERN_SUCCESS) {
-            Log::Print("vm_write failure (%d)", kernelReturn);
+            // https://stackoverflow.com/a/26221725/8622854
+            Log("vm_write failure (%d)", kernelReturn);
+//        size_t size = (size_t)std::snprintf(nullptr, 0, format.c_str(), args...) + 1;
+//
+//        if (size <= 0) {
+//            throw std::runtime_error("Formatting error.");
+//        }
+//
+//        char *buf = new char[size];
+//        snprintf(buf, size, format.c_str(), args...);
+//
+//        Commit(std::string(buf, buf + size - 1));
+//        delete[] buf;
             return false;
         }
 

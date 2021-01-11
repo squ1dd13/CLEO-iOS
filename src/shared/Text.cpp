@@ -101,7 +101,18 @@ void Text::loadFXT(string_ref path) {
         auto firstSpaceIter = std::find_if(fxtLine.begin(), fxtLine.end(), ::isspace);
         if (firstSpaceIter == fxtLine.end()) {
             // The game will crash later, so we don't need to worry about that now.
-            Log::Print("error: FXT entry must have at least 1 separating space. (Line is '%s')", fxtLine.c_str());
+            Log("error: FXT entry must have at least 1 separating space. (Line is '%s')", fxtLine.c_str());
+//        size_t size = (size_t)std::snprintf(nullptr, 0, format.c_str(), args...) + 1;
+//
+//        if (size <= 0) {
+//            throw std::runtime_error("Formatting error.");
+//        }
+//
+//        char *buf = new char[size];
+//        snprintf(buf, size, format.c_str(), args...);
+//
+//        Commit(std::string(buf, buf + size - 1));
+//        delete[] buf;
             continue;
         }
 
@@ -109,15 +120,36 @@ void Text::loadFXT(string_ref path) {
         skipLeadingSpaces(valueStr);
 
         if (valueStr.empty()) {
-            Log::Print(
-                "error: FXT value must not be empty. Set value will be '<empty>'. (Line is '%s')", fxtLine.c_str());
+            Log("error: FXT value must not be empty. Set value will be '<empty>'. (Line is '%s')", fxtLine.c_str());
+//        size_t size = (size_t)std::snprintf(nullptr, 0, format.c_str(), args...) + 1;
+//
+//        if (size <= 0) {
+//            throw std::runtime_error("Formatting error.");
+//        }
+//
+//        char *buf = new char[size];
+//        snprintf(buf, size, format.c_str(), args...);
+//
+//        Commit(std::string(buf, buf + size - 1));
+//        delete[] buf;
             valueStr = "<empty>";
         }
 
         std::string keyStr(fxtLine.begin(), firstSpaceIter);
         if (keyStr.empty()) {
             // This shouldn't actually happen.
-            Log::Print("error: FXT key must not be empty. (Line is '%s')", fxtLine.c_str());
+            Log("error: FXT key must not be empty. (Line is '%s')",  fxtLine.c_str());
+//        size_t size = (size_t)std::snprintf(nullptr, 0, format.c_str(), args...) + 1;
+//
+//        if (size <= 0) {
+//            throw std::runtime_error("Formatting error.");
+//        }
+//
+//        char *buf = new char[size];
+//        snprintf(buf, size, format.c_str(), args...);
+//
+//        Commit(std::string(buf, buf + size - 1));
+//        delete[] buf;
             continue;
         }
 
@@ -141,7 +173,7 @@ string16 getGameStringHook(void *self, const char *key) {
 
     auto ret = originalGetGameString(textObject, key);
 
-    // Log::Print("'%s' --> '%s'", key, forceASCII((const char *)ret).c_str());
+    // Log("'%s' --> '%s'", key, forceASCII((const char *)ret).c_str());
 
     return ret;
 }

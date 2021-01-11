@@ -28,7 +28,7 @@ static std::unordered_map<uint16, Android::Implementation> implementations {
 };
 
 #define InstructionStub(func) \
-    void func(Script *script) { /* Log::Print("Warning: %s is a stub. Expect a crash...", __func__); */ }
+    void func(Script *script) { /* Log("Warning: %s is a stub. Expect a crash...", __func__); */ }
 
 InstructionStub(Android::getLabelAddress);
 
@@ -55,7 +55,7 @@ void Android::setMutexVar(Script *script) {
 
     uint32 *args = getArgumentsArray<uint32>();
 
-//    Log::Print("setMutexVar(value: %d, to: %d)", args[0], args[1]);
+//    Log("setMutexVar(value: %d, to: %d)", args[0], args[1]);
     mutexVars[args[0]] = args[1];
 }
 
@@ -72,7 +72,19 @@ bool processZoneQuery(Script *script, int pointIndex = 1) {
         return Interface::Touch::testZone(touchZone);
     }
 
-    Log::Print("ignoring invalid touch zone %d", touchZone);
+    // https://stackoverflow.com/a/26221725/8622854
+    Log("ignoring invalid touch zone %d", touchZone);
+//        size_t size = (size_t)std::snprintf(nullptr, 0, format.c_str(), args...) + 1;
+//
+//        if (size <= 0) {
+//            throw std::runtime_error("Formatting error.");
+//        }
+//
+//        char *buf = new char[size];
+//        snprintf(buf, size, format.c_str(), args...);
+//
+//        Commit(std::string(buf, buf + size - 1));
+//        delete[] buf;
     return false;
 }
 

@@ -20,12 +20,34 @@ Script::Script(const std::string &path) {
 
     auto size = st.st_size;
 
-    Log::Print("loading %s", path.c_str());
+    Log("loading %s", path.c_str());
+//        size_t size = (size_t)std::snprintf(nullptr, 0, format.c_str(), args...) + 1;
+//
+//        if (size <= 0) {
+//            throw std::runtime_error("Formatting error.");
+//        }
+//
+//        char *buf = new char[size];
+//        snprintf(buf, size, format.c_str(), args...);
+//
+//        Commit(std::string(buf, buf + size - 1));
+//        delete[] buf;
 
     std::FILE *scriptFile = std::fopen(path.c_str(), "rb");
 
     if (!scriptFile) {
-        Log::Print("failed to load script %s (unable to open file)", path.c_str());
+        Log("failed to load script %s (unable to open file)", path.c_str());
+//        size_t size = (size_t)std::snprintf(nullptr, 0, format.c_str(), args...) + 1;
+//
+//        if (size <= 0) {
+//            throw std::runtime_error("Formatting error.");
+//        }
+//
+//        char *buf = new char[size];
+//        snprintf(buf, size, format.c_str(), args...);
+//
+//        Commit(std::string(buf, buf + size - 1));
+//        delete[] buf;
     }
 
     // If we don't set activationTime to 0, it will get some junk value that may delay the script's launch.
