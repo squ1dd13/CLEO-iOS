@@ -114,6 +114,8 @@ struct {
 
     if (IsMenuSwipe(EAGLViewProperties.touch, endTouch)) {
         LogImportant("Activate menu!");
+
+        // TODO: Present a script menu.
     }
 
     processTouches(self, touches, Interface::Touch::Type::Up);
@@ -155,15 +157,32 @@ struct {
     customLabel.hidden = false;
     customLabel.alpha = 1.f;
 
-    [UIView animateWithDuration:0.2 delay:1.0 options:UIViewAnimationOptionCurveEaseIn animations:^{
+    orig();
+
+    // Start the legal text at 0 alpha.
+    for (UIView *v in self.view.subviews) {
+        v.alpha = 0.0f;
+    }
+
+    [self.view addSubview:customLabel];
+
+    // Show "Zinc" for 1 second and then fade out over 0.5 seconds.
+    [UIView animateWithDuration:0.5 delay:1 options:UIViewAnimationOptionCurveEaseIn animations:^{
         customLabel.alpha = 0.0f;
+
+        // Scale up the "Zinc" text slightly as we fade it out.
+        customLabel.transform = CGAffineTransformScale(customLabel.transform, 2, 2);
     } completion:^(BOOL finished) {
         customLabel.hidden = true;
         [customLabel removeFromSuperview];
-    }];
 
-    orig();
-    [self.view addSubview:customLabel];
+        // Fade the legal text in.
+        [UIView animateWithDuration:0.3 animations:^{
+            for (UIView *v in self.view.subviews) {
+                v.alpha = 1.0f;
+            }
+        }];
+    }];
 }
 
 @end

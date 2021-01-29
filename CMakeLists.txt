@@ -42,6 +42,7 @@ set_target_properties(substrate PROPERTIES
 target_link_libraries(zinc
     "-framework UIKit"
     "-framework Foundation"
+    "-framework CoreGraphics"
     substrate
     -dylib
     )

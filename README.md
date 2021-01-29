@@ -49,7 +49,6 @@ work.
 
 ## Known Issues
 
-* Zinc is **not compatible with the Odyssey jailbreak**, as it uses Saurik's Cydia Substrate. If CoolStar wants to
-  replace libraries that work completely fine then that's OK. I will not be adding support for Odyssey.
+* Zinc is **not compatible with the Odyssey jailbreak**, as it uses Saurik's Cydia Substrate.
 * Android's `0DD1` opcode (`GetFuncAddrByCStrName`) cannot be implemented because the symbols have been stripped from
   the iOS version of the game.
