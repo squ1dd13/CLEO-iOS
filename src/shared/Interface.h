@@ -9,12 +9,8 @@ namespace Interface {
         static int calculateZone(float x, float y);
         static void updateZone(int n, bool b);
 
-    public:
-        enum class Type : uint64 {
-            Up = 0,
-            Down = 2,
-            Moved = 3
-        } change;
+      public:
+        enum class Type : uint64 { Up = 0, Down = 2, Moved = 3 } change;
 
         float srcX, srcY;
         float destX, destY;

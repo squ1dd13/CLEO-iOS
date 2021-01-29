@@ -4,6 +4,4 @@
 
 #pragma once
 
-class StreamHook {
-};
-
+class StreamHook {};

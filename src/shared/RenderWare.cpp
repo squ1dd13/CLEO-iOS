@@ -3,8 +3,9 @@
 //
 // RW function implementations.
 
-#include "Memory.h"
 #include "RenderWare.h"
+
+#include "Memory.h"
 
 RwTexture *RwTextureCreate(RwRaster *raster) {
     return Memory::call<RwTexture *>(0x1000fce78, raster);

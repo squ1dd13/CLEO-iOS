@@ -1,9 +1,9 @@
-Package: com.squ1dd13.csios
-Name: CSiOS
+Package: com.squ1dd13.zinc
+Name: Zinc
 Depends: mobilesubstrate
 Version: 0.0.2
 Architecture: iphoneos-arm
-Description: An awesome MobileSubstrate tweak!
+Description: Load scripts into GTA: San Andreas.
 Maintainer: Squ1dd13
 Author: Squ1dd13
 Section: Tweaks

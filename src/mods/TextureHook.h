@@ -4,6 +4,4 @@
 
 #pragma once
 
-class TextureHook {
-};
-
+class TextureHook {};

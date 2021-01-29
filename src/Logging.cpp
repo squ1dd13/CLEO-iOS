@@ -4,13 +4,13 @@
 
 #include "Logging.h"
 
+#include <arpa/inet.h>
+#include <iostream>
 #include <netinet/in.h>
 #include <sys/socket.h>
 #include <unistd.h>
-#include <arpa/inet.h>
-#include <iostream>
 
-#define LOG_SERVER_IP "192.168.1.183"
+#define LOG_SERVER_IP   "192.168.1.183"
 #define LOG_SERVER_PORT 11909
 
 void LogErr(const std::string &&s) {
@@ -41,12 +41,7 @@ bool EnsureSocketOpen() {
         return false;
     }
 
-    addr = sockaddr_in {
-        0,
-        AF_INET,
-        htons(LOG_SERVER_PORT),
-        0
-    };
+    addr = sockaddr_in { 0, AF_INET, htons(LOG_SERVER_PORT), 0 };
 
     inet_pton(AF_INET, LOG_SERVER_IP, &addr.sin_addr);
 
@@ -69,9 +64,7 @@ void SendBuf(void *data, size_t length) {
     }
 }
 
-[[maybe_unused]]
-__attribute__((destructor))
-void LogDestruct() {
+[[maybe_unused]] __attribute__((destructor)) void LogDestruct() {
     LogInfo("Closing socket. Bye!");
 
     if (sockfd != -1) {

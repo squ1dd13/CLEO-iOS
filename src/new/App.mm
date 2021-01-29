@@ -1,0 +1,171 @@
+#include "ObjectiveC.h"
+#include "shared/Interface.h"
+#include <UIKit/UIKit.h>
+#include <cmath>
+
+void processTouches(UIView *view, NSSet *touches, Interface::Touch::Type type) {
+    if ([touches count] == 0) {
+        return;
+    }
+
+    Interface::Touch::beginUpdates();
+    for (UITouch *touch in touches) {
+        auto oldPos = [touch previousLocationInView:view];
+        auto pos = [touch locationInView:view];
+
+        auto oldX = float(oldPos.x * view.layer.contentsScale);
+        auto oldY = float(oldPos.y * view.layer.contentsScale);
+
+        auto x = float(pos.x * view.layer.contentsScale);
+        auto y = float(pos.y * view.layer.contentsScale);
+
+        double time = [touch timestamp];
+
+        Interface::Touch(oldX, oldY, x, y, type, time).handle();
+    }
+}
+
+struct TouchInfo {
+    float x, y;
+    double time;
+};
+
+// Underscore to prevent name collisions with some OpenCL thing.
+int sign_(float num) {
+    return num < 0 ? -1 : 1;
+}
+
+bool IsMenuSwipe(const TouchInfo &start, const TouchInfo &end) {
+    // There should probably be an option for controlling the speed and distance.
+    // (Preferably combine them with a single "swipe sensitivity" value.)
+    constexpr float requiredSpeed = 700;
+    constexpr float requiredDist = 25;
+
+    if (start.time <= 0) {
+        // Starting touch isn't initialised.
+        return false;
+    }
+
+    struct {
+        float x, y;
+        double time;
+    } delta {
+        end.x - start.x,
+        end.y - start.y,
+        end.time - start.time
+    };
+
+    float distance = std::sqrt(delta.x * delta.x + delta.y * delta.y);
+    if (distance < requiredDist) {
+        // Didn't meet the minimum distance.
+        return false;
+    }
+
+    double speed = distance / delta.time;
+    if (speed < requiredSpeed) {
+        // Didn't meet the minimum speed.
+        return false;
+    }
+
+    // Normalise the deltas so we can determine the direction.
+    int normX = std::abs(delta.x / distance) > 0.4 ? sign_(delta.x) : 0;
+    int normY = std::abs(delta.y / distance) > 0.4 ? sign_(delta.y) : 0;
+
+    // Return true only for downwards swipes.
+    return normX == 0 && normY == 1;
+}
+
+// clang-format doesn't like our Objective-C hook macros, so we have to disable formatting.
+/* clang-format off */
+
+// @hookbase makes the hook class a subclass of the second argument.
+// In this case, it means we can use 'self' as a UIView * and not an NSObject *.
+@hookbase(EAGLView, UIView)
+
+// TODO: %property (probably won't happen)
+struct {
+    TouchInfo touch;
+} EAGLViewProperties;
+
+- (void)touchesBegan:(NSSet *)touches withEvent:(UIEvent *)event {
+    CGPoint pos = [[touches anyObject] locationInView:self];
+
+    EAGLViewProperties.touch = {
+        float(pos.x),
+        float(pos.y),
+        [[touches anyObject] timestamp]
+    };
+
+    processTouches(self, touches, Interface::Touch::Type::Down);
+}
+
+- (void)touchesMoved:(NSSet *)touches withEvent:(UIEvent *)event {
+    processTouches(self, touches, Interface::Touch::Type::Moved);
+}
+
+- (void)touchesEnded:(NSSet *)touches withEvent:(UIEvent *)event {
+    CGPoint pos = [[touches anyObject] locationInView:self];
+
+    TouchInfo endTouch {
+        float(pos.x),
+        float(pos.y),
+        [[touches anyObject] timestamp]
+    };
+
+    if (IsMenuSwipe(EAGLViewProperties.touch, endTouch)) {
+        LogImportant("Activate menu!");
+    }
+
+    processTouches(self, touches, Interface::Touch::Type::Up);
+    EAGLViewProperties.touch.time = -1;
+}
+
+- (void)touchesCancelled:(NSSet *)touches withEvent:(UIEvent *)event {
+    processTouches(self, touches, Interface::Touch::Type::Up);
+}
+
+- (void)createFramebuffer {
+    orig();
+
+    float size[2] {
+        float(self.bounds.size.width * self.layer.contentsScale),
+        float(self.bounds.size.height * self.layer.contentsScale)
+    };
+
+    Interface::Touch::setViewportSize(size[0], size[1]);
+}
+
+@end
+
+// Splash screen
+@hookbase(LegalSplash, UIViewController)
+
+- (void)viewDidLoad {
+    UILabel *customLabel = [[UILabel alloc] initWithFrame:self.view.bounds];
+    customLabel.text = @"Zinc";
+    customLabel.textColor = [UIColor whiteColor];
+    customLabel.font = [UIFont fontWithName:@"PricedownGTAVInt" size:50.f];
+    customLabel.textAlignment = NSTextAlignmentCenter;
+
+    // If the user taps here they can actually skip our splash and the legal one.
+    customLabel.userInteractionEnabled = false;
+
+    customLabel.backgroundColor = [UIColor blackColor];
+
+    customLabel.hidden = false;
+    customLabel.alpha = 1.f;
+
+    [UIView animateWithDuration:0.2 delay:1.0 options:UIViewAnimationOptionCurveEaseIn animations:^{
+        customLabel.alpha = 0.0f;
+    } completion:^(BOOL finished) {
+        customLabel.hidden = true;
+        [customLabel removeFromSuperview];
+    }];
+
+    orig();
+    [self.view addSubview:customLabel];
+}
+
+@end
+
+/* clang-format on */

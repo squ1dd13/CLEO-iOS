@@ -7,7 +7,6 @@
 #include "Types.h"
 
 // Structures taken from https://github.com/petrgeorgievsky/sa-render/blob/master/Render/RenderWare.h
-//  created by DK22Pac.
 // Some have been modified for the iOS version of the game, or to stop the need for defining more structures.
 // A few offsets may be incorrect due to padding, but I can't manually pad until I know where all the fields are.
 
@@ -73,4 +72,3 @@ bool RwTextureDestroy(RwTexture *texture);
 
 RwRaster *RwRasterCreate(int32 width, int32 height, int32 depth, uint32 flags);
 bool RwRasterDestroy(RwRaster *raster);
-

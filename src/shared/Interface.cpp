@@ -1,16 +1,18 @@
 #include "Interface.h"
+
 #include "Memory.h"
+
 #include <cmath>
 
 namespace Interface {
 
     bool Touch::interceptTouches = false;
 
-// The zone states (pressed or not pressed).
+    // The zone states (pressed or not pressed).
     static bool screenZones[9] {};
 
-// Whether zones have had their states updated since the last update.
-// This allows multiple touches in the same zone to be handled correctly.
+    // Whether zones have had their states updated since the last update.
+    // This allows multiple touches in the same zone to be handled correctly.
     static bool updatedZones[9] {};
 
     static float viewportWidth = 1.f, viewportHeight = 1.f;
@@ -65,6 +67,7 @@ namespace Interface {
 
         // Call the game's touch handler.
         Memory::call(0x1004e831c, destX, destY, change, timestamp);
+        //        Memory::call(0x100241cd8);
     }
 
     Touch::Touch(float oldX, float oldY, float newX, float newY, Type stage, double time) {
@@ -76,3 +79,32 @@ namespace Interface {
         timestamp = time;
     }
 }
+
+struct Color {
+    uint8 r, g, b, a;
+
+    Color(uint8 red, uint8 green, uint8 blue, uint8 alpha) {
+        r = red;
+        g = green;
+        b = blue;
+        a = alpha;
+    }
+};
+/*
+#include "Text.h"
+HookFunction(CFont_PrintString, 0x1003809c8, {
+    original(x, y, s);
+    original(x + 20, y + 20, "h\0a\0h\0a\0h\0a\0h\0a\0h\0a\0");
+    Log("CFont::PrintString(%f, %f, %s)", x, y, Text::forceASCII(s).c_str());
+
+    auto color = Memory::slid<Color *>(0x100881bf4);
+    Log("colour = RGBA(%d, %d, %d, %d)", (int)color->r, (int)color->g, (int)color->b, (int)color->a);
+
+}, void, float x, float y, char *s)
+
+HookFunction(CSprite2d_DrawBarChart, 0x1003997dc, {
+    Color dc(255, 0, 0, 255);
+    original(x, y / 2, width, height * 2, progress, deltaProgress, true, false, color, &dc);
+}, void, float x,float y,ushort width,uint8 height,float progress,uint8 deltaProgress,bool showPercentageText,bool
+drawBorder,Color *color,Color *deltaColor);
+ */

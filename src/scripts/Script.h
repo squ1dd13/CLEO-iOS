@@ -7,7 +7,7 @@
 #include "Types.h"
 
 class Script {
-public:
+  public:
     Script *nextScript;
     Script *previousScript;
 
@@ -19,48 +19,43 @@ public:
     uint8 *callStack[8];
     uint16 callStackPos;
 
-private:
+  private:
     uint8 field_0x6A, field_0x6B;
 
-public:
+  public:
     // Unsure about size here (probably really 32 and not 42, but we don't use this ATM anyway).
     uint32 localStorage[42];
 
-private:
+  private:
     uint8 field_0x114;
 
-public:
+  public:
     bool conditionResult;
 
-private:
-    uint8 field_0x116,
-        field_0x117,
-        field_0x118,
-        field_0x119,
-        field_0x11A,
-        field_0x11B;
+  private:
+    uint8 field_0x116, field_0x117, field_0x118, field_0x119, field_0x11A, field_0x11B;
 
-public:
+  public:
     // When the script will next receive focus.
     uint32 activationTime;
     uint16 conditionCount;
     bool invertReturn;
 
-private:
-    uint8 field_0x123,
-        field_0x124,
-        field_0x125,
-        field_0x126,
-        field_0x127,
-        field_0x128,
-        field_0x129,
-        field_0x12A,
+  private:
+    uint8 field_0x123, field_0x124, field_0x125, field_0x126, field_0x127, field_0x128, field_0x129, field_0x12A,
         field_0x12B;
 
-public:
+  public:
     bool localStorageIsGlobalStorage;
 
     explicit Script(string_ref path);
+
+    // Disable copying because it would require copying the entire script buffer.
+    Script(const Script &script) = delete;
+
+    // Use moving instead of copying.
+    Script(Script &&script);
+
 
     void RunNextBlock();
     uint8 RunNextInstruction();
@@ -73,10 +68,10 @@ public:
     void Unload();
 
     ~Script();
-private:
-    using OpcodeHandler = uint8(*)(Script *, uint16);
+
+  private:
+    using OpcodeHandler = uint8 (*)(Script *, uint16);
 
     Script *GetAlternateThis(uint64 handlerOffset);
     static OpcodeHandler FindHandler(uint16 opcode, Script *&thisPtr);
 };
-

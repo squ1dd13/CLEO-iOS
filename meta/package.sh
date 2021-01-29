@@ -50,4 +50,5 @@ ssh_ip=192.168.1.226
 
 # EXTRA: Install the .deb file to a device.
 scp "./out/package.deb" root@$ssh_ip:/User/Downloads/package.deb
-ssh root@$ssh_ip "dpkg -i /User/Downloads/package.deb && (killall -9 gta3sa || echo 'GTA:SA not running')"
+ssh root@$ssh_ip 'exec $SHELL -l -c "dpkg -i /User/Downloads/package.deb && (killall -9 gta3sa || echo \"GTA:SA not running\")"'
+#"PATH=/usr/bin:\$PATH && dpkg -i /User/Downloads/package.deb && (killall -9 gta3sa || echo 'GTA:SA not running')"

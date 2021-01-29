@@ -1,10 +1,10 @@
 // Objective-C hooking stuff. This replaces the Logos %hook and %orig.
 // Lots of this code appeared in some form in https://github.com/Squ1dd13/MaxOS.
 
+#include "new/ObjectiveC.h"
+#include <Foundation/Foundation.h>
 #include <iostream>
 #include <set>
-#include <Foundation/Foundation.h>
-#include "Hook.h"
 
 // Finds the original implementation of the method and calls it.
 void *callOrig(SEL hookedSelector, id target, ...) {
@@ -67,7 +67,7 @@ void *callOrig(SEL hookedSelector, id target, ...) {
     // This should not be treated as a real value (the caller should know that).
     const char *retEnc = [sig methodReturnType];
     if (strcmp("v", retEnc) == 0) {
-        return 0x0; // 0x0 because it looks like a face.
+        return 0x0;// 0x0 because it looks like a face.
     }
 
     bool isObject = [@(retEnc) containsString:@"@"];
@@ -129,7 +129,7 @@ std::set<Method, decltype(methodComparator)> getMethods(Class cls) {
     return methodSet;
 }
 
-bool HookManager::hookClassObjC(const char *hookName, const char *targetName, bool meta) {
+bool HookClass(const char *hookName, const char *targetName, bool meta) {
     Class targetClass = meta ? objc_getMetaClass(targetName) : objc_getClass(targetName);
 
     if (not targetClass) {
@@ -157,5 +157,5 @@ bool HookManager::hookClassObjC(const char *hookName, const char *targetName, bo
 
     // If this pass was for instance methods, return the result of doing the class methods.
     // Otherwise, return true because everything was successful on this pass.
-    return !meta ? status & hookClassObjC(hookName, targetName, true) : status;
+    return !meta ? status & HookClass(hookName, targetName, true) : status;
 }

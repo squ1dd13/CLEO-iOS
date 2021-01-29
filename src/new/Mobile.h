@@ -1,12 +1,19 @@
+//
+// Created by squ1dd13 on 29/01/2021.
+//
+
+#pragma once
+
+
 // Support for stuff added in the Android version.
 
 #ifndef CUSTOM_OPCODES
 #define CUSTOM_OPCODES
 
-#include "Script.h"
+#include "../scripts/Script.h"
 #include "Core.h"
 
-namespace Android {
+namespace Mobile {
 
     DeclareFunctionType(Implementation, void, Script *);
 

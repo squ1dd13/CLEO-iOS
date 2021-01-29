@@ -1,7 +1,7 @@
 #ifndef TYPES_HEADER
 #define TYPES_HEADER
 
-#define DeclareFunctionType(name, ret, ...) typedef ret (*name)( __VA_ARGS__ )
+#define DeclareFunctionType(name, ret, ...) typedef ret (*name)(__VA_ARGS__)
 
 #define squished __attribute__((packed))
 

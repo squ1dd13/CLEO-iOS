@@ -2,8 +2,8 @@
 // Created on 21/10/2020.
 //
 
-#ifndef CSIOS_CMAKE_ADDRESSES_H
-#define CSIOS_CMAKE_ADDRESSES_H
+#ifndef Zinc_CMAKE_ADDRESSES_H
+#define Zinc_CMAKE_ADDRESSES_H
 
 #include "Memory.h"
 
@@ -22,6 +22,7 @@ namespace Memory::Addresses {
     NameAddress(0x1005c11d8, opcodeHandlerTable);
     NameAddress(0x10020980c, defaultOpcodeHandler);
 
+    // FIXME: This is just normal game time (afaict).
     NameAddress(0x1007d3af8, scriptTime);
 
     NameAddress(0x1001d0f40, advanceGameScripts);
@@ -29,4 +30,4 @@ namespace Memory::Addresses {
     NameAddress(0x1004e831c, handleTouch);
 }
 
-#endif //CSIOS_CMAKE_ADDRESSES_H
+#endif // Zinc_CMAKE_ADDRESSES_H

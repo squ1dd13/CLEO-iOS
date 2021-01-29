@@ -3,10 +3,11 @@
 //
 
 #include "UserFolder.h"
-#include <vector>
-#include <string>
+
 #include <dirent.h>
 #include <map>
+#include <string>
+#include <vector>
 
 // TODO: Leave uninitialised until game load sequence.
 Directory userFolder("/var/mobile/Documents/CS");
@@ -57,8 +58,8 @@ std::string Directory::GetFileTypeExtension(Directory::FileType fileType) {
     static std::map<Directory::FileType, std::string> extensions = {
         { FileType::AndroidRunningScript, ".csa" },
         { FileType::AndroidInvokedScript, ".csi" },
-        { FileType::WindowsScript,        ".cs" },
-        { FileType::TextExtension,        ".fxt" },
+        { FileType::WindowsScript, ".cs" },
+        { FileType::TextExtension, ".fxt" },
     };
 
     return extensions[fileType];

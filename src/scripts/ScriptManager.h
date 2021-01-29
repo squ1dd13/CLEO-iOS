@@ -4,8 +4,10 @@
 
 #pragma once
 
+#include "Core.h"
+
 class ScriptManager {
-public:
+  public:
     static void Init();
 
     static void LoadScript(string_ref path);
@@ -17,4 +19,3 @@ public:
 
     static void UnloadAll();
 };
-

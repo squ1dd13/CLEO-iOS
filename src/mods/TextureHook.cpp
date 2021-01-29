@@ -4,8 +4,8 @@
 
 #include "TextureHook.h"
 
-#include "Core.h"
 #include "../shared/Memory.h"
+#include "Core.h"
 #include "RenderWare.h"
 
 using undefined = uint8;
@@ -269,38 +269,89 @@ struct TextureDatabaseRuntime {
     long long field_0xf8;
 } squished;
 
-HookFunction(GetPNGFilename, 0x100133ed0, {
-    auto r = original(a, b);
-    Log("GetPNGFilename(%s) = %s", a, b);
-    Log("*TDbR = %s", a);
-
-    std::strcpy(b, "/var/containers/Bundle/Application/467DA83E-6A0F-42F4-A712-3245F846E4CF/gta3sa.app/rockstar.png");
-    return strlen(b);
-}, uint64, char *a, char *b);
-
-HookFunction(TDbR_LFT, 0x100130368, {
-    TextureDatabaseEntry &entry = self->entries[index];
-
-    void *r = original(self, index);
-
-    if (entry.texture) {
-        RwRaster *raster = entry.texture->raster;
-        if (raster->palette) {
-            raster->palette[0] = 0;
-        }
-        if (raster && raster->originalPixels && raster->palette) {
-            Log("messing with pixels");
-
-            for (unsigned i = 0; i < raster->originalWidth * raster->originalHeight; i += 2) {
-                raster->originalPixels[i] = raster->palette[0];
-            }
-        }
+void rle(uint8 *out, uint32 outSize, uint8 *in, uint32 segmentSize, uint32 rleIndicator) {
+    if (outSize == 0) {
+        return;
     }
 
-    return r;
-}, void *, TextureDatabaseRuntime *self, uint32 index);
+    // Loop until our pointer to the output buffer reaches the end.
+    for (uint8 *endByte = out + outSize; out < endByte;) {
+        // If `indicator == rleIndicator`, the next segment is repeated.
+        uint8 indicator = in[0];
+        if (indicator == rleIndicator) {
+            // `repetitions` tells us how many times to repeat the segment.
+            uint8 repetitions = in[1];
+            if (repetitions != 0) {
+                // Append `repetitions` segments to the output buffer.
+                for (uint8 i = 0; i < repetitions; ++i) {
+                    // Offset `in` by 2 to skip `indicator` and `repetitions`.
+                    std::memcpy(out, in + 2, segmentSize);
 
-HookFunction(TDbR_Load, 0x100131fd4, {
-    Log("TDbR::Load(%s, %u, %u)", p1, p2, p3);
-    return original(p1, p2, p3);
-}, void *, char *p1, uint32 p2, uint32 p3);
+                    // Advance the pointer so we're appending instead of just copying.
+                    out += segmentSize;
+                }
+
+                // Each compressed section is `segmentSize + 2` bytes long. `segmentSize` is
+                //  the size of the repeated data (which is present only once in the encoded
+                //  data), and the two bytes are `indicator` and `repetitions`.
+                in += segmentSize + 2;
+            }
+        } else {
+            // Just copy the next segment over without repeating anything.
+            std::memcpy(out, in, segmentSize);
+
+            // We read one segment and wrote one segment, so advance both pointers to reflect this.
+            out += segmentSize;
+            in += segmentSize;
+        }
+    }
+}
+
+// HookFunction(RWT_LoadInstance, 0x100130080, {
+//    RwTexture *t = original(entry, listing);
+
+//    Log("Messing with %s", t->name);
+//    if (t->raster->cpPixels && t->raster->width && t->raster->height) {
+//        for (int x = 0; x < t->raster->width; ++x) {
+//            for (int y = 0; y < t->raster->height; ++y) {
+//                t->raster->cpPixels[x * y] = 255;
+//            }
+//        }
+//    }
+
+//    if (t->raster->originalPixels && t->raster->originalWidth && t->raster->originalHeight) {
+//        for (int x = 0; x < t->raster->originalWidth; ++x) {
+//            for (int y = 0; y < t->raster->originalHeight; ++y) {
+//                t->raster->originalPixels[x * y] = 255;
+//            }
+//        }
+//    }
+
+// t->dict->
+// if (t->raster->palette) t->raster->palette[0] = 255;
+//    return t;
+//}, RwTexture *, TextureDatabaseEntry *entry, void *listing)
+//
+HookFunction(
+    RLEDec,
+    0x10013250c,
+    { rle(out, totalSize, buf, segSize, fromFile); },
+    void,
+    uint8 *out,
+    uint32 totalSize,
+    uint8 *buf,
+    uint32 segSize,
+    uint32 fromFile)
+
+    HookFunction(
+        TDbR_Load,
+        0x100131fd4,
+        {
+            Log("TDbR::Load(%s, %u, %u)", p1, p2, p3);
+            LogImportant("raster ext = 0x%x", Memory::fetch<void *>(0x10066ea48));
+            return original(p1, p2, p3);
+        },
+        void *,
+        char *p1,
+        uint32 p2,
+        uint32 p3);

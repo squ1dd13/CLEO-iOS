@@ -4,17 +4,19 @@
 
 #include "StreamHook.h"
 
-#include <pthread.h>
-#include <dispatch/dispatch.h>
-#include <sys/stat.h>
-#include "Core.h"
 #include "../shared/Memory.h"
+#include "Core.h"
+
+#include <dispatch/dispatch.h>
+#include <pthread.h>
+#include <sstream>
+#include <sys/stat.h>
 
 struct Segments {
-private:
+  private:
     uint32 value;
 
-public:
+  public:
     inline uint32 segments() {
         return value;
     }
@@ -76,7 +78,7 @@ void SignalSemaphore(void *semaphore) {
 }
 
 void *AllocateAligned(uint32 size, uint32 alignValue) {
-//    void *result = 1003a13f8
+    //    void *result = 1003a13f8
     return Memory::call<void *>(0x1003a13f8, size, alignValue);
 }
 
@@ -91,19 +93,7 @@ void CdStreamThread(void *) {
     auto streamingBufferSize = Memory::fetch<uint32>(0x10072d320);
     void *streamingBuffer = Memory::fetch<void *>(0x10072d328);
 
-    // https://stackoverflow.com/a/26221725/8622854
     Log("Stream thread running");
-//        size_t size = (size_t)std::snprintf(nullptr, 0, format.c_str(), args...) + 1;
-//
-//        if (size <= 0) {
-//            throw std::runtime_error("Formatting error.");
-//        }
-//
-//        char *buf = new char[size];
-//        snprintf(buf, size, format.c_str(), args...);
-//
-//        Commit(std::string(buf, buf + size - 1));
-//        delete[] buf;
 
     while (true) {
         dispatch_semaphore_wait(*semaphore, DISPATCH_TIME_FOREVER);
@@ -114,71 +104,30 @@ void CdStreamThread(void *) {
         stream->busy = true;
 
         if (!stream->errorCode) {
-            FILE *file = nullptr;
             uint32 len = stream->size.bytes();
-//            1001323c8
-            if (false && stream->offset.segments() == 88827) {
-                // clover.dff
-                struct stat st {};
-                stat("/var/mobile/Documents/clover.dff", &st);
-                len = st.st_size;
+            //            1001323c8
 
-                file = fopen("/var/mobile/Documents/clover.dff", "rb");
-                if (!file) {
-                    // https://stackoverflow.com/a/26221725/8622854
-                    Log("file did not open");
-//        size_t size = (size_t)std::snprintf(nullptr, 0, format.c_str(), args...) + 1;
-//
-//        if (size <= 0) {
-//            throw std::runtime_error("Formatting error.");
-//        }
-//
-//        char *buf = new char[size];
-//        snprintf(buf, size, format.c_str(), args...);
-//
-//        Commit(std::string(buf, buf + size - 1));
-//        delete[] buf;
-                } else {
-                    // https://stackoverflow.com/a/26221725/8622854
-                    Log("file opened, len = %d", len);
-//        size_t size = (size_t)std::snprintf(nullptr, 0, format.c_str(), args...) + 1;
-//
-//        if (size <= 0) {
-//            throw std::runtime_error("Formatting error.");
-//        }
-//
-//        char *buf = new char[size];
-//        snprintf(buf, size, format.c_str(), args...);
-//
-//        Commit(std::string(buf, buf + size - 1));
-//        delete[] buf;
+            SetFilePos(stream->stream, stream->offset.bytes());
+
+            int err = ReadBytes(stream->stream, stream->buffer, len);
+            stream->errorCode = err ? 0xfe : 0;
+
+            if (stream->offset.segments() == 88827) {
+                std::stringstream byteStringStream;
+                byteStringStream << std::hex;
+
+                for (int i = 0; i < 20; ++i) {
+                    char c = ((char *)stream->buffer)[i];
+                    byteStringStream << (unsigned(c) & 0xFF) << ' ';
                 }
 
-                int err = ReadBytes((FILE *)&file, stream->buffer, len);
-                stream->errorCode = err ? 0xfe : 0;
-
-                fclose(file);
-            } else {
-                SetFilePos(stream->stream, stream->offset.bytes());
-
-                int err = ReadBytes(stream->stream, stream->buffer, len);
-                stream->errorCode = err ? 0xfe : 0;
+                LogImportant("Loaded clover model (from offset %x):\n%s",
+                             stream->offset.bytes(),
+                             byteStringStream.str().c_str());
             }
 
             if (stream->errorCode) {
-                // https://stackoverflow.com/a/26221725/8622854
                 Log("stream read error!");
-//        size_t size = (size_t)std::snprintf(nullptr, 0, format.c_str(), args...) + 1;
-//
-//        if (size <= 0) {
-//            throw std::runtime_error("Formatting error.");
-//        }
-//
-//        char *buf = new char[size];
-//        snprintf(buf, size, format.c_str(), args...);
-//
-//        Commit(std::string(buf, buf + size - 1));
-//        delete[] buf;
             }
         }
 
@@ -203,6 +152,9 @@ void CdStreamThread(void *) {
     }
 }
 
-HookFunction(StreamingThread, 0x100177dac, {
-    CdStreamThread(x);
-}, void, void *x);
+HookFunction(
+    StreamingThread,
+    0x100177dac,
+    { CdStreamThread(x); },
+    void,
+    void *x);

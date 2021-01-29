@@ -5,12 +5,12 @@
 #pragma once
 
 //#include <set>
+#include <map>
 #include <string>
 #include <vector>
-#include <map>
 
 class Directory {
-public:
+  public:
     enum class FileType {
         AndroidRunningScript, // .csa
         AndroidInvokedScript, // .csi
