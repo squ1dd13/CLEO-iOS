@@ -1,10 +1,11 @@
 // Objective-C hooking stuff. This replaces the Logos %hook and %orig.
 // Lots of this code appeared in some form in https://github.com/Squ1dd13/MaxOS.
 
-#include "new/ObjectiveC.h"
+#include "ObjectiveC.h"
 #include <Foundation/Foundation.h>
 #include <iostream>
 #include <set>
+#import <Logging.h>
 
 // Finds the original implementation of the method and calls it.
 void *callOrig(SEL hookedSelector, id target, ...) {
@@ -81,7 +82,7 @@ bool hookMethodName(SEL name, Class target, Class hook) {
     Method hookMethod = class_getInstanceMethod(hook, name);
 
     if (not originalMethod or not hookMethod) {
-        std::cout << "either original or hooked method not found\n";
+        LogError("either original or hooked method not found");
         return false;
     }
 
@@ -89,8 +90,7 @@ bool hookMethodName(SEL name, Class target, Class hook) {
     const char *hookType = method_getTypeEncoding(hookMethod);
 
     if (std::strcmp(origType, hookType) != 0) {
-        std::cout << "type encoding mismatch - method " << sel_getName(name) << " should return " << origType
-                  << ", but hook returns " << hookType << '\n';
+        LogError("type encoding mismatch - method %s should return %s, but hook returns %s", sel_getName(name), origType, hookType);
         return false;
     }
 
@@ -100,8 +100,7 @@ bool hookMethodName(SEL name, Class target, Class hook) {
     SEL origSelector = NSSelectorFromString([@"original_imp_" stringByAppendingString:NSStringFromSelector(name)]);
 
     if (not class_addMethod(target, origSelector, targetImplementation, origType)) {
-        std::cout << "failed to add orig method for selector " << sel_getName(name) << " to class "
-                  << class_getName(target) << '\n';
+        LogError("failed to add orig method for selector %s to class %s", sel_getName(name), class_getName(target));
         return false;
     }
 
@@ -133,14 +132,14 @@ bool HookClass(const char *hookName, const char *targetName, bool meta) {
     Class targetClass = meta ? objc_getMetaClass(targetName) : objc_getClass(targetName);
 
     if (not targetClass) {
-        std::cout << "could not find target class " << targetName << '\n';
+        LogError("could not find target class %s", targetName);
         return false;
     }
 
     Class hookClass = meta ? objc_getMetaClass(hookName) : objc_getClass(hookName);
 
     if (not hookClass) {
-        std::cout << "could not find hook class " << hookName << '\n';
+        LogError("could not find hook class %s", hookName);
         return false;
     }
 

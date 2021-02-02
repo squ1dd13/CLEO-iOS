@@ -1,4 +1,6 @@
 # Zinc - Zinc Is Not CLEO
+<!-- Badges are fun -->
+[![forthebadge](https://forthebadge.com/images/badges/made-with-c-plus-plus.svg)](https://forthebadge.com) [![forthebadge](https://forthebadge.com/images/badges/built-with-love.svg)](https://forthebadge.com)
 
 Jailbreak tweak for injecting CLEO scripts into GTA: SA on
 iOS. [Video demonstration](https://www.youtube.com/watch?v=6FTkOEV7qnw)
@@ -26,7 +28,7 @@ work.
 ### What does it *not* do?
 
 * Provide a script menu ("mod menu") such as that of CLEO Android.
-* Load PC scripts (some may work, but don't expect them to).
+* Load PC scripts (some may work, but don't expect most to).
 
 ## Building
 

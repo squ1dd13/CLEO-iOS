@@ -1,14 +1,17 @@
-#include "ObjectiveC.h"
-#include "shared/Interface.h"
 #include <UIKit/UIKit.h>
 #include <cmath>
 
-void processTouches(UIView *view, NSSet *touches, Interface::Touch::Type type) {
+#include "user/Touch.h"
+#include "hook/ObjectiveC.h"
+#include "Logging.h"
+#include "scripts/Menu.h"
+
+void ProcessTouches(UIView *view, NSSet *touches, Touch::Type type) {
     if ([touches count] == 0) {
         return;
     }
 
-    Interface::Touch::beginUpdates();
+    Touch::BeginUpdates();
     for (UITouch *touch in touches) {
         auto oldPos = [touch previousLocationInView:view];
         auto pos = [touch locationInView:view];
@@ -21,7 +24,7 @@ void processTouches(UIView *view, NSSet *touches, Interface::Touch::Type type) {
 
         double time = [touch timestamp];
 
-        Interface::Touch(oldX, oldY, x, y, type, time).handle();
+        Touch(oldX, oldY, x, y, type, time).Handle();
     }
 }
 
@@ -96,11 +99,11 @@ struct {
         [[touches anyObject] timestamp]
     };
 
-    processTouches(self, touches, Interface::Touch::Type::Down);
+    ProcessTouches(self, touches, Touch::Type::Down);
 }
 
 - (void)touchesMoved:(NSSet *)touches withEvent:(UIEvent *)event {
-    processTouches(self, touches, Interface::Touch::Type::Moved);
+    ProcessTouches(self, touches, Touch::Type::Moved);
 }
 
 - (void)touchesEnded:(NSSet *)touches withEvent:(UIEvent *)event {
@@ -114,16 +117,17 @@ struct {
 
     if (IsMenuSwipe(EAGLViewProperties.touch, endTouch)) {
         LogImportant("Activate menu!");
-
-        // TODO: Present a script menu.
+        Scripts::Menu::Show();
+    } else {
+        Scripts::Menu::Hide();
     }
 
-    processTouches(self, touches, Interface::Touch::Type::Up);
+    ProcessTouches(self, touches, Touch::Type::Up);
     EAGLViewProperties.touch.time = -1;
 }
 
 - (void)touchesCancelled:(NSSet *)touches withEvent:(UIEvent *)event {
-    processTouches(self, touches, Interface::Touch::Type::Up);
+    ProcessTouches(self, touches, Touch::Type::Up);
 }
 
 - (void)createFramebuffer {
@@ -134,7 +138,7 @@ struct {
         float(self.bounds.size.height * self.layer.contentsScale)
     };
 
-    Interface::Touch::setViewportSize(size[0], size[1]);
+    Touch::SetViewportSize(size[0], size[1]);
 }
 
 @end

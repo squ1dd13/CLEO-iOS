@@ -10,7 +10,7 @@
 #include <vector>
 
 class Directory {
-  public:
+public:
     enum class FileType {
         AndroidRunningScript, // .csa
         AndroidInvokedScript, // .csi

@@ -2,8 +2,7 @@
 // Created on 21/10/2020.
 //
 
-#ifndef Zinc_CMAKE_ADDRESSES_H
-#define Zinc_CMAKE_ADDRESSES_H
+#pragma once
 
 #include "Memory.h"
 
@@ -28,6 +27,8 @@ namespace Memory::Addresses {
     NameAddress(0x1001d0f40, advanceGameScripts);
 
     NameAddress(0x1004e831c, handleTouch);
+
+    // 1.0f for normal speed, less for slower.
+    NameAddress(0x1007d3b18, timeScale);
 }
 
-#endif // Zinc_CMAKE_ADDRESSES_H

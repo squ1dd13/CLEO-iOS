@@ -7,6 +7,9 @@
 #include <sstream>
 #include <string>
 
+#include "hook/Func.h"
+#include "Logging.h"
+
 // Strings that have been added/modified. This is searched before the
 //  original game function is called, so replacements of existing strings
 //  will show up.
@@ -27,7 +30,7 @@ std::string Text::registerString(const std::string &value) {
 }
 
 DeclareFunctionType(GetGameStringFunc, const char16 *, void *, const char *);
-static void *textObject = Memory::slid<void *>(0x1008f5690);
+static void *textObject = Memory::Slid<void *>(0x1008f5690);
 
 std::string Text::forceASCII(const char *s) {
     std::stringstream stream;
@@ -38,16 +41,6 @@ std::string Text::forceASCII(const char *s) {
     }
 
     return stream.str();
-}
-
-std::string Text::getGameString(string_ref key) {
-    // This will mess up Japanese/Russian text, but the UTF16 version should
-    //  be used if that's a concern.
-    return forceASCII((const char *)(getGameStringUTF16(key).data()));
-}
-
-std::u16string Text::getGameStringUTF16(string_ref key) {
-    return Memory::slid<GetGameStringFunc>(0x10044142c)(textObject, key.data());
 }
 
 void Text::setGameString(string_ref key, string_ref value) {
@@ -84,7 +77,7 @@ void skipLeadingSpaces(std::string &str) {
     str = std::string(firstNotSpace, str.end());
 }
 
-void Text::loadFXT(string_ref path) {
+void Text::LoadFxt(string_ref path) {
     std::ifstream stream(path);
 
     for (std::string fxtLine; std::getline(stream, fxtLine);) {
@@ -103,17 +96,6 @@ void Text::loadFXT(string_ref path) {
         if (firstSpaceIter == fxtLine.end()) {
             // The game will crash later, so we don't need to worry about that now.
             Log("error: FXT entry must have at least 1 separating space. (Line is '%s')", fxtLine.c_str());
-            //        size_t size = (size_t)std::snprintf(nullptr, 0, format.c_str(), args...) + 1;
-            //
-            //        if (size <= 0) {
-            //            throw std::runtime_error("Formatting error.");
-            //        }
-            //
-            //        char *buf = new char[size];
-            //        snprintf(buf, size, format.c_str(), args...);
-            //
-            //        Commit(std::string(buf, buf + size - 1));
-            //        delete[] buf;
             continue;
         }
 
@@ -122,17 +104,6 @@ void Text::loadFXT(string_ref path) {
 
         if (valueStr.empty()) {
             Log("error: FXT value must not be empty. Set value will be '<empty>'. (Line is '%s')", fxtLine.c_str());
-            //        size_t size = (size_t)std::snprintf(nullptr, 0, format.c_str(), args...) + 1;
-            //
-            //        if (size <= 0) {
-            //            throw std::runtime_error("Formatting error.");
-            //        }
-            //
-            //        char *buf = new char[size];
-            //        snprintf(buf, size, format.c_str(), args...);
-            //
-            //        Commit(std::string(buf, buf + size - 1));
-            //        delete[] buf;
             valueStr = "<empty>";
         }
 
@@ -140,17 +111,6 @@ void Text::loadFXT(string_ref path) {
         if (keyStr.empty()) {
             // This shouldn't actually happen.
             Log("error: FXT key must not be empty. (Line is '%s')", fxtLine.c_str());
-            //        size_t size = (size_t)std::snprintf(nullptr, 0, format.c_str(), args...) + 1;
-            //
-            //        if (size <= 0) {
-            //            throw std::runtime_error("Formatting error.");
-            //        }
-            //
-            //        char *buf = new char[size];
-            //        snprintf(buf, size, format.c_str(), args...);
-            //
-            //        Commit(std::string(buf, buf + size - 1));
-            //        delete[] buf;
             continue;
         }
 
@@ -160,25 +120,21 @@ void Text::loadFXT(string_ref path) {
     }
 }
 
-GetGameStringFunc originalGetGameString;
+functionhook StringHook {
+    string16 Original(void *, const char *);
 
-string16 getGameStringHook(void *self, const char *key) {
-    if (!key || std::strlen(key) == 0) {
-        return u"<EMPTY GXT KEY>";
+    string16 Body(void *, const char *key) {
+        if (!key || std::strlen(key) == 0) {
+            return u"<EMPTY GXT KEY>";
+        }
+
+        auto it = customStrings.find(key);
+        if (it != customStrings.end()) {
+            return it->second.c_str();
+        }
+
+        return Original(textObject, key);
     }
 
-    auto it = customStrings.find(key);
-    if (it != customStrings.end()) {
-        return it->second.c_str();
-    }
-
-    auto ret = originalGetGameString(textObject, key);
-
-    // Log("'%s' --> '%s'", key, forceASCII((const char *)ret).c_str());
-
-    return ret;
-}
-
-void Text::hook() {
-    originalGetGameString = Memory::hook(0x10044142c, getGameStringHook);
+    HookSave(0x10044142c)
 }

@@ -1,15 +1,11 @@
 #ifndef TEXT_HEADER
 #define TEXT_HEADER
 
-#include "Memory.h"
+#include "bridge/Memory.h"
 
 #include <unordered_map>
 
 namespace Text {
-
-    // Wrappers for game code.
-    std::string getGameString(string_ref key);
-    std::u16string getGameStringUTF16(string_ref key);
 
     // Custom.
     void setGameString(string_ref key, string_ref value);
@@ -23,7 +19,7 @@ namespace Text {
     const char *registered(string_ref key, string_ref value);
 
     // For CLEO FXT files.
-    void loadFXT(string_ref path);
+    void LoadFxt(string_ref path);
 
     std::string forceASCII(const char *s);
 

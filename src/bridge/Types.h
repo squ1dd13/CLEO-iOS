@@ -3,8 +3,6 @@
 
 #define DeclareFunctionType(name, ret, ...) typedef ret (*name)(__VA_ARGS__)
 
-#define squished __attribute__((packed))
-
 #include <cstdint>
 #include <string>
 

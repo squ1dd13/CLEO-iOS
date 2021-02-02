@@ -25,7 +25,7 @@ file(GLOB_RECURSE SOURCE_FILES
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-format-security -fobjc-abi-version=2 -fobjc-arc -o Zinc.dylib")
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-format-security -fobjc-abi-version=2 -fobjc-arc -o Zinc.dylib")
 
-add_library(zinc SHARED ${SOURCE_FILES} src/RenderWare.h src/shared/RenderWare.cpp src/scripts/ScriptManager.cpp src/scripts/ScriptManager.h src/scripts/Script.cpp src/scripts/Script.h src/shared/UserFolder.cpp src/shared/UserFolder.h src/new/Load.cpp src/new/Hook/NotLogos.h src/new/Menu.mm src/new/Menu.h src/new/Mobile.cpp src/new/Mobile.h)
+add_library(zinc SHARED ${SOURCE_FILES} src/scripts/Manager.cpp src/scripts/Manager.h src/scripts/Script.cpp src/scripts/Script.h src/user/Directory.cpp src/user/Directory.h src/Load.cpp src/hook/Func.h src/scripts/Menu.mm src/scripts/Menu.h src/scripts/Mobile.cpp src/scripts/Mobile.h)
 
 message(${CMAKE_CXX_COMPILER})
 
@@ -43,6 +43,8 @@ target_link_libraries(zinc
     "-framework UIKit"
     "-framework Foundation"
     "-framework CoreGraphics"
+    "-framework QuartzCore"
+    "-framework CoreImage"
     substrate
     -dylib
     )

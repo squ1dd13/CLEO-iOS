@@ -9,9 +9,15 @@
 #include <stdexcept>
 #include <string>
 
-enum class MessageType { Normal, Info, Error, Warning, Important };
+enum class MessageType {
+    Normal, Info, Error, Warning, Important
+};
 
 [[maybe_unused]] void SendBuf(void *data, size_t length);
+
+#define DEBUG_LOGGING 1
+
+#if DEBUG_LOGGING
 
 template <typename... Args>
 [[maybe_unused]] inline void Logf(MessageType messageType, const std::string &format, Args... args) {
@@ -24,8 +30,10 @@ template <typename... Args>
     std::unique_ptr<char[]> buf(new char[size + 1]);
     snprintf(buf.get() + 1, size, format.c_str(), args...);
 
-    static std::ofstream stream = std::ofstream("/var/mobile/Documents/Zinc.log",
-                                                std::ofstream::out | std::ofstream::trunc);
+    static std::ofstream stream = std::ofstream(
+        "/var/mobile/Documents/Zinc.log",
+        std::ofstream::out | std::ofstream::trunc
+    );
 
     if (stream) {
         stream << (char *)(buf.get() + 1) << '\n';
@@ -37,6 +45,11 @@ template <typename... Args>
     //  null terminator in there.
     SendBuf(buf.get(), size);
 }
+
+#else
+template <typename... Args>
+[[maybe_unused]] inline void Logf(MessageType messageType, const std::string &format, Args... args) {}
+#endif
 
 #define Log(f, ...)          Logf(MessageType::Normal, f, ##__VA_ARGS__)
 #define LogError(f, ...)     Logf(MessageType::Error, f, ##__VA_ARGS__)

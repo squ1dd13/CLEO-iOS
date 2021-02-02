@@ -1,6 +1,7 @@
 Package: com.squ1dd13.zinc
 Name: Zinc
 Depends: mobilesubstrate
+Replaces: com.squ1dd13.csios
 Version: 0.0.2
 Architecture: iphoneos-arm
 Description: Load scripts into GTA: San Andreas.
