@@ -30,15 +30,6 @@ template <typename... Args>
     std::unique_ptr<char[]> buf(new char[size + 1]);
     snprintf(buf.get() + 1, size, format.c_str(), args...);
 
-    static std::ofstream stream = std::ofstream(
-        "/var/mobile/Documents/Zinc.log",
-        std::ofstream::out | std::ofstream::trunc
-    );
-
-    if (stream) {
-        stream << (char *)(buf.get() + 1) << '\n';
-    }
-
     buf.get()[0] = (unsigned char)messageType;
 
     // Send `size` bytes instead of `size + 1` because we don't want the

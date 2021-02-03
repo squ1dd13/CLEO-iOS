@@ -1,10 +1,12 @@
-Package: com.squ1dd13.zinc
-Name: Zinc
+Package: com.squ1dd13.cleo
+Name: CLEO iOS
 Depends: mobilesubstrate
-Replaces: com.squ1dd13.csios
-Version: 0.0.2
+Provides: com.squ1dd13.csios, com.squ1dd13.zinc
+Conflicts: com.squ1dd13.csios, com.squ1dd13.zinc
+Replaces: com.squ1dd13.csios, com.squ1dd13.zinc
+Version: 1.0.0
 Architecture: iphoneos-arm
-Description: Load scripts into GTA: San Andreas.
+Description: CLEO for GTA:SA
 Maintainer: Squ1dd13
 Author: Squ1dd13
 Section: Tweaks

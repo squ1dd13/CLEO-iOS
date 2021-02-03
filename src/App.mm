@@ -148,7 +148,7 @@ struct {
 
 - (void)viewDidLoad {
     UILabel *customLabel = [[UILabel alloc] initWithFrame:self.view.bounds];
-    customLabel.text = @"Zinc";
+    customLabel.text = @"CLEO";
     customLabel.textColor = [UIColor whiteColor];
     customLabel.font = [UIFont fontWithName:@"PricedownGTAVInt" size:50.f];
     customLabel.textAlignment = NSTextAlignmentCenter;
@@ -170,11 +170,11 @@ struct {
 
     [self.view addSubview:customLabel];
 
-    // Show "Zinc" for 1 second and then fade out over 0.5 seconds.
+    // Show "CLEO" for 1 second and then fade out over 0.5 seconds.
     [UIView animateWithDuration:0.5 delay:1 options:UIViewAnimationOptionCurveEaseIn animations:^{
         customLabel.alpha = 0.0f;
 
-        // Scale up the "Zinc" text slightly as we fade it out.
+        // Scale up the text slightly as we fade it out.
         customLabel.transform = CGAffineTransformScale(customLabel.transform, 2, 2);
     } completion:^(BOOL finished) {
         customLabel.hidden = true;
