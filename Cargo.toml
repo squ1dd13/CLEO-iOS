@@ -1,0 +1,20 @@
+[package]
+name = "greetings"
+version = "0.1.1"
+authors = ["Squ1dd13 <squ1dd13dev@gmail.com>"]
+edition = "2018"
+description = "Example static library project built for iOS"
+publish = false
+
+[lib]
+name = "greetings"
+crate-type = ["staticlib", "cdylib"]
+
+[dependencies]
+bincode = "1.0"
+serde = { version = "1.0", features = ["derive"] }
+ctor = "0.1.20"
+chrono = "0.4"
+dlopen = "0.1"
+cached = "0.23.0"
+backtrace = "0.3"
