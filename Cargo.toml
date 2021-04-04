@@ -1,13 +1,13 @@
 [package]
-name = "greetings"
+name = "cleo"
 version = "0.1.1"
 authors = ["Squ1dd13 <squ1dd13dev@gmail.com>"]
 edition = "2018"
-description = "Example static library project built for iOS"
+description = "CLEO SA for iOS"
 publish = false
 
 [lib]
-name = "greetings"
+name = "cleo"
 crate-type = ["staticlib", "cdylib"]
 
 [dependencies]
