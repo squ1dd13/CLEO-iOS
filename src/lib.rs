@@ -1,3 +1,5 @@
+use std::os::raw::c_char;
+
 mod hook;
 mod logging;
 
@@ -5,6 +7,24 @@ static mut STATIC_LOG: Option<logging::Logger> = None;
 
 fn get_log() -> &'static mut logging::Logger {
     unsafe { STATIC_LOG.as_mut() }.unwrap()
+}
+
+mod targets {
+    use super::*;
+
+    define_target!(GAME_LOAD, 0x100240178, fn(*const c_char));
+}
+
+static mut LOAD_ORIGINAL: Option<fn(*const c_char)> = None;
+
+fn load_replacement(dat_path: *const c_char) {
+    let c_str: &std::ffi::CStr = unsafe { std::ffi::CStr::from_ptr(dat_path) };
+    let path_str: &str = c_str.to_str().unwrap();
+
+    get_log().normal(format!("loading game from {}", path_str));
+    unsafe {
+        LOAD_ORIGINAL.unwrap()(dat_path);
+    }
 }
 
 #[ctor::ctor]
@@ -19,32 +39,7 @@ fn init() {
     // Log an empty string so we get a break after the output from the last run.
     log.normal("");
 
-    let symbol = hook::get_single_symbol::<fn(image_index: u32) -> usize>(
-        "/usr/lib/system/libdyld.dylib",
-        "_dyld_get_image_vmaddr_slide",
-    );
-
-    if let Ok(aslr_slide_fn) = symbol {
-        log.normal(format!("get_single_symbol returned {:?}", aslr_slide_fn));
-        log.normal(format!("return value of GSS function is {:?}", unsafe {
-            aslr_slide_fn(0)
-        }));
-
-        static mut ORIGINAL: Option<fn(u32) -> usize> = None;
-
-        fn replacement(image_index: u32) -> usize {
-            get_log().normal("hooked!");
-            get_log().normal(format!("called for index {}", image_index));
-            unsafe { ORIGINAL.unwrap()(image_index) }
-        }
-
-        hook::install(aslr_slide_fn, replacement, unsafe { &mut ORIGINAL });
-    } else {
-        log.error(format!(
-            "get_single_symbol failed: {}",
-            symbol.err().unwrap()
-        ))
-    }
+    targets::GAME_LOAD.hook_soft(load_replacement, unsafe { &mut LOAD_ORIGINAL });
 
     log.normal("Test plain string");
     log.warning("Test warning");
