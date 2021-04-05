@@ -21,5 +21,5 @@ printf "done.\n"
 # Send the dylib to the device.
 # todo: Produce a deb and install that to the device using scp and ssh.
 printf "=> Installing... "
-(scp ./libcleo.dylib root@192.168.1.226:/Library/MobileSubstrate/DynamicLibraries/CLEO.dylib >/dev/null) || exit 1
+(scp ./libcleo.dylib root@$1:/Library/MobileSubstrate/DynamicLibraries/CLEO.dylib >/dev/null) || exit 1
 printf "done.\n"
