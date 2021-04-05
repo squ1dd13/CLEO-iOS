@@ -12,19 +12,21 @@ fn get_log() -> &'static mut logging::Logger {
 mod targets {
     use super::*;
 
-    define_target!(GAME_LOAD, 0x100240178, fn(*const c_char));
+    create_soft_target!(game_load, 0x100240178, fn(*const c_char));
 }
 
-static mut LOAD_ORIGINAL: Option<fn(*const c_char)> = None;
-
-fn load_replacement(dat_path: *const c_char) {
+fn game_load_hook(dat_path: *const c_char) {
     let c_str: &std::ffi::CStr = unsafe { std::ffi::CStr::from_ptr(dat_path) };
     let path_str: &str = c_str.to_str().unwrap();
 
-    get_log().normal(format!("loading game from {}", path_str));
-    unsafe {
-        LOAD_ORIGINAL.unwrap()(dat_path);
-    }
+    get_log().normal(format!("Loading game using file {}", path_str));
+
+    call_original!(targets::game_load, dat_path);
+}
+
+#[ctor::ctor]
+fn install_hooks() {
+    targets::game_load::install(game_load_hook);
 }
 
 #[ctor::ctor]
@@ -38,8 +40,6 @@ fn init() {
 
     // Log an empty string so we get a break after the output from the last run.
     log.normal("");
-
-    targets::GAME_LOAD.hook_soft(load_replacement, unsafe { &mut LOAD_ORIGINAL });
 
     log.normal("Test plain string");
     log.warning("Test warning");

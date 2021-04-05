@@ -82,8 +82,48 @@ impl<FuncType> Target<FuncType> {
 }
 
 #[macro_export]
-macro_rules! define_target {
+macro_rules! create_hard_target {
     ($name:ident, $addr:literal, $sig:ty) => {
-        pub const $name: crate::hook::Target<$sig> = crate::hook::Target::Address($addr);
+        pub mod $name {
+            use super::*;
+
+            const TARGET: crate::hook::Target<$sig> = crate::hook::Target::Address($addr);
+
+            pub fn install(replacement: $sig) {
+                TARGET.hook_hard(replacement);
+            }
+        }
     };
+}
+
+#[macro_export]
+macro_rules! create_soft_target {
+    ($name:ident, $addr:literal, $sig:ty) => {
+        pub mod $name {
+            use super::*;
+
+            const TARGET: crate::hook::Target<$sig> = crate::hook::Target::Address($addr);
+            pub static mut ORIGINAL: Option<$sig> = None;
+
+            pub fn install(replacement: $sig) {
+                TARGET.hook_soft(replacement, unsafe { &mut ORIGINAL });
+            }
+        }
+    };
+}
+
+#[macro_export]
+macro_rules! deref_original {
+    ($orig_name:expr) => {
+        unsafe { $orig_name.unwrap() }
+    };
+}
+
+#[macro_export]
+macro_rules! call_original {
+    ($hook_module:path, $($args:expr),*) => {
+        // Workaround for $hook_module::x not working - see #48067.
+        use $hook_module as base;
+        unsafe { base::ORIGINAL }.unwrap()($($args)*)
+    }
 }
