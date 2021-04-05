@@ -2,6 +2,7 @@ use std::os::raw::c_char;
 
 mod hook;
 mod logging;
+mod scripts;
 
 static mut STATIC_LOG: Option<logging::Logger> = None;
 
@@ -29,14 +30,28 @@ fn install_hooks() {
     targets::game_load::install(game_load_hook);
 }
 
+fn set_panic_hook() {
+    std::panic::set_hook(Box::new(|info| {
+        let backtrace = backtrace::Backtrace::new();
+
+        if let Some(s) = info.payload().downcast_ref::<&str>() {
+            get_log().error(format!("\npanic: {:?}\n\nbacktrace:\n{:?}", s, backtrace));
+        } else {
+            get_log().error(format!("\npanic\n\nbacktrace:\n{:?}", backtrace));
+        }
+    }));
+}
+
 #[ctor::ctor]
 fn init() {
-    unsafe { STATIC_LOG = Some(logging::Logger::new("tweak")) };
+    unsafe { STATIC_LOG = Some(logging::Logger::new("cleo")) };
 
     let log = get_log();
 
     log.connect_udp("192.168.1.183:4568");
     log.connect_file("/var/mobile/Documents/tweak.log");
+
+    set_panic_hook();
 
     // Log an empty string so we get a break after the output from the last run.
     log.normal("");
@@ -45,4 +60,20 @@ fn init() {
     log.warning("Test warning");
     log.error("Test error");
     log.important("Test important");
+
+    let script_vec = scripts::Script::load_dir(&"/var/mobile/Documents/CS");
+
+    if let Err(error) = script_vec {
+        log.error(format!("Unable to load scripts directory: {}", error));
+        return;
+    }
+
+    for script in script_vec.unwrap() {
+        if let Ok(script) = script {
+            log.normal(format!("Loaded: {}", script.name()));
+            continue;
+        }
+
+        log.error(format!("Unable to load script: {}", script.err().unwrap()));
+    }
 }
