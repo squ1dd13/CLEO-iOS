@@ -121,9 +121,9 @@ macro_rules! deref_original {
 
 #[macro_export]
 macro_rules! call_original {
-    ($hook_module:path, $($args:expr),*) => {
+    ($hook_module:path, $($args:expr),*) => {{
         // Workaround for $hook_module::x not working - see #48067.
         use $hook_module as base;
         unsafe { base::ORIGINAL }.unwrap()($($args)*)
-    }
+    }}
 }

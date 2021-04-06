@@ -56,8 +56,6 @@ fn set_panic_hook() {
 
 #[ctor::ctor]
 fn init() {
-    // unsafe { STATIC_LOG = Some(logging::Logger::new("cleo")) };
-
     let log = get_log();
 
     log.connect_udp("192.168.1.183:4568");
