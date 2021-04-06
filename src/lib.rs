@@ -4,10 +4,22 @@ mod hook;
 mod logging;
 mod scripts;
 
-static mut STATIC_LOG: Option<logging::Logger> = None;
-
 fn get_log() -> &'static mut logging::Logger {
-    unsafe { STATIC_LOG.as_mut() }.unwrap()
+    static mut STATIC_LOG: Option<logging::Logger> = None;
+
+    unsafe {
+        if STATIC_LOG.is_some() {
+            return STATIC_LOG.as_mut().unwrap();
+        }
+
+        let mut log = logging::Logger::new("cleo");
+
+        log.connect_udp("192.168.1.183:4568");
+        log.connect_file("/var/mobile/Documents/tweak.log");
+
+        STATIC_LOG = Some(log);
+        STATIC_LOG.as_mut().unwrap()
+    }
 }
 
 mod targets {
@@ -44,7 +56,7 @@ fn set_panic_hook() {
 
 #[ctor::ctor]
 fn init() {
-    unsafe { STATIC_LOG = Some(logging::Logger::new("cleo")) };
+    // unsafe { STATIC_LOG = Some(logging::Logger::new("cleo")) };
 
     let log = get_log();
 

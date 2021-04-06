@@ -1,3 +1,4 @@
+use cached::proc_macro::cached;
 use chrono::Local;
 use serde::{Deserialize, Serialize};
 use std::fs::File;
@@ -21,39 +22,20 @@ struct Message {
     time: String,
 }
 
-static mut CACHED_PROCESS_NAME: Option<String> = None;
-
-#[ctor::ctor]
-fn get_proc_name() {
-    // Get the process name on load so we don't have to find it every time
-    // we log something.
-
+#[cached]
+fn get_proc_name() -> String {
     let cur_exec = std::env::current_exe();
 
     // Get the name of the current process, or "???" if we can't get the name.
-    let name_str = if let Ok(path) = cur_exec {
+    if let Ok(path) = cur_exec {
         String::from(
             path.file_name()
-                .unwrap_or(std::ffi::OsStr::new("???"))
+                .unwrap_or_else(|| std::ffi::OsStr::new("???"))
                 .to_str()
                 .unwrap_or("???"),
         )
     } else {
         String::from("???")
-    };
-
-    unsafe {
-        CACHED_PROCESS_NAME = Some(name_str);
-    }
-}
-
-fn get_cached_proc_name() -> &'static str {
-    unsafe {
-        if let Some(string) = &CACHED_PROCESS_NAME {
-            string.as_str()
-        } else {
-            "???"
-        }
     }
 }
 
@@ -61,7 +43,7 @@ impl Message {
     fn pack(&self) -> Option<Vec<u8>> {
         let serialized = bincode::serialize::<Message>(self).ok();
 
-        if let None = serialized {
+        if serialized.is_none() {
             return serialized;
         }
 
@@ -116,7 +98,7 @@ impl Logger {
     }
 
     fn commit<S: AsRef<str>>(&mut self, msg_type: MessageType, value: S) {
-        if let None = self.socket {
+        if self.socket.is_none() {
             return;
         }
 
@@ -124,7 +106,7 @@ impl Logger {
             group: self.name.clone(),
             msg_type,
             string: String::from(value.as_ref()),
-            process: String::from(get_cached_proc_name()),
+            process: get_proc_name(),
             time: Local::now().format("%H:%M:%S").to_string(),
         };
 
@@ -134,7 +116,7 @@ impl Logger {
 
         let packed = message.pack();
 
-        if let None = packed {
+        if packed.is_none() {
             return;
         }
 
