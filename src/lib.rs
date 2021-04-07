@@ -69,11 +69,6 @@ fn init() {
 
     install_hooks();
 
-    log.normal("Test plain string");
-    log.warning("Test warning");
-    log.error("Test error");
-    log.important("Test important");
-
     let script_vec = scripts::Script::load_dir(&"/var/mobile/Documents/CS");
 
     if let Err(error) = script_vec {

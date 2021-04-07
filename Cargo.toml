@@ -19,3 +19,6 @@ dlopen = "0.1"
 cached = "0.23.0"
 backtrace = "0.3"
 static_assert_macro = "1"
+
+[profile.release]
+lto = true
