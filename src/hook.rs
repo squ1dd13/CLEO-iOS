@@ -24,7 +24,7 @@ fn get_aslr_offset_fn() -> Result<fn(u32) -> usize, dlopen::Error> {
 }
 
 #[cached]
-fn get_image_aslr_offset(image: u32) -> usize {
+pub fn get_image_aslr_offset(image: u32) -> usize {
     let function = get_aslr_offset_fn()
         .expect("Failed to get ASLR offset function! All base addresses will be invalid.");
     function(image)
@@ -121,9 +121,20 @@ macro_rules! deref_original {
 
 #[macro_export]
 macro_rules! call_original {
+    ($hook_module:path) => {{
+        use $hook_module as base;
+        unsafe { base::ORIGINAL }.unwrap()()
+    }};
     ($hook_module:path, $($args:expr),*) => {{
         // Workaround for $hook_module::x not working - see #48067.
         use $hook_module as base;
         unsafe { base::ORIGINAL }.unwrap()($($args)*)
     }}
+}
+
+pub fn slide<T: Copy>(address: usize) -> T {
+    unsafe {
+        let addr_ptr: *const usize = &(address + crate::hook::get_image_aslr_offset(0));
+        *(addr_ptr as *const T)
+    }
 }

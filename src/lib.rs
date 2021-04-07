@@ -26,6 +26,7 @@ mod targets {
     use super::*;
 
     create_soft_target!(game_load, 0x100240178, fn(*const c_char));
+    create_soft_target!(script_tick, 0x1001d0f40, fn());
 }
 
 fn game_load_hook(dat_path: *const c_char) {
@@ -37,9 +38,9 @@ fn game_load_hook(dat_path: *const c_char) {
     call_original!(targets::game_load, dat_path);
 }
 
-#[ctor::ctor]
 fn install_hooks() {
     targets::game_load::install(game_load_hook);
+    scripts::Script::install_hooks();
 }
 
 fn set_panic_hook() {
@@ -66,6 +67,8 @@ fn init() {
     // Log an empty string so we get a break after the output from the last run.
     log.normal("");
 
+    install_hooks();
+
     log.normal("Test plain string");
     log.warning("Test warning");
     log.error("Test error");
@@ -81,6 +84,9 @@ fn init() {
     for script in script_vec.unwrap() {
         if let Ok(script) = script {
             log.normal(format!("Loaded: {}", script.name()));
+
+            unsafe { scripts::LOADED_SCRIPTS.push(script) }
+
             continue;
         }
 
