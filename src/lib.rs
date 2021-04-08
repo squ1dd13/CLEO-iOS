@@ -80,8 +80,7 @@ fn init() {
         if let Ok(script) = script {
             log.normal(format!("Loaded: {}", script.name()));
 
-            unsafe { scripts::LOADED_SCRIPTS.push(script) }
-
+            scripts::loaded_scripts().push(script);
             continue;
         }
 

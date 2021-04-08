@@ -1,11 +1,10 @@
-use std::convert::TryInto;
 use std::fs;
 use std::io;
 use std::iter::FromIterator;
 use std::path::Path;
 use std::path::{Component, PathBuf};
 
-use crate::{call_original, create_soft_target, hook};
+use crate::{call_original, get_log, hook};
 
 /// Passive scripts have the extension "csi" and are invoked via the script menu.
 struct PassiveScript {
@@ -79,8 +78,6 @@ struct VanillaScript {
     is_mission: bool,
 }
 
-// static_assert_macro::static_assert!(std::mem::size_of::<VanillaScript>() == 304);
-
 pub struct Script {
     vanilla_rep: VanillaScript,
 
@@ -89,7 +86,11 @@ pub struct Script {
     bytes: Vec<u8>,
 }
 
-pub static mut LOADED_SCRIPTS: Vec<Script> = vec![];
+static mut LOADED_SCRIPTS: Vec<Script> = vec![];
+
+pub fn loaded_scripts() -> &'static mut Vec<Script> {
+    unsafe { &mut LOADED_SCRIPTS }
+}
 
 impl Script {
     pub fn new(path: &Path) -> io::Result<Script> {
@@ -160,8 +161,12 @@ impl Script {
             return 1;
         };
 
+        if self.vanilla_rep.ip.is_null() {
+            panic!("Instruction pointer may not be null!");
+        }
+
         let instruction = unsafe {
-            let instruction = std::ptr::read(self.vanilla_rep.ip as *mut i16);
+            let instruction = (self.vanilla_rep.ip as *mut i16).read();
             self.vanilla_rep.ip = self.vanilla_rep.ip.offset(2);
 
             instruction
@@ -174,7 +179,7 @@ impl Script {
 
         // todo: Check for instruction overrides here.
 
-        // Intercept terminate() instructions to stop the game trying to free the script's memory.
+        // Intercept terminate() instructions to stop the game trying to free our scripts' memory.
         if opcode == 0x4e {
             // Set the script to inactive so we free it on the next tick.
             self.vanilla_rep.active = false;
@@ -186,7 +191,7 @@ impl Script {
         // Find the correct handler and call it.
         if opcode >= 0xa8c {
             // Handled by the default handler.
-            return crate::hook::slide::<Handler>(0x10020980c)(&mut self.vanilla_rep, opcode);
+            return hook::slide::<Handler>(0x10020980c)(&mut self.vanilla_rep, opcode);
         }
 
         // Other opcodes have their handlers calculated. This formula is compiler-optimised, and
@@ -194,8 +199,8 @@ impl Script {
         let offset = (((opcode as usize) * 1374389535usize) >> 33) & 0x3ffffff0;
 
         // Add the offset to the table pointer.
-        let handler_entry: *const Handler = crate::hook::slide(0x1005c11d8 + offset);
-        let handler: Handler = unsafe { *handler_entry };
+        let handler_entry: *const Handler = hook::slide(0x1005c11d8 + offset);
+        let handler: Handler = unsafe { handler_entry.read() };
 
         // todo: Implement the weird receiver behaviour that the game has.
         let self_ptr = &mut self.vanilla_rep as *mut VanillaScript;
@@ -211,47 +216,52 @@ impl Script {
     }
 
     fn get_game_time() -> u32 {
-        unsafe { *crate::hook::slide::<*const u32>(0x1007d3af8) }
+        unsafe { *hook::slide::<*const u32>(0x1007d3af8) }
+    }
+
+    fn unload_inactive() {
+        // Unload scripts that are not active. This code works in conjunction with the
+        //  opcode override for terminate(), which marks scripts as inactive instead of
+        //  actually terminating them. This means that CSI scripts that have ended
+        //  will be unloaded here.
+        // todo: Log a warning when CSA scripts get unloaded.
+        let loaded = loaded_scripts();
+
+        let count_before = loaded.len();
+        loaded.retain(|script| script.vanilla_rep.active);
+        let unloaded_count = count_before - loaded.len();
+
+        if unloaded_count != 0 {
+            get_log().normal(format!("Unloaded {} inactive scripts.", unloaded_count));
+        }
     }
 
     fn script_tick() {
-        unsafe {
-            let count_before = LOADED_SCRIPTS.len();
-            LOADED_SCRIPTS.retain(|script| script.vanilla_rep.active);
-            let unloaded_count = count_before - LOADED_SCRIPTS.len();
+        Script::unload_inactive();
 
-            if unloaded_count != 0 {
-                crate::get_log().normal(format!("Unloaded {} inactive scripts.", unloaded_count));
+        let game_time = Script::get_game_time();
+
+        for script in loaded_scripts() {
+            // Only run scripts if their activation time is not in the future.
+            if script.vanilla_rep.wakeup_time > game_time {
+                // The script is sleeping, so leave it alone.
+                continue;
             }
 
-            let game_time = Script::get_game_time();
+            let name = script.name();
+            get_log().normal(format!("Updating {}...", name));
 
-            for script in LOADED_SCRIPTS.iter_mut() {
-                // Only run scripts if their activation time is not in the future.
-                if script.vanilla_rep.wakeup_time > game_time {
-                    // The script is sleeping, so leave it alone.
-                    continue;
-                }
+            // Run the next block of instructions.
+            script.run_block();
 
-                let name = script.name();
-                crate::get_log().normal(format!("Updating {}...", name));
-
-                // Run the next block of instructions.
-                script.run_block();
-
-                crate::get_log().normal("Updated.");
-            }
+            get_log().normal("Updated.");
         }
 
         call_original!(crate::targets::script_tick);
     }
 
     pub fn install_hooks() {
-        crate::get_log().normal("Installing script hooks!");
+        get_log().normal("Installing script hooks!");
         crate::targets::script_tick::install(Script::script_tick);
     }
 }
-
-/*
-rec = (self + (*(handler_address + 8) / 8));
-*/

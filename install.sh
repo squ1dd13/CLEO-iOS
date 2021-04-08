@@ -1,7 +1,8 @@
+# todo: Move to build.rs
+
 # Compile the Rust code and produce an ar archive.
-# todo: This should be debug, not release.
 printf "=> Compiling Rust code...\n"
-cargo lipo --release --allow-run-on-non-macos || exit 1
+cargo lipo --allow-run-on-non-macos || exit 1
 printf "=> Finished compiling Rust code.\n"
 
 # Move to the output directory.
