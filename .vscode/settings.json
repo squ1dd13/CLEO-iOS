@@ -1,0 +1,11 @@
+{
+    "files.associations": {
+        "*.xm": "objective-cpp",
+        "*.theme": "css",
+        "*.abc": "csharp",
+        "*.l2": "rust",
+        "*.idk": "rust",
+        "*.scmd": "rust",
+        "*.glsl": "c"
+    }
+}

@@ -3,6 +3,7 @@ use std::os::raw::c_char;
 mod hook;
 mod logging;
 mod scripts;
+mod ui;
 
 fn get_log() -> &'static mut logging::Logger {
     static mut STATIC_LOG: Option<logging::Logger> = None;
@@ -12,12 +13,7 @@ fn get_log() -> &'static mut logging::Logger {
             return STATIC_LOG.as_mut().unwrap();
         }
 
-        let mut log = logging::Logger::new("cleo");
-
-        log.connect_udp("192.168.1.183:4568");
-        log.connect_file("/var/mobile/Documents/tweak.log");
-
-        STATIC_LOG = Some(log);
+        STATIC_LOG = Some(logging::Logger::new("cleo"));
         STATIC_LOG.as_mut().unwrap()
     }
 }
@@ -27,6 +23,12 @@ mod targets {
 
     create_soft_target!(game_load, 0x100240178, fn(*const c_char));
     create_soft_target!(script_tick, 0x1001d0f40, fn());
+    create_soft_target!(
+        process_touch,
+        0x1004e831c,
+        extern "C" fn(f32, f32, f64, f32, f32)
+    );
+    // create_soft_target!(vertex_shader, 0x100137cd0, fn(u64));
 }
 
 fn game_load_hook(dat_path: *const c_char) {
@@ -41,6 +43,7 @@ fn game_load_hook(dat_path: *const c_char) {
 fn install_hooks() {
     targets::game_load::install(game_load_hook);
     scripts::Script::install_hooks();
+    ui::install_hooks();
 }
 
 fn set_panic_hook() {

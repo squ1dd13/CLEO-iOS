@@ -18,8 +18,7 @@ chrono = "0.4"
 dlopen = "0.1"
 cached = "0.23.0"
 backtrace = "0.3"
-static_assert_macro = "1"
-gag = "0.1.10"
+objc = "0.2.7"
 
 [profile.release]
 lto = true

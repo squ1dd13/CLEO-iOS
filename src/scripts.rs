@@ -237,6 +237,15 @@ impl Script {
     }
 
     fn script_tick() {
+        // unsafe {
+
+        //     get_log().important(
+        //         std::ffi::CStr::from_ptr(hook::slide::<*const i8>(0x100934e68))
+        //             .to_str()
+        //             .unwrap(),
+        //     );
+        // }
+
         Script::unload_inactive();
 
         let game_time = Script::get_game_time();
@@ -260,8 +269,83 @@ impl Script {
         call_original!(crate::targets::script_tick);
     }
 
+//     fn vertex_shader_hook(value: u64) {
+//         enum ShaderOptions {
+//             LightStuff = 0x2,
+//             DirLight = 0x2000,
+//             DirBackLight = 0x1180,
+            
+//         }
+
+//         call_original!(crate::targets::vertex_shader, value);
+
+//         get_log().important(format!("vert({:x})", value));
+
+//         if value != 48 {
+//             return;
+//         }
+
+//         static SHADER_STR_48: &str = "#version 100
+
+// precision highp float;
+// uniform mat4 ProjMatrix;
+// uniform mat4 ViewMatrix;
+// uniform mat4 ObjMatrix;
+// attribute vec3 Position;
+// attribute vec3 Normal;
+// attribute vec2 TexCoord0;
+// attribute vec4 GlobalColor;
+// varying mediump vec2 Out_Tex0;
+// varying lowp vec4 Out_Color;
+
+// void main() {
+//     vec4 WorldPos = ObjMatrix * vec4(Position, 1.0);
+//     vec4 ViewPos = ViewMatrix * WorldPos;
+//     gl_Position = ProjMatrix * ViewPos;
+//     Out_Tex0 = TexCoord0;
+//     Out_Color = vec4(1.0, GlobalColor.g, GlobalColor.b, GlobalColor.a);//GlobalColor;
+// }";
+
+//         static SHADER_STR_16: &str = "#version 100
+// precision highp float;
+// uniform mat4 ProjMatrix;
+// uniform mat4 ViewMatrix;
+// uniform mat4 ObjMatrix;
+// attribute vec3 Position;
+// attribute vec3 Normal;
+// attribute vec4 GlobalColor;
+// varying lowp vec4 Out_Color;
+// void main() {
+//     vec4 WorldPos = ObjMatrix * vec4(Position, 1.0);
+//     vec4 ViewPos = ViewMatrix * WorldPos;
+//     gl_Position = ProjMatrix * ViewPos;
+//     Out_Color = GlobalColor;
+// }";
+//         unsafe {
+//             get_log().normal(
+//                 std::ffi::CStr::from_ptr(hook::slide::<*const i8>(0x100936e69))
+//                     .to_str()
+//                     .unwrap(),
+//             );
+
+//             let shader = match value {
+//                 48 => SHADER_STR_48,
+//                 _ => SHADER_STR_16,
+//             };
+
+//             hook::slide::<*mut i8>(0x100936e69).copy_from(
+//                 std::ffi::CString::new(shader)
+//                     .unwrap()
+//                     .as_bytes_with_nul()
+//                     .as_ptr() as *const i8,
+//                 shader.len() + 1,
+//             );
+//         }
+//     }
+
     pub fn install_hooks() {
         get_log().normal("Installing script hooks!");
         crate::targets::script_tick::install(Script::script_tick);
+        // crate::targets::vertex_shader::install(Script::vertex_shader_hook);
     }
 }

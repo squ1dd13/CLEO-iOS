@@ -6,7 +6,7 @@ cargo lipo --allow-run-on-non-macos || exit 1
 printf "=> Finished compiling Rust code.\n"
 
 # Move to the output directory.
-cd target/aarch64-apple-ios/release
+cd target/aarch64-apple-ios/debug
 unlink ./libcleo.dylib
 
 # Convert the ar archive to a dylib.
