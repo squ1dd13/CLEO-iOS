@@ -4,7 +4,9 @@ use std::iter::FromIterator;
 use std::path::Path;
 use std::path::{Component, PathBuf};
 
-use crate::{call_original, get_log, hook};
+use log::{debug, error, info, trace, warn};
+
+use crate::{call_original, hook};
 
 /// Passive scripts have the extension "csi" and are invoked via the script menu.
 struct PassiveScript {
@@ -27,7 +29,7 @@ impl PassiveScript {
 
         if name == "???" {
             // Report the invalid path, since this is still an error.
-            super::get_log().warning(format!("Unable to get PS name from path: {}", path_string));
+            warn!("Unable to get PS name from path: {}", path_string);
         }
 
         PassiveScript {
@@ -156,6 +158,42 @@ impl Script {
         String::from_iter(name_chars)
     }
 
+    fn run_override(&mut self, opcode: u16) -> bool {
+        // fixme: Overrides with arguments will fail, because we don't read the args.
+        match opcode {
+            0x4e => {
+                // Set the script to inactive so we free it on the next tick.
+                self.vanilla_rep.active = false;
+                false
+            }
+
+            0xdd0..=0xdd4 | 0xdde => {
+                error!(
+                    "Gamecode interop unsupported on iOS! (Script '{}' used opcode {:#x}.)",
+                    self.name(),
+                    opcode
+                );
+
+                false
+            }
+
+            0xdd8..=0xdda | 0xdd7 => {
+                // In theory, 0xdda could be used to get valid memory addresses, but scripts are
+                //  probably looking for bytes only present in the 32-bit game.
+
+                error!(
+                    "Memory r/w unsupported on iOS! (Script '{}' used opcode {:#x}.)",
+                    self.name(),
+                    opcode
+                );
+
+                false
+            }
+
+            _ => true,
+        }
+    }
+
     fn run_next(&mut self) -> u8 {
         if !self.vanilla_rep.active {
             return 1;
@@ -172,7 +210,7 @@ impl Script {
             instruction
         };
 
-        // A negative written opcode indicates that the return is inverted.
+        // A negative written opcode indicates that the returned boolean is inverted.
         self.vanilla_rep.not_flag = instruction < 0;
 
         let opcode = instruction.abs() as u16;
@@ -181,8 +219,6 @@ impl Script {
 
         // Intercept terminate() instructions to stop the game trying to free our scripts' memory.
         if opcode == 0x4e {
-            // Set the script to inactive so we free it on the next tick.
-            self.vanilla_rep.active = false;
             return 1;
         };
 
@@ -232,7 +268,7 @@ impl Script {
         let unloaded_count = count_before - loaded.len();
 
         if unloaded_count != 0 {
-            get_log().normal(format!("Unloaded {} inactive scripts.", unloaded_count));
+            info!("Unloaded {} inactive scripts.", unloaded_count);
         }
     }
 
@@ -258,93 +294,93 @@ impl Script {
             }
 
             let name = script.name();
-            get_log().normal(format!("Updating {}...", name));
+            trace!("Updating {}...", name);
 
             // Run the next block of instructions.
             script.run_block();
 
-            get_log().normal("Updated.");
+            trace!("Updated.");
         }
 
         call_original!(crate::targets::script_tick);
     }
 
-//     fn vertex_shader_hook(value: u64) {
-//         enum ShaderOptions {
-//             LightStuff = 0x2,
-//             DirLight = 0x2000,
-//             DirBackLight = 0x1180,
-            
-//         }
+    //     fn vertex_shader_hook(value: u64) {
+    //         enum ShaderOptions {
+    //             LightStuff = 0x2,
+    //             DirLight = 0x2000,
+    //             DirBackLight = 0x1180,
 
-//         call_original!(crate::targets::vertex_shader, value);
+    //         }
 
-//         get_log().important(format!("vert({:x})", value));
+    //         call_original!(crate::targets::vertex_shader, value);
 
-//         if value != 48 {
-//             return;
-//         }
+    //         get_log().important(format!("vert({:x})", value));
 
-//         static SHADER_STR_48: &str = "#version 100
+    //         if value != 48 {
+    //             return;
+    //         }
 
-// precision highp float;
-// uniform mat4 ProjMatrix;
-// uniform mat4 ViewMatrix;
-// uniform mat4 ObjMatrix;
-// attribute vec3 Position;
-// attribute vec3 Normal;
-// attribute vec2 TexCoord0;
-// attribute vec4 GlobalColor;
-// varying mediump vec2 Out_Tex0;
-// varying lowp vec4 Out_Color;
+    //         static SHADER_STR_48: &str = "#version 100
 
-// void main() {
-//     vec4 WorldPos = ObjMatrix * vec4(Position, 1.0);
-//     vec4 ViewPos = ViewMatrix * WorldPos;
-//     gl_Position = ProjMatrix * ViewPos;
-//     Out_Tex0 = TexCoord0;
-//     Out_Color = vec4(1.0, GlobalColor.g, GlobalColor.b, GlobalColor.a);//GlobalColor;
-// }";
+    // precision highp float;
+    // uniform mat4 ProjMatrix;
+    // uniform mat4 ViewMatrix;
+    // uniform mat4 ObjMatrix;
+    // attribute vec3 Position;
+    // attribute vec3 Normal;
+    // attribute vec2 TexCoord0;
+    // attribute vec4 GlobalColor;
+    // varying mediump vec2 Out_Tex0;
+    // varying lowp vec4 Out_Color;
 
-//         static SHADER_STR_16: &str = "#version 100
-// precision highp float;
-// uniform mat4 ProjMatrix;
-// uniform mat4 ViewMatrix;
-// uniform mat4 ObjMatrix;
-// attribute vec3 Position;
-// attribute vec3 Normal;
-// attribute vec4 GlobalColor;
-// varying lowp vec4 Out_Color;
-// void main() {
-//     vec4 WorldPos = ObjMatrix * vec4(Position, 1.0);
-//     vec4 ViewPos = ViewMatrix * WorldPos;
-//     gl_Position = ProjMatrix * ViewPos;
-//     Out_Color = GlobalColor;
-// }";
-//         unsafe {
-//             get_log().normal(
-//                 std::ffi::CStr::from_ptr(hook::slide::<*const i8>(0x100936e69))
-//                     .to_str()
-//                     .unwrap(),
-//             );
+    // void main() {
+    //     vec4 WorldPos = ObjMatrix * vec4(Position, 1.0);
+    //     vec4 ViewPos = ViewMatrix * WorldPos;
+    //     gl_Position = ProjMatrix * ViewPos;
+    //     Out_Tex0 = TexCoord0;
+    //     Out_Color = vec4(1.0, GlobalColor.g, GlobalColor.b, GlobalColor.a);//GlobalColor;
+    // }";
 
-//             let shader = match value {
-//                 48 => SHADER_STR_48,
-//                 _ => SHADER_STR_16,
-//             };
+    //         static SHADER_STR_16: &str = "#version 100
+    // precision highp float;
+    // uniform mat4 ProjMatrix;
+    // uniform mat4 ViewMatrix;
+    // uniform mat4 ObjMatrix;
+    // attribute vec3 Position;
+    // attribute vec3 Normal;
+    // attribute vec4 GlobalColor;
+    // varying lowp vec4 Out_Color;
+    // void main() {
+    //     vec4 WorldPos = ObjMatrix * vec4(Position, 1.0);
+    //     vec4 ViewPos = ViewMatrix * WorldPos;
+    //     gl_Position = ProjMatrix * ViewPos;
+    //     Out_Color = GlobalColor;
+    // }";
+    //         unsafe {
+    //             get_log().normal(
+    //                 std::ffi::CStr::from_ptr(hook::slide::<*const i8>(0x100936e69))
+    //                     .to_str()
+    //                     .unwrap(),
+    //             );
 
-//             hook::slide::<*mut i8>(0x100936e69).copy_from(
-//                 std::ffi::CString::new(shader)
-//                     .unwrap()
-//                     .as_bytes_with_nul()
-//                     .as_ptr() as *const i8,
-//                 shader.len() + 1,
-//             );
-//         }
-//     }
+    //             let shader = match value {
+    //                 48 => SHADER_STR_48,
+    //                 _ => SHADER_STR_16,
+    //             };
+
+    //             hook::slide::<*mut i8>(0x100936e69).copy_from(
+    //                 std::ffi::CString::new(shader)
+    //                     .unwrap()
+    //                     .as_bytes_with_nul()
+    //                     .as_ptr() as *const i8,
+    //                 shader.len() + 1,
+    //             );
+    //         }
+    //     }
 
     pub fn install_hooks() {
-        get_log().normal("Installing script hooks!");
+        debug!("Installing script hooks");
         crate::targets::script_tick::install(Script::script_tick);
         // crate::targets::vertex_shader::install(Script::vertex_shader_hook);
     }

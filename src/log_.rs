@@ -78,13 +78,23 @@ pub struct Logger {
     file: Option<File>,
 }
 
+pub(crate) static mut GLOBAL_LOGGER: Option<Logger> = None;
+
 impl Logger {
-    pub fn new(name: &str) -> Logger {
-        Logger {
-            name: String::from(name),
-            socket: None,
-            address: String::new(),
-            file: None,
+    pub fn new(name: &str) -> &'static mut Logger {
+        unsafe {
+            if GLOBAL_LOGGER.is_some() {
+                panic!("Logger already created!");
+            }
+
+            GLOBAL_LOGGER = Some(Logger {
+                name: String::from(name),
+                socket: None,
+                address: String::new(),
+                file: None,
+            });
+
+            GLOBAL_LOGGER.as_mut().unwrap()
         }
     }
 
@@ -97,7 +107,7 @@ impl Logger {
         self.file = File::create(path).ok();
     }
 
-    fn commit<S: AsRef<str>>(&mut self, msg_type: MessageType, value: S) {
+    fn commit<S: AsRef<str>>(&self, msg_type: MessageType, value: S) {
         if self.socket.is_none() {
             return;
         }
@@ -110,9 +120,10 @@ impl Logger {
             time: Local::now().format("%H:%M:%S").to_string(),
         };
 
-        if let Some(file) = &mut self.file {
-            message.write_to_file(file);
-        }
+        // fixme: File logging disabled
+        // if let Some(file) = &mut self.file {
+        // message.write_to_file(file);
+        // }
 
         let packed = message.pack();
 
@@ -128,19 +139,66 @@ impl Logger {
             .send_to(&packed.unwrap(), self.address.as_str());
     }
 
-    pub fn normal<S: AsRef<str>>(&mut self, contents: S) {
-        self.commit(MessageType::Normal, contents);
+    // pub fn normal<S: AsRef<str>>(&self, contents: S) {
+    //     self.commit(MessageType::Normal, contents);
+    // }
+
+    // pub fn warning<S: AsRef<str>>(&self, contents: S) {
+    //     self.commit(MessageType::Warning, contents);
+    // }
+
+    // pub fn error<S: AsRef<str>>(&self, contents: S) {
+    //     self.commit(MessageType::Error, contents);
+    // }
+
+    // pub fn important<S: AsRef<str>>(&self, contents: S) {
+    //     self.commit(MessageType::Important, contents);
+    // }
+}
+
+pub fn normal<S: AsRef<str>>(contents: S) {
+    unsafe { GLOBAL_LOGGER.as_mut() }
+        .unwrap()
+        .commit(MessageType::Normal, contents);
+}
+
+pub fn warning<S: AsRef<str>>(contents: S) {
+    unsafe { GLOBAL_LOGGER.as_mut() }
+        .unwrap()
+        .commit(MessageType::Warning, contents);
+}
+
+pub fn error<S: AsRef<str>>(contents: S) {
+    unsafe { GLOBAL_LOGGER.as_mut() }
+        .unwrap()
+        .commit(MessageType::Error, contents);
+}
+
+pub fn important<S: AsRef<str>>(contents: S) {
+    unsafe { GLOBAL_LOGGER.as_mut() }
+        .unwrap()
+        .commit(MessageType::Important, contents);
+}
+
+use log::{Level, Metadata, Record};
+impl log::Log for Logger {
+    fn enabled(&self, _: &Metadata) -> bool {
+        true
     }
 
-    pub fn warning<S: AsRef<str>>(&mut self, contents: S) {
-        self.commit(MessageType::Warning, contents);
+    fn log(&self, record: &Record) {
+        if self.enabled(record.metadata()) {
+            let level = match record.level() {
+                Level::Error => MessageType::Error,
+                Level::Warn => MessageType::Warning,
+                Level::Info => MessageType::Important,
+                Level::Debug => MessageType::Normal,
+                Level::Trace => MessageType::Normal,
+            };
+
+            self.commit(level, format!("{}", record.args()));
+        }
     }
 
-    pub fn error<S: AsRef<str>>(&mut self, contents: S) {
-        self.commit(MessageType::Error, contents);
-    }
-
-    pub fn important<S: AsRef<str>>(&mut self, contents: S) {
-        self.commit(MessageType::Important, contents);
-    }
+    fn flush(&self) {}
 }

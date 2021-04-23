@@ -1,22 +1,12 @@
 use std::os::raw::c_char;
 
+use ctor::ctor;
+use log::{debug, error, info};
+
 mod hook;
-mod logging;
+mod log_;
 mod scripts;
 mod ui;
-
-fn get_log() -> &'static mut logging::Logger {
-    static mut STATIC_LOG: Option<logging::Logger> = None;
-
-    unsafe {
-        if STATIC_LOG.is_some() {
-            return STATIC_LOG.as_mut().unwrap();
-        }
-
-        STATIC_LOG = Some(logging::Logger::new("cleo"));
-        STATIC_LOG.as_mut().unwrap()
-    }
-}
 
 mod targets {
     use super::*;
@@ -26,7 +16,7 @@ mod targets {
     create_soft_target!(
         process_touch,
         0x1004e831c,
-        extern "C" fn(f32, f32, f64, f32, f32)
+        fn(f32, f32, f64, f32, ui::TouchType)
     );
     // create_soft_target!(vertex_shader, 0x100137cd0, fn(u64));
 }
@@ -35,7 +25,7 @@ fn game_load_hook(dat_path: *const c_char) {
     let c_str: &std::ffi::CStr = unsafe { std::ffi::CStr::from_ptr(dat_path) };
     let path_str: &str = c_str.to_str().unwrap();
 
-    get_log().normal(format!("Loading game using file {}", path_str));
+    debug!("Loading game using file {}", path_str);
 
     call_original!(targets::game_load, dat_path);
 }
@@ -46,47 +36,60 @@ fn install_hooks() {
     ui::install_hooks();
 }
 
-fn set_panic_hook() {
-    std::panic::set_hook(Box::new(|info| {
-        let backtrace = backtrace::Backtrace::new();
-
-        if let Some(s) = info.payload().downcast_ref::<&str>() {
-            get_log().error(format!("\npanic: {:?}\n\nbacktrace:\n{:?}", s, backtrace));
-        } else {
-            get_log().error(format!("\npanic\n\nbacktrace:\n{:?}", backtrace));
-        }
-    }));
-}
-
-#[ctor::ctor]
-fn init() {
-    let log = get_log();
-
-    log.connect_udp("192.168.1.183:4568");
-    log.connect_file("/var/mobile/Documents/tweak.log");
-
-    set_panic_hook();
-
-    // Log an empty string so we get a break after the output from the last run.
-    log.normal("");
-
-    install_hooks();
-
+fn load_script_dir() {
     let script_vec = scripts::Script::load_dir(&"/var/mobile/Documents/CS");
 
     if let Err(error) = script_vec {
-        log.error(format!("Unable to load scripts directory: {}", error));
+        error!("Unable to load scripts directory: {}", error);
         return;
     }
 
     for script in script_vec.unwrap() {
         if let Ok(script) = script {
-            log.normal(format!("Loaded: {}", script.name()));
+            info!("Loaded: {}", script.name());
 
             scripts::loaded_scripts().push(script);
             continue;
         }
 
-        log.error(format!("Unable to load script: {}", script.err().unwrap()));
+        error!("Unable to load script: {}", script.err().unwrap());
     }
+}
+
+#[ctor]
+fn load() {
+    // Load the logger before everything else so we can log from constructors.
+    let logger = log_::Logger::new("CLEO");
+    logger.connect_udp("192.168.1.183:4568");
+    logger.connect_file("/var/mobile/Documents/tweak.log");
+
+    log::set_logger(unsafe { log_::GLOBAL_LOGGER.as_ref().unwrap() })
+        .map(|()| log::set_max_level(log::LevelFilter::max()))
+        .expect("should work");
+
+    // Install the panic hook so we can print useful stuff rather than just exiting on a panic.
+    std::panic::set_hook(Box::new(|info| {
+        let backtrace = backtrace::Backtrace::new();
+
+        if let Some(s) = info.payload().downcast_ref::<&str>() {
+            log_::error(format!("\npanic: {:?}\n\nbacktrace:\n{:?}", s, backtrace));
+        } else {
+            log_::error(format!("\npanic\n\nbacktrace:\n{:?}", backtrace));
+        }
+    }));
+
+    info!(
+        r#"
+
+**********************************************************************
+                         Welcome to CLEO iOS!                         
+                By @squ1dd13 (squ1dd13dev@gmail.com).                 
+                        Made with ❤️ in 🇬🇧.                           
+  Check out the GitHub repo at https://github.com/Squ1dd13/CLEO-iOS.  
+**********************************************************************
+"#
+    );
+
+    install_hooks();
+    load_script_dir();
 }

@@ -1,6 +1,9 @@
-use crate::{call_original, get_log, targets};
+use crate::{call_original, targets};
+use cached::proc_macro::cached;
 use objc::*;
-use runtime::{Object, BOOL};
+use runtime::Object;
+
+use log::trace;
 
 #[repr(C)]
 #[derive(Debug)]
@@ -23,26 +26,46 @@ struct CGRect {
     size: CGSize,
 }
 
-// Hook the touch handler so we can use touch zones like CLEO Android does.
-// We flip the X and Y coordinates because the game is always in landscape.
-// The game's function uses 'x, y, timestamp, force, p5', but we use 'y, x, ...'.
-extern "C" fn process_touch(y: f32, x: f32, timestamp: f64, force: f32, p5: f32) {
-    get_log().normal(format!(
-        "process_touch(x: {}, y: {}, {}, {}, {})",
-        x, y, timestamp, force, p5
-    ));
-
+#[cached]
+fn get_screen_size() -> (f64, f64) {
     unsafe {
         let cls = class!(UIScreen);
 
         let screen: *mut Object = msg_send![cls, mainScreen];
         let bounds: CGRect = msg_send![screen, nativeBounds];
 
-        get_log().normal(format!("screen bounds: {:#?}", bounds));
-
-        let (norm_x, norm_y) = (x / bounds.size.width as f32, y / bounds.size.height as f32);
-        get_log().normal(format!("({}, {})", norm_x, norm_y));
+        // Flip width and height because the game is always in landscape.
+        (bounds.size.height, bounds.size.width)
     }
+}
+
+#[repr(u64)]
+#[derive(std::fmt::Debug)]
+pub enum TouchType {
+    Up = 0,
+    Down = 2,
+    Move = 3,
+}
+
+// Hook the touch handler so we can use touch zones like CLEO Android does.
+fn process_touch(x: f32, y: f32, timestamp: f64, force: f32, p5: TouchType) {
+    log::trace!(
+        "process_touch(x: {}, y: {}, {}, {}, {:?})",
+        x,
+        y,
+        timestamp,
+        force,
+        p5
+    );
+
+    let (width, height) = get_screen_size();
+    let (norm_x, norm_y) = (x as f64 / width, y as f64 / height);
+
+    trace!("({}, {})", norm_x, norm_y);
+    let x_segment = (norm_x * 3.0).ceil() as i64;
+    let y_segment = (norm_y * 3.0).ceil() as i64;
+    let zone = (y_segment + (3 * x_segment)) - 3;
+    trace!("touch zone {}", zone);
 
     call_original!(targets::process_touch, x, y, timestamp, force, p5);
 }

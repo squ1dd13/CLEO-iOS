@@ -16,9 +16,10 @@ serde = { version = "1.0", features = ["derive"] }
 ctor = "0.1.20"
 chrono = "0.4"
 dlopen = "0.1"
-cached = "0.23.0"
+cached = "0.23"
 backtrace = "0.3"
 objc = "0.2.7"
+log = "0.4"
 
 [profile.release]
 lto = true
