@@ -72,9 +72,9 @@ fn load() {
         let backtrace = backtrace::Backtrace::new();
 
         if let Some(s) = info.payload().downcast_ref::<&str>() {
-            log_::error(format!("\npanic: {:?}\n\nbacktrace:\n{:?}", s, backtrace));
+            error!("\npanic: {:?}\n\nbacktrace:\n{:?}", s, backtrace);
         } else {
-            log_::error(format!("\npanic\n\nbacktrace:\n{:?}", backtrace));
+            error!("\npanic\n\nbacktrace:\n{:?}", backtrace);
         }
     }));
 

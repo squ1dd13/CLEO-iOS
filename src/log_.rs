@@ -1,9 +1,9 @@
 use cached::proc_macro::cached;
 use chrono::Local;
 use serde::{Deserialize, Serialize};
-use std::fs::File;
-use std::io::Write;
 use std::net;
+use std::{borrow::BorrowMut, io::Write};
+use std::{fs::File, sync::Mutex};
 
 #[derive(Clone, Copy, Serialize, Deserialize)]
 enum MessageType {
@@ -75,7 +75,7 @@ pub struct Logger {
     name: String,
     socket: Option<net::UdpSocket>,
     address: String,
-    file: Option<File>,
+    file: Mutex<Option<File>>,
 }
 
 pub(crate) static mut GLOBAL_LOGGER: Option<Logger> = None;
@@ -91,7 +91,7 @@ impl Logger {
                 name: String::from(name),
                 socket: None,
                 address: String::new(),
-                file: None,
+                file: Mutex::new(None),
             });
 
             GLOBAL_LOGGER.as_mut().unwrap()
@@ -104,10 +104,18 @@ impl Logger {
     }
 
     pub fn connect_file(&mut self, path: &str) {
-        self.file = File::create(path).ok();
+        self.file = Mutex::new(File::create(path).ok());
     }
 
-    fn commit<S: AsRef<str>>(&self, msg_type: MessageType, value: S) {
+    fn commit<S: AsRef<str>>(&self, level: Level, value: S) {
+        let msg_type = match level {
+            Level::Error => MessageType::Error,
+            Level::Warn => MessageType::Warning,
+            Level::Info => MessageType::Important,
+            Level::Debug => MessageType::Normal,
+            Level::Trace => MessageType::Normal,
+        };
+
         if self.socket.is_none() {
             return;
         }
@@ -120,10 +128,11 @@ impl Logger {
             time: Local::now().format("%H:%M:%S").to_string(),
         };
 
-        // fixme: File logging disabled
-        // if let Some(file) = &mut self.file {
-        // message.write_to_file(file);
-        // }
+        if level < Level::Debug {
+            if let Some(mut file) = self.file.lock().unwrap().into() {
+                message.write_to_file(file.as_mut().unwrap());
+            }
+        }
 
         let packed = message.pack();
 
@@ -156,29 +165,29 @@ impl Logger {
     // }
 }
 
-pub fn normal<S: AsRef<str>>(contents: S) {
-    unsafe { GLOBAL_LOGGER.as_mut() }
-        .unwrap()
-        .commit(MessageType::Normal, contents);
-}
+// pub fn normal<S: AsRef<str>>(contents: S) {
+//     unsafe { GLOBAL_LOGGER.as_mut() }
+//         .unwrap()
+//         .commit(MessageType::Normal, contents);
+// }
 
-pub fn warning<S: AsRef<str>>(contents: S) {
-    unsafe { GLOBAL_LOGGER.as_mut() }
-        .unwrap()
-        .commit(MessageType::Warning, contents);
-}
+// pub fn warning<S: AsRef<str>>(contents: S) {
+//     unsafe { GLOBAL_LOGGER.as_mut() }
+//         .unwrap()
+//         .commit(MessageType::Warning, contents);
+// }
 
-pub fn error<S: AsRef<str>>(contents: S) {
-    unsafe { GLOBAL_LOGGER.as_mut() }
-        .unwrap()
-        .commit(MessageType::Error, contents);
-}
+// pub fn error<S: AsRef<str>>(contents: S) {
+//     unsafe { GLOBAL_LOGGER.as_mut() }
+//         .unwrap()
+//         .commit(MessageType::Error, contents);
+// }
 
-pub fn important<S: AsRef<str>>(contents: S) {
-    unsafe { GLOBAL_LOGGER.as_mut() }
-        .unwrap()
-        .commit(MessageType::Important, contents);
-}
+// pub fn important<S: AsRef<str>>(contents: S) {
+//     unsafe { GLOBAL_LOGGER.as_mut() }
+//         .unwrap()
+//         .commit(MessageType::Important, contents);
+// }
 
 use log::{Level, Metadata, Record};
 impl log::Log for Logger {
@@ -188,15 +197,7 @@ impl log::Log for Logger {
 
     fn log(&self, record: &Record) {
         if self.enabled(record.metadata()) {
-            let level = match record.level() {
-                Level::Error => MessageType::Error,
-                Level::Warn => MessageType::Warning,
-                Level::Info => MessageType::Important,
-                Level::Debug => MessageType::Normal,
-                Level::Trace => MessageType::Normal,
-            };
-
-            self.commit(level, format!("{}", record.args()));
+            self.commit(record.level(), format!("{}", record.args()));
         }
     }
 
