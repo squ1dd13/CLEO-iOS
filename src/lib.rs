@@ -59,7 +59,7 @@ fn load_script_dir() {
 #[ctor]
 fn load() {
     // Load the logger before everything else so we can log from constructors.
-    let logger = log_::Logger::new("CLEO");
+    let logger = log_::Logger::new("cleo");
     logger.connect_udp("192.168.1.183:4568");
     logger.connect_file("/var/mobile/Documents/tweak.log");
 

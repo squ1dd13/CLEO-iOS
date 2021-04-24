@@ -1,5 +1,3 @@
-use std::collections::HashSet;
-
 use crate::{call_original, targets};
 use cached::proc_macro::cached;
 use lazy_static::lazy_static;
@@ -10,21 +8,18 @@ use std::sync::Mutex;
 use log::{debug, trace, warn};
 
 #[repr(C)]
-#[derive(Debug)]
 struct CGSize {
     width: f64,
     height: f64,
 }
 
 #[repr(C)]
-#[derive(Debug)]
 struct CGPoint {
     x: f64,
     y: f64,
 }
 
 #[repr(C)]
-#[derive(Debug)]
 struct CGRect {
     origin: CGPoint,
     size: CGSize,
@@ -44,7 +39,7 @@ fn get_screen_size() -> (f64, f64) {
 }
 
 #[repr(u64)]
-#[derive(std::fmt::Debug, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(PartialEq, Eq, PartialOrd, Ord)]
 pub enum TouchType {
     Up = 0,
     Down = 2,
@@ -100,6 +95,7 @@ fn log_zone_statuses(zones: &[bool; 9]) {
 }
 
 // Hook the touch handler so we can use touch zones like CLEO Android does.
+// fixme: We can't check the previous position of a specific touch, so touches that move out of their zones can't be followed.
 fn process_touch(x: f32, y: f32, timestamp: f64, force: f32, touch_type: TouchType) {
     if matches!(touch_type, TouchType::Up | TouchType::Down) {
         if let Some(zone) = get_zone(x, y) {
