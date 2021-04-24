@@ -1,9 +1,13 @@
+use std::collections::HashSet;
+
 use crate::{call_original, targets};
 use cached::proc_macro::cached;
+use lazy_static::lazy_static;
 use objc::*;
 use runtime::Object;
+use std::sync::Mutex;
 
-use log::trace;
+use log::{debug, trace, warn};
 
 #[repr(C)]
 #[derive(Debug)]
@@ -40,34 +44,94 @@ fn get_screen_size() -> (f64, f64) {
 }
 
 #[repr(u64)]
-#[derive(std::fmt::Debug)]
+#[derive(std::fmt::Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub enum TouchType {
     Up = 0,
     Down = 2,
     Move = 3,
 }
 
-// Hook the touch handler so we can use touch zones like CLEO Android does.
-fn process_touch(x: f32, y: f32, timestamp: f64, force: f32, p5: TouchType) {
-    log::trace!(
-        "process_touch(x: {}, y: {}, {}, {}, {:?})",
-        x,
-        y,
-        timestamp,
-        force,
-        p5
+fn get_zone(x: f32, y: f32) -> Option<i8> {
+    let (w, h) = get_screen_size();
+
+    let x = x / w as f32;
+    let y = y / h as f32;
+
+    fn coordinate_zone(coordinate: f32) -> i64 {
+        (coordinate * 3.0).ceil() as i64
+    }
+
+    let zone = coordinate_zone(y) + coordinate_zone(x) * 3 - 3;
+
+    // Sometimes -2 pops up. Other invalid values are probably possible.
+    if zone >= 1 && zone <= 9 {
+        Some(zone as i8)
+    } else {
+        warn!("Bad touch zone {}", zone);
+        None
+    }
+}
+
+lazy_static! {
+    static ref TOUCH_ZONES: Mutex<[bool; 9]> = Mutex::new([false; 9]);
+}
+
+fn log_zone_statuses(zones: &[bool; 9]) {
+    fn textual(b: &bool) -> &'static str {
+        if *b {
+            " X "
+        } else {
+            " - "
+        }
+    }
+
+    // let map_str = zones
+    //     .rchunks(3)
+    //     // .rev()
+    //     .map(|chunk| {
+    //         chunk
+    //             .iter()
+    //             .rev()
+    //             .map(textual)
+    //             .collect::<Vec<&'static str>>()
+    //             .join("")
+    //     })
+    //     .collect::<Vec<String>>()
+    //     .join("\n");
+
+    trace!(
+        "\nZones:\n{}{}{}\n{}{}{}\n{}{}{}\n",
+        textual(&zones[0]),
+        textual(&zones[3]),
+        textual(&zones[6]),
+        textual(&zones[1]),
+        textual(&zones[4]),
+        textual(&zones[7]),
+        textual(&zones[2]),
+        textual(&zones[5]),
+        textual(&zones[8]),
     );
+}
 
-    let (width, height) = get_screen_size();
-    let (norm_x, norm_y) = (x as f64 / width, y as f64 / height);
+// Hook the touch handler so we can use touch zones like CLEO Android does.
+fn process_touch(x: f32, y: f32, timestamp: f64, force: f32, touch_type: TouchType) {
+    if matches!(touch_type, TouchType::Up | TouchType::Down) {
+        if let Some(zone) = get_zone(x, y) {
+            match TOUCH_ZONES.lock() {
+                Ok(mut touch_zones) => {
+                    trace!("zone = {}", (zone as usize - 1));
+                    touch_zones[zone as usize - 1] = touch_type == TouchType::Down;
+                    log_zone_statuses(&touch_zones);
+                }
 
-    trace!("({}, {})", norm_x, norm_y);
-    let x_segment = (norm_x * 3.0).ceil() as i64;
-    let y_segment = (norm_y * 3.0).ceil() as i64;
-    let zone = (y_segment + (3 * x_segment)) - 3;
-    trace!("touch zone {}", zone);
+                Err(err) => {
+                    warn!("Error when trying to lock touch zone mutex: {}", err);
+                }
+            }
+        }
+    }
 
-    call_original!(targets::process_touch, x, y, timestamp, force, p5);
+    call_original!(targets::process_touch, x, y, timestamp, force, touch_type);
 }
 
 pub fn install_hooks() {

@@ -134,6 +134,7 @@ dependencies = [
  "chrono",
  "ctor",
  "dlopen",
+ "lazy_static",
  "log",
  "objc",
  "serde",
