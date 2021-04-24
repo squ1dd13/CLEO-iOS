@@ -77,39 +77,25 @@ lazy_static! {
 }
 
 fn log_zone_statuses(zones: &[bool; 9]) {
-    fn textual(b: &bool) -> &'static str {
-        if *b {
+    fn textual(b: bool) -> &'static str {
+        if b {
             " X "
         } else {
             " - "
         }
     }
 
-    // let map_str = zones
-    //     .rchunks(3)
-    //     // .rev()
-    //     .map(|chunk| {
-    //         chunk
-    //             .iter()
-    //             .rev()
-    //             .map(textual)
-    //             .collect::<Vec<&'static str>>()
-    //             .join("")
-    //     })
-    //     .collect::<Vec<String>>()
-    //     .join("\n");
-
     trace!(
         "\nZones:\n{}{}{}\n{}{}{}\n{}{}{}\n",
-        textual(&zones[0]),
-        textual(&zones[3]),
-        textual(&zones[6]),
-        textual(&zones[1]),
-        textual(&zones[4]),
-        textual(&zones[7]),
-        textual(&zones[2]),
-        textual(&zones[5]),
-        textual(&zones[8]),
+        textual(zones[0]),
+        textual(zones[3]),
+        textual(zones[6]),
+        textual(zones[1]),
+        textual(zones[4]),
+        textual(zones[7]),
+        textual(zones[2]),
+        textual(zones[5]),
+        textual(zones[8]),
     );
 }
 
