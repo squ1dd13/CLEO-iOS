@@ -5,7 +5,7 @@ use objc::*;
 use runtime::Object;
 use std::sync::Mutex;
 
-use log::{trace, warn};
+use log::{error, trace, warn};
 
 #[repr(C)]
 struct CGSize {
@@ -39,7 +39,7 @@ fn get_screen_size() -> (f64, f64) {
 }
 
 #[repr(u64)]
-#[derive(PartialEq, Eq, PartialOrd, Ord)]
+#[derive(std::fmt::Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub enum TouchType {
     Up = 0,
     Down = 2,
@@ -69,6 +69,7 @@ fn get_zone(x: f32, y: f32) -> Option<i8> {
 
 lazy_static! {
     static ref TOUCH_ZONES: Mutex<[bool; 9]> = Mutex::new([false; 9]);
+    static ref CURRENT_TOUCHES: Mutex<Vec<(f32, f32)>> = Mutex::new(Vec::new());
 }
 
 fn log_zone_statuses(zones: &[bool; 9]) {
@@ -95,21 +96,101 @@ fn log_zone_statuses(zones: &[bool; 9]) {
 }
 
 // Hook the touch handler so we can use touch zones like CLEO Android does.
-// fixme: We can't check the previous position of a specific touch, so touches that move out of their zones can't be followed.
 fn process_touch(x: f32, y: f32, timestamp: f64, force: f32, touch_type: TouchType) {
-    if matches!(touch_type, TouchType::Up | TouchType::Down) {
-        if let Some(zone) = get_zone(x, y) {
+    trace!(
+        "touch({:?}, {:?}, {:?}, {:?}, {:?})",
+        x,
+        y,
+        timestamp,
+        force,
+        touch_type
+    );
+
+    // Find the closest touch to the given position that we know about.
+    fn find_closest_index(touches: &[(f32, f32)], x: f32, y: f32) -> Option<usize> {
+        touches
+            .iter()
+            .enumerate()
+            .min_by(|(_, a), (_, b)| {
+                // Compare taxicab distance (in order to avoid square rooting).
+                let distance_a = (a.0 - x).abs() + (a.1 - y).abs();
+                let distance_b = (b.0 - x).abs() + (b.1 - y).abs();
+
+                distance_a
+                    .partial_cmp(&distance_b)
+                    .unwrap_or(std::cmp::Ordering::Equal)
+            })
+            .map(|(index, _)| index)
+    }
+
+    /*
+        Problem:  We don't know how each touch event is connected to ones we already know about.
+                  Therefore, we can't easily track touches between calls to the touch handler,
+                  because all we get is the touch position/type/time/force info, and not the
+                  previous position of the touch.
+
+        Solution: Keep a record of all the touches we know about (CURRENT_TOUCHES), and every
+                  time we receive a new touch up/move event, we modify the closest touch to
+                  the event's position. This is reliable because touch up and move events can
+                  only happen to existing touches, so we must know about the touch that is
+                  being released/moved already, and that touch should be whatever is closest
+                  to the modified position. Touch down events are easy, because they simply
+                  require us to add a new touch to CURRENT_TOUCHES to be modified later with
+                  an up/move signal.
+    */
+    match CURRENT_TOUCHES.lock() {
+        Ok(mut touches) => {
+            match touch_type {
+                TouchType::Up => {
+                    if let Some(close_index) = find_closest_index(&touches[..], x, y) {
+                        touches.remove(close_index);
+                    } else {
+                        error!("Unable to find touch to release!");
+                    }
+                }
+
+                TouchType::Down => {
+                    touches.push((x, y));
+                }
+
+                TouchType::Move => {
+                    if let Some(close_index) = find_closest_index(&touches[..], x, y) {
+                        touches[close_index] = (x, y);
+                    } else {
+                        error!("Unable to find touch to move!");
+                    }
+                }
+            }
+
+            // Update the touch zones to match the current touches.
             match TOUCH_ZONES.lock() {
                 Ok(mut touch_zones) => {
-                    trace!("zone = {}", (zone as usize - 1));
-                    touch_zones[zone as usize - 1] = touch_type == TouchType::Down;
+                    // Clear old zone statuses.
+                    for zone_status in touch_zones.iter_mut() {
+                        *zone_status = false;
+                    }
+
+                    // Trigger the zone for each touch we find.
+                    for touch in touches.iter() {
+                        if let Some(zone) = get_zone(touch.0, touch.1) {
+                            touch_zones[zone as usize - 1] = true;
+                        }
+                    }
+
                     log_zone_statuses(&touch_zones);
                 }
 
                 Err(err) => {
-                    warn!("Error when trying to lock touch zone mutex: {}", err);
+                    error!("Error when trying to lock touch zone mutex: {}", err);
                 }
             }
+        }
+
+        Err(err) => {
+            error!(
+                "Unable to lock touch vector mutex! Touch will not be registered. err = {}",
+                err
+            );
         }
     }
 
