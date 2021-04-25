@@ -1,9 +1,8 @@
 use cached::proc_macro::cached;
 use chrono::Local;
+use log::{Level, Metadata, Record};
 use serde::{Deserialize, Serialize};
-use std::net;
-use std::{borrow::BorrowMut, io::Write};
-use std::{fs::File, sync::Mutex};
+use std::{fs::File, io::Write, net, sync::Mutex};
 
 #[derive(Clone, Copy, Serialize, Deserialize)]
 enum MessageType {
@@ -147,49 +146,8 @@ impl Logger {
             .unwrap()
             .send_to(&packed.unwrap(), self.address.as_str());
     }
-
-    // pub fn normal<S: AsRef<str>>(&self, contents: S) {
-    //     self.commit(MessageType::Normal, contents);
-    // }
-
-    // pub fn warning<S: AsRef<str>>(&self, contents: S) {
-    //     self.commit(MessageType::Warning, contents);
-    // }
-
-    // pub fn error<S: AsRef<str>>(&self, contents: S) {
-    //     self.commit(MessageType::Error, contents);
-    // }
-
-    // pub fn important<S: AsRef<str>>(&self, contents: S) {
-    //     self.commit(MessageType::Important, contents);
-    // }
 }
 
-// pub fn normal<S: AsRef<str>>(contents: S) {
-//     unsafe { GLOBAL_LOGGER.as_mut() }
-//         .unwrap()
-//         .commit(MessageType::Normal, contents);
-// }
-
-// pub fn warning<S: AsRef<str>>(contents: S) {
-//     unsafe { GLOBAL_LOGGER.as_mut() }
-//         .unwrap()
-//         .commit(MessageType::Warning, contents);
-// }
-
-// pub fn error<S: AsRef<str>>(contents: S) {
-//     unsafe { GLOBAL_LOGGER.as_mut() }
-//         .unwrap()
-//         .commit(MessageType::Error, contents);
-// }
-
-// pub fn important<S: AsRef<str>>(contents: S) {
-//     unsafe { GLOBAL_LOGGER.as_mut() }
-//         .unwrap()
-//         .commit(MessageType::Important, contents);
-// }
-
-use log::{Level, Metadata, Record};
 impl log::Log for Logger {
     fn enabled(&self, _: &Metadata) -> bool {
         true

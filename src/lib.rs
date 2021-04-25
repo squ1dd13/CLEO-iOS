@@ -4,7 +4,7 @@ use ctor::ctor;
 use log::{debug, error, info};
 
 mod hook;
-mod log_;
+mod udp_log;
 mod scripts;
 mod ui;
 
@@ -59,11 +59,11 @@ fn load_script_dir() {
 #[ctor]
 fn load() {
     // Load the logger before everything else so we can log from constructors.
-    let logger = log_::Logger::new("cleo");
+    let logger = udp_log::Logger::new("cleo");
     logger.connect_udp("192.168.1.183:4568");
     logger.connect_file("/var/mobile/Documents/tweak.log");
 
-    log::set_logger(unsafe { log_::GLOBAL_LOGGER.as_ref().unwrap() })
+    log::set_logger(unsafe { udp_log::GLOBAL_LOGGER.as_ref().unwrap() })
         .map(|()| log::set_max_level(log::LevelFilter::max()))
         .expect("should work");
 

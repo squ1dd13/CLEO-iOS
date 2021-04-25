@@ -5,7 +5,7 @@ use objc::*;
 use runtime::Object;
 use std::sync::Mutex;
 
-use log::{debug, trace, warn};
+use log::{trace, warn};
 
 #[repr(C)]
 struct CGSize {

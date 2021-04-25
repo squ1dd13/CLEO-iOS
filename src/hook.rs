@@ -9,6 +9,7 @@ pub fn get_single_symbol<T: Copy>(path: &str, sym_name: &str) -> Result<T, dlope
 
 #[cached(result = true)]
 fn get_raw_hook_fn() -> Result<usize, dlopen::Error> {
+    // todo: Change hook procedure for libhooker.
     const HOOK_LIB_NAME: &str = "libsubstrate.dylib";
     const HOOK_FUNC_NAME: &str = "MSHookFunction";
 
@@ -36,8 +37,10 @@ fn get_hook_fn<FuncType>() -> fn(FuncType, FuncType, &mut Option<FuncType>) {
     // Reinterpret cast the address to get a function pointer.
     // We get the address as a usize so that it can be cached once and then reused
     //  to get different signatures.
-    let addr_ptr: *const usize = &raw;
-    unsafe { *(addr_ptr as *const fn(FuncType, FuncType, &mut Option<FuncType>)) }
+    unsafe {
+        let addr_ptr: *const usize = &raw;
+        *(addr_ptr as *const fn(FuncType, FuncType, &mut Option<FuncType>))
+    }
 }
 
 pub enum Target<FuncType> {
@@ -100,6 +103,7 @@ macro_rules! create_hard_target {
 macro_rules! create_soft_target {
     ($name:ident, $addr:literal, $sig:ty) => {
         pub mod $name {
+            #[allow(unused_imports)]
             use super::*;
 
             const TARGET: crate::hook::Target<$sig> = crate::hook::Target::Address($addr);
