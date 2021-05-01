@@ -95,17 +95,26 @@ fn log_zone_statuses(zones: &[bool; 9]) {
     );
 }
 
+pub fn query_zone(zone: usize) -> Option<bool> {
+    let zones = TOUCH_ZONES.lock().ok();
+
+    if zones.is_none() {
+        warn!("Unable to lock TOUCH_ZONES!");
+        return None;
+    }
+
+    let zones = zones.unwrap();
+
+    if zone < 10 {
+        Some(zones[zone - 1])
+    } else {
+        warn!("query({})", zone);
+        None
+    }
+}
+
 // Hook the touch handler so we can use touch zones like CLEO Android does.
 fn process_touch(x: f32, y: f32, timestamp: f64, force: f32, touch_type: TouchType) {
-    trace!(
-        "touch({:?}, {:?}, {:?}, {:?}, {:?})",
-        x,
-        y,
-        timestamp,
-        force,
-        touch_type
-    );
-
     // Find the closest touch to the given position that we know about.
     fn find_closest_index(touches: &[(f32, f32)], x: f32, y: f32) -> Option<usize> {
         touches
@@ -176,8 +185,6 @@ fn process_touch(x: f32, y: f32, timestamp: f64, force: f32, touch_type: TouchTy
                             touch_zones[zone as usize - 1] = true;
                         }
                     }
-
-                    log_zone_statuses(&touch_zones);
                 }
 
                 Err(err) => {

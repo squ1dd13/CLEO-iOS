@@ -47,8 +47,8 @@ impl PassiveScript {
 #[repr(C, align(8))]
 struct VanillaScript {
     // Do not use these: scripts should never be linked.
-    next: Option<Box<VanillaScript>>,
-    previous: Option<Box<VanillaScript>>,
+    next: usize,     //Option<Box<VanillaScript>>,
+    previous: usize, //Option<Box<VanillaScript>>,
 
     name: [u8; 8],
     base_ip: *mut u8,
@@ -109,15 +109,15 @@ impl Script {
 
         Ok(Script {
             vanilla_rep: VanillaScript {
-                name: *b"8 bytes?",
+                name: *b"a script",
                 base_ip: script_bytes.as_mut_ptr(),
                 ip: script_bytes.as_mut_ptr(),
                 call_stack: [std::ptr::null_mut(); 8],
                 stack_pos: 0,
                 active: true,
 
-                next: None,
-                previous: None,
+                next: 0,
+                previous: 0,
                 locals: [0; 40],
                 timers: [0; 2],
                 bool_flag: false,
@@ -158,13 +158,25 @@ impl Script {
         String::from_iter(name_chars)
     }
 
+    fn collect_value_args(&mut self, count: u32) {
+        hook::slide::<fn(*mut Script, u32)>(0x1001cf474)(&mut *self, count)
+    }
+
+    fn read_variable_arg<T: Copy>(&mut self) -> T {
+        hook::slide::<fn(*mut Script) -> T>(0x1001cfb04)(&mut *self)
+    }
+
+    fn update_bool_flag(&mut self, value: bool) {
+        hook::slide::<fn(*mut Script, bool)>(0x1001df890)(&mut *self, value)
+    }
+
     fn run_override(&mut self, opcode: u16) -> bool {
-        // fixme: Overrides with arguments will fail, because we don't read the args.
         match opcode {
+            // We intercept terminate() instructions to stop the game trying to free our scripts' memory.
             0x4e => {
                 // Set the script to inactive so we free it on the next tick.
                 self.vanilla_rep.active = false;
-                false
+                true
             }
 
             0xdd0..=0xdd4 | 0xdde => {
@@ -174,12 +186,15 @@ impl Script {
                     opcode
                 );
 
-                false
+                // todo: Don't crash on unsupported CLEO opcodes.
+
+                true
             }
 
             0xdd8..=0xdda | 0xdd7 => {
                 // In theory, 0xdda could be used to get valid memory addresses, but scripts are
-                //  probably looking for bytes only present in the 32-bit game.
+                //  probably looking for bytes only present in the 32-bit game (if looking for
+                //  functions).
 
                 error!(
                     "Memory r/w unsupported on iOS! (Script '{}' used opcode {:#x}.)",
@@ -187,10 +202,55 @@ impl Script {
                     opcode
                 );
 
-                false
+                true
             }
 
-            _ => true,
+            0xddc => {
+                // !!! Mutex instructions not implemented correctly.
+                self.collect_value_args(2);
+                true
+            }
+
+            0xe1 => {
+                self.collect_value_args(2);
+
+                let zone = unsafe { *hook::slide::<*const u32>(0x1007ad690 + 4) as usize };
+
+                let state = if let Some(state) = crate::ui::query_zone(zone) {
+                    state
+                } else {
+                    warn!("Returning invalid touch state!");
+                    false
+                };
+
+                self.update_bool_flag(state);
+                true
+            }
+
+            0xde0 => {
+                let destination: *mut i32 = self.read_variable_arg();
+                self.collect_value_args(2);
+
+                let zone = unsafe { *hook::slide::<*const u32>(0x1007ad690) as usize };
+
+                trace!("check zone {}", zone);
+
+                let out = if let Some(state) = crate::ui::query_zone(zone) {
+                    state as i32
+                } else {
+                    warn!("Invalid touch state!");
+                    0
+                };
+
+                unsafe {
+                    trace!("*destination = {}", out);
+                    *destination = out;
+                }
+
+                true
+            }
+
+            _ => false,
         }
     }
 
@@ -204,23 +264,20 @@ impl Script {
         }
 
         let instruction = unsafe {
-            let instruction = (self.vanilla_rep.ip as *mut i16).read();
+            let instruction = (self.vanilla_rep.ip as *mut u16).read();
             self.vanilla_rep.ip = self.vanilla_rep.ip.offset(2);
 
             instruction
         };
 
-        // A negative written opcode indicates that the returned boolean is inverted.
-        self.vanilla_rep.not_flag = instruction < 0;
+        self.vanilla_rep.not_flag = instruction & 0x8000 != 0;
 
-        let opcode = instruction.abs() as u16;
+        let opcode = (instruction & 0x7fff) as u16;
 
-        // todo: Check for instruction overrides here.
-
-        // Intercept terminate() instructions to stop the game trying to free our scripts' memory.
-        if opcode == 0x4e {
+        if self.run_override(opcode) {
+            trace!("Instruction overridden.");
             return 1;
-        };
+        }
 
         type Handler = extern "C" fn(*mut VanillaScript, u16) -> u8;
 
@@ -238,9 +295,25 @@ impl Script {
         let handler_entry: *const Handler = hook::slide(0x1005c11d8 + offset);
         let handler: Handler = unsafe { handler_entry.read() };
 
-        // todo: Implement the weird receiver behaviour that the game has.
+        let next_ptr: *const usize = &self.vanilla_rep.next;
+
+        // todo: Clean up this mess.
+        let receiver = unsafe {
+            ((next_ptr) as usize
+                + ((*hook::slide::<*const usize>(0x1005c11d8 + offset + 8)) >> 1usize))
+                as *mut VanillaScript
+        };
+
         let self_ptr = &mut self.vanilla_rep as *mut VanillaScript;
-        handler(self_ptr, opcode)
+
+        if receiver != self_ptr {
+            warn!(
+                "receiver ({:#x}) != self_ptr ({:#x})",
+                receiver as usize, self_ptr as usize
+            );
+        }
+
+        handler(receiver, opcode)
     }
 
     pub fn run_block(&mut self) {
@@ -273,15 +346,6 @@ impl Script {
     }
 
     fn script_tick() {
-        // unsafe {
-
-        //     get_log().important(
-        //         std::ffi::CStr::from_ptr(hook::slide::<*const i8>(0x100934e68))
-        //             .to_str()
-        //             .unwrap(),
-        //     );
-        // }
-
         Script::unload_inactive();
 
         let game_time = Script::get_game_time();
@@ -298,8 +362,6 @@ impl Script {
 
             // Run the next block of instructions.
             script.run_block();
-
-            trace!("Updated.");
         }
 
         call_original!(crate::targets::script_tick);
