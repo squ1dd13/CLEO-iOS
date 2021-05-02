@@ -204,6 +204,6 @@ fn process_touch(x: f32, y: f32, timestamp: f64, force: f32, touch_type: TouchTy
     call_original!(targets::process_touch, x, y, timestamp, force, touch_type);
 }
 
-pub fn install_hooks() {
+pub fn hook() {
     targets::process_touch::install(process_touch);
 }

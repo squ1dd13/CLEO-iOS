@@ -45,6 +45,7 @@ impl PassiveScript {
 /// responsibilities between languages). Scripts from CLEO should never be mixed with vanilla scripts
 /// to avoid situations where the owner of a script is unknown.
 #[repr(C, align(8))]
+#[derive(Debug)]
 struct VanillaScript {
     // Do not use these: scripts should never be linked.
     next: usize,     //Option<Box<VanillaScript>>,
@@ -80,6 +81,7 @@ struct VanillaScript {
     is_mission: bool,
 }
 
+#[derive(Debug)]
 pub struct Script {
     vanilla_rep: VanillaScript,
 
@@ -95,7 +97,9 @@ pub fn loaded_scripts() -> &'static mut Vec<Script> {
 }
 
 impl Script {
-    pub fn new(path: &Path) -> io::Result<Script> {
+    pub fn new<P: AsRef<Path>>(path: P) -> io::Result<Script> {
+        let path = path.as_ref();
+
         let is_ext_valid = match path.extension() {
             Some(ext) => matches!(ext.to_str().unwrap_or("bad"), /*"csi" | */ "csa"),
             _ => false,
@@ -233,8 +237,6 @@ impl Script {
 
                 let zone = unsafe { *hook::slide::<*const u32>(0x1007ad690) as usize };
 
-                trace!("check zone {}", zone);
-
                 let out = if let Some(state) = crate::ui::query_zone(zone) {
                     state as i32
                 } else {
@@ -243,7 +245,6 @@ impl Script {
                 };
 
                 unsafe {
-                    trace!("*destination = {}", out);
                     *destination = out;
                 }
 
@@ -275,7 +276,6 @@ impl Script {
         let opcode = (instruction & 0x7fff) as u16;
 
         if self.run_override(opcode) {
-            trace!("Instruction overridden.");
             return 1;
         }
 
@@ -357,9 +357,6 @@ impl Script {
                 continue;
             }
 
-            let name = script.name();
-            trace!("Updating {}...", name);
-
             // Run the next block of instructions.
             script.run_block();
         }
@@ -440,10 +437,10 @@ impl Script {
     //             );
     //         }
     //     }
+}
 
-    pub fn install_hooks() {
-        debug!("Installing script hooks");
-        crate::targets::script_tick::install(Script::script_tick);
-        // crate::targets::vertex_shader::install(Script::vertex_shader_hook);
-    }
+pub fn hook() {
+    debug!("Installing script hooks");
+    crate::targets::script_tick::install(Script::script_tick);
+    // crate::targets::vertex_shader::install(Script::vertex_shader_hook);
 }

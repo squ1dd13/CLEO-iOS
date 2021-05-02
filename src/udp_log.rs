@@ -106,7 +106,7 @@ impl Logger {
         self.file = Mutex::new(File::create(path).ok());
     }
 
-    fn commit<S: AsRef<str>>(&self, level: Level, value: S) {
+    pub fn commit<S: AsRef<str>>(&self, level: Level, value: S) {
         let msg_type = match level {
             Level::Error => MessageType::Error,
             Level::Warn => MessageType::Warning,
@@ -119,7 +119,7 @@ impl Logger {
             return;
         }
 
-        let message = Message {
+        let mut message = Message {
             group: self.name.clone(),
             msg_type,
             string: String::from(value.as_ref()),
@@ -128,9 +128,10 @@ impl Logger {
         };
 
         if level < Level::Debug {
-            if let Some(mut file) = self.file.lock().unwrap().into() {
-                message.write_to_file(file.as_mut().unwrap());
-            }
+            // fixme: Can't write to files on Odyssey.
+            // if let Some(mut file) = self.file.lock().ok() {
+            // message.write_to_file(file.as_mut().unwrap());
+            // }
         }
 
         let packed = message.pack();

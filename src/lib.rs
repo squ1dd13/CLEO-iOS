@@ -3,9 +3,11 @@ use std::os::raw::c_char;
 use ctor::ctor;
 use log::{debug, error, info};
 
+mod files;
 mod hook;
-mod udp_log;
 mod scripts;
+mod text;
+mod udp_log;
 mod ui;
 
 mod targets {
@@ -17,6 +19,11 @@ mod targets {
         process_touch,
         0x1004e831c,
         fn(f32, f32, f64, f32, ui::TouchType)
+    );
+    create_soft_target!(
+        get_gxt_string,
+        0x10044142c,
+        fn(usize, *const c_char) -> *const u16
     );
     // create_soft_target!(vertex_shader, 0x100137cd0, fn(u64));
 }
@@ -32,27 +39,16 @@ fn game_load_hook(dat_path: *const c_char) {
 
 fn install_hooks() {
     targets::game_load::install(game_load_hook);
-    scripts::Script::install_hooks();
-    ui::install_hooks();
+    scripts::hook();
+    ui::hook();
+    text::hook();
 }
 
 fn load_script_dir() {
-    let script_vec = scripts::Script::load_dir(&"/var/mobile/Documents/CS");
-
-    if let Err(error) = script_vec {
-        error!("Unable to load scripts directory: {}", error);
-        return;
-    }
-
-    for script in script_vec.unwrap() {
-        if let Ok(script) = script {
-            info!("Loaded: {}", script.name());
-
-            scripts::loaded_scripts().push(script);
-            continue;
-        }
-
-        error!("Unable to load script: {}", script.err().unwrap());
+    if let Err(err) = files::load_all("/var/mobile/Documents/CS") {
+        error!("Encountered error while loading CS directory: {}", err);
+    } else {
+        info!("Loaded CS directory with no top-level errors.");
     }
 }
 
