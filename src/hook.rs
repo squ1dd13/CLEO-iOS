@@ -1,5 +1,6 @@
 use cached::proc_macro::cached;
 use dlopen::symbor::Library;
+use log::error;
 
 pub fn get_single_symbol<T: Copy>(path: &str, sym_name: &str) -> Result<T, dlopen::Error> {
     let lib = Library::open(path)?;
@@ -9,9 +10,16 @@ pub fn get_single_symbol<T: Copy>(path: &str, sym_name: &str) -> Result<T, dlope
 
 #[cached(result = true)]
 fn get_raw_hook_fn() -> Result<usize, dlopen::Error> {
-    // todo: Change hook procedure for libhooker.
     const HOOK_LIB_NAME: &str = "libsubstrate.dylib";
     const HOOK_FUNC_NAME: &str = "MSHookFunction";
+
+    get_single_symbol(HOOK_LIB_NAME, HOOK_FUNC_NAME)
+}
+
+#[cached(result = true)]
+fn get_shit_raw_hook_fn() -> Result<usize, dlopen::Error> {
+    const HOOK_LIB_NAME: &str = "libhooker.dylib";
+    const HOOK_FUNC_NAME: &str = "LHHookFunctions";
 
     get_single_symbol(HOOK_LIB_NAME, HOOK_FUNC_NAME)
 }
@@ -31,7 +39,42 @@ pub fn get_image_aslr_offset(image: u32) -> usize {
     function(image)
 }
 
+// Represents libhooker's struct LHFunctionHook.
+#[repr(C)]
+struct ShitFunctionHook<FuncType> {
+    function: FuncType,
+    replacement: FuncType,
+    old_ptr: usize,
+    options: usize,
+}
+
+fn gen_shit_hook_fn<FuncType>() -> fn(FuncType, FuncType, &mut Option<FuncType>) {
+    |function, replacement, original| {
+        let hook_struct = ShitFunctionHook {
+            function,
+            replacement,
+            old_ptr: unsafe { std::mem::transmute(original) },
+            options: 0,
+        };
+
+        unsafe {
+            let hook_fn: fn(*const ShitFunctionHook<FuncType>, i32) -> i32 =
+                std::mem::transmute(get_shit_raw_hook_fn().expect("need a hook function"));
+            let struct_ptr: *const ShitFunctionHook<FuncType> = &hook_struct;
+
+            if hook_fn(struct_ptr, 1) != 1 {
+                error!("Hook failed!");
+            }
+        }
+    }
+}
+
 fn get_hook_fn<FuncType>() -> fn(FuncType, FuncType, &mut Option<FuncType>) {
+    // Use libhooker if found.
+    if get_shit_raw_hook_fn().is_ok() {
+        return gen_shit_hook_fn();
+    }
+
     let raw = get_raw_hook_fn().expect("get_hook_fn: get_raw_hook_fn failed");
 
     // Reinterpret cast the address to get a function pointer.
