@@ -1,0 +1,12 @@
+Package: com.squ1dd13.cleo
+Name: CLEO
+Depends: mobilesubstrate
+Provides: com.squ1dd13.csios, com.squ1dd13.zinc
+Conflicts: com.squ1dd13.csios, com.squ1dd13.zinc
+Replaces: com.squ1dd13.csios, com.squ1dd13.zinc
+Version: 2.0.0
+Architecture: iphoneos-arm
+Description: CLEO for GTA:SA. Now with extra Rust!
+Maintainer: Squ1dd13
+Author: Squ1dd13
+Section: Tweaks

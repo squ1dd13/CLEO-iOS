@@ -19,8 +19,26 @@ printf "=> Fakesigning .dylib... "
 ldid -S ./libcleo.dylib || exit 1
 printf "done.\n"
 
-# Send the dylib to the device.
-# todo: Produce a deb and install that to the device using scp and ssh.
-printf "=> Installing... "
-(scp ./libcleo.dylib root@$1:/Library/MobileSubstrate/DynamicLibraries/CLEO.dylib >/dev/null) || exit 1
-printf "done.\n"
+if [[ $* == *--package* ]]; then
+    # Build the .deb structure.
+    rm -r ./deb-archive
+    mkdir -p ./deb-archive/Library/MobileSubstrate/DynamicLibraries
+    mkdir ./deb-archive/DEBIAN
+
+    # Copy in the files.
+    cp "../../../deb/control" "./deb-archive/DEBIAN/control"
+    cp "../../../deb/CLEO.plist" "./deb-archive/Library/MobileSubstrate/DynamicLibraries/CLEO.plist"
+    cp "./libcleo.dylib" "./deb-archive/Library/MobileSubstrate/DynamicLibraries/CLEO.dylib"
+
+    # Create a .deb archive.
+    unlink ../../../deb/CLEO.deb
+    dpkg-deb -Z gzip -b ./deb-archive ../../../deb/CLEO.deb
+
+    scp "../../../deb/CLEO.deb" root@$1:/User/Downloads/CLEO.deb
+    ssh root@$1 'exec $SHELL -l -c "dpkg -i /User/Downloads/CLEO.deb && (killall -9 gta3sa || echo \"GTA:SA not running\")"'
+else
+    # Send the dylib to the device.
+    printf "=> Installing... "
+    (scp ./libcleo.dylib root@$1:/Library/MobileSubstrate/DynamicLibraries/CLEO.dylib >/dev/null) || exit 1
+    printf "done.\n"
+fi
