@@ -5,7 +5,7 @@ use objc::*;
 use runtime::Object;
 use std::sync::Mutex;
 
-use log::{error, trace, warn};
+use log::{error, warn};
 
 #[repr(C)]
 struct CGSize {
@@ -40,6 +40,7 @@ fn get_screen_size() -> (f64, f64) {
 
 #[repr(u64)]
 #[derive(std::fmt::Debug, PartialEq, Eq, PartialOrd, Ord)]
+#[allow(dead_code)]
 pub enum TouchType {
     Up = 0,
     Down = 2,
@@ -70,29 +71,6 @@ fn get_zone(x: f32, y: f32) -> Option<i8> {
 lazy_static! {
     static ref TOUCH_ZONES: Mutex<[bool; 9]> = Mutex::new([false; 9]);
     static ref CURRENT_TOUCHES: Mutex<Vec<(f32, f32)>> = Mutex::new(Vec::new());
-}
-
-fn log_zone_statuses(zones: &[bool; 9]) {
-    fn textual(b: bool) -> &'static str {
-        if b {
-            " X "
-        } else {
-            " - "
-        }
-    }
-
-    trace!(
-        "\nZones:\n{}{}{}\n{}{}{}\n{}{}{}\n",
-        textual(zones[0]),
-        textual(zones[3]),
-        textual(zones[6]),
-        textual(zones[1]),
-        textual(zones[4]),
-        textual(zones[7]),
-        textual(zones[2]),
-        textual(zones[5]),
-        textual(zones[8]),
-    );
 }
 
 pub fn query_zone(zone: usize) -> Option<bool> {

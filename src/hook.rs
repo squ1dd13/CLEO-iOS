@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 use cached::proc_macro::cached;
 use dlopen::symbor::Library;
 use log::error;

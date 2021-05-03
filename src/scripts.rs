@@ -4,17 +4,19 @@ use std::iter::FromIterator;
 use std::path::Path;
 use std::path::{Component, PathBuf};
 
-use log::{debug, error, info, trace, warn};
+use log::{debug, error, info, warn};
 
 use crate::{call_original, hook};
 
 /// Passive scripts have the extension "csi" and are invoked via the script menu.
+#[allow(dead_code)]
 struct PassiveScript {
     path: String,
     pub name: String,
 }
 
 impl PassiveScript {
+    #[allow(dead_code)]
     fn new(path_string: String) -> PassiveScript {
         let path = PathBuf::from(&path_string);
 
@@ -140,19 +142,6 @@ impl Script {
 
             bytes: script_bytes,
         })
-    }
-
-    pub fn load_dir(path: &str) -> io::Result<Vec<io::Result<Script>>> {
-        let directory: Vec<io::Result<fs::DirEntry>> = fs::read_dir(path)?.collect();
-        let mut scripts = Vec::<io::Result<Script>>::with_capacity(directory.len());
-
-        for item in directory {
-            if let Ok(entry) = item {
-                scripts.push(Script::new(entry.path().as_path()));
-            }
-        }
-
-        Ok(scripts)
     }
 
     pub fn name(&self) -> String {
