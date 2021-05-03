@@ -116,3 +116,13 @@ pub fn load_all<P: AsRef<Path>>(dir_path: P) -> Result<()> {
 
     Ok(())
 }
+
+pub fn setup_cleo_fs() -> Result<()> {
+    let cleo_path = get_cleo_dir_path();
+
+    if !cleo_path.exists() {
+        std::fs::create_dir(&cleo_path)?;
+    }
+
+    Ok(())
+}

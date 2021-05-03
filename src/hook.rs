@@ -3,7 +3,7 @@ use cached::proc_macro::cached;
 use dlopen::symbor::Library;
 use log::error;
 
-pub fn get_single_symbol<T: Copy>(path: &str, sym_name: &str) -> Result<T, dlopen::Error> {
+fn get_single_symbol<T: Copy>(path: &str, sym_name: &str) -> Result<T, dlopen::Error> {
     let lib = Library::open(path)?;
     let symbol = unsafe { lib.symbol::<T>(sym_name) }?;
     Ok(*symbol)
@@ -35,8 +35,7 @@ fn get_aslr_offset_fn() -> Result<fn(u32) -> usize, dlopen::Error> {
 
 #[cached]
 pub fn get_image_aslr_offset(image: u32) -> usize {
-    let function = get_aslr_offset_fn()
-        .expect("Failed to get ASLR offset function! All base addresses will be invalid.");
+    let function = get_aslr_offset_fn().expect("Failed to get ASLR offset function!");
     function(image)
 }
 
