@@ -1,14 +1,14 @@
-# CLEO iOS (Rust)
-This is an attempt at a rewrite of CLEO in Rust.
+# CLEO iOS
+[![forthebadge](https://forthebadge.com/images/badges/made-with-rust.svg)](https://forthebadge.com)[![forthebadge](https://forthebadge.com/images/badges/built-with-love.svg)](https://forthebadge.com)
 
-CLEO v2 is (hopefully) going to be a more general-purpose modding solution for the iOS platform, with planned features
-that will try to eliminate the need for a computer when installing various types of mods.
+_**Note:** This branch (`main`) is for the current version of CLEO iOS, which is written in Rust. For the original C++ version, see the [`c++` branch](https://github.com/Squ1dd13/CLEO-iOS/tree/c+%2B)._
+
+## Completed Features
+* CSA script loading
+* FXT loading
 
 ## Planned Features
-* Basic CLEO features
-    * CSA/CSI script loading
-    * Android-style mod menu
-    * Support for FXT localisations
+* CSI script loading
 * IMG editing/hooking for custom models
 * Sound modding
 * Texture modding
