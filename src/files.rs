@@ -1,6 +1,6 @@
 use std::{
     io::{Error, ErrorKind, Result},
-    path::Path,
+    path::{Path, PathBuf},
 };
 
 use log::{debug, info, warn};
@@ -50,7 +50,7 @@ fn load_csa_file<P: AsRef<Path>>(path: P) -> Result<()> {
     Ok(())
 }
 
-fn load_csi_file<P: AsRef<Path>>(path: P) -> Result<()> {
+fn load_csi_file<P: AsRef<Path>>(_: P) -> Result<()> {
     warn!("CSI loading not yet available.");
     Ok(())
 }
@@ -78,6 +78,23 @@ fn load_path<P: AsRef<Path>>(path: P) -> Result<()> {
             "Unrecognised extension",
         )),
     }
+}
+
+pub fn get_cleo_dir_path() -> PathBuf {
+    // As of iOS 13.5, we need extra entitlements to access /var/mobile/Documents/*, so
+    //  we need to use the app's own data directory instead. env::temp_dir() returns the
+    //  'tmp' subdirectory of that data directory, and then we can just replace the 'tmp'
+    //  with 'Documents/CLEO' to get our own directory.
+    let mut path = std::env::temp_dir();
+    path.set_file_name("Documents");
+    path.push("CLEO");
+    path
+}
+
+pub fn get_log_path() -> PathBuf {
+    let mut path = get_cleo_dir_path();
+    path.push("cleo.log");
+    path
 }
 
 pub fn load_all<P: AsRef<Path>>(dir_path: P) -> Result<()> {

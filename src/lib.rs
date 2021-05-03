@@ -1,4 +1,4 @@
-use std::os::raw::c_char;
+use std::{os::raw::c_char, path::PathBuf};
 
 use ctor::ctor;
 use log::{debug, error, info};
@@ -45,11 +45,21 @@ fn install_hooks() {
 }
 
 fn load_script_dir() {
-    if let Err(err) = files::load_all("/var/mobile/Documents/CS") {
+    if let Err(err) = files::load_all(files::get_cleo_dir_path()) {
         error!("Encountered error while loading CS directory: {}", err);
     } else {
         info!("Loaded CS directory with no top-level errors.");
     }
+}
+
+fn setup_cleo_fs() -> Result<PathBuf, Box<dyn std::error::Error>> {
+    let cleo_path = files::get_cleo_dir_path();
+
+    if !cleo_path.exists() {
+        std::fs::create_dir(&cleo_path)?;
+    }
+
+    Ok(cleo_path)
 }
 
 #[ctor]
@@ -57,7 +67,12 @@ fn load() {
     // Load the logger before everything else so we can log from constructors.
     let logger = udp_log::Logger::new("cleo");
     logger.connect_udp("192.168.1.183:4568");
-    logger.connect_file("/var/mobile/Documents/tweak.log");
+
+    if let Err(err) = setup_cleo_fs() {
+        error!("setup_cleo_fs error: {}", err);
+    }
+
+    logger.connect_file(files::get_log_path());
 
     log::set_logger(unsafe { udp_log::GLOBAL_LOGGER.as_ref().unwrap() })
         .map(|()| log::set_max_level(log::LevelFilter::max()))

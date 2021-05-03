@@ -2,7 +2,7 @@ use cached::proc_macro::cached;
 use chrono::Local;
 use log::{Level, Metadata, Record};
 use serde::{Deserialize, Serialize};
-use std::{fs::File, io::Write, net, sync::Mutex};
+use std::{fs::File, io::Write, net, path::Path, sync::Mutex};
 
 #[derive(Clone, Copy, Serialize, Deserialize)]
 enum MessageType {
@@ -102,7 +102,7 @@ impl Logger {
         self.address = String::from(address);
     }
 
-    pub fn connect_file(&mut self, path: &str) {
+    pub fn connect_file<P: AsRef<Path>>(&mut self, path: P) {
         self.file = Mutex::new(File::create(path).ok());
     }
 
@@ -119,7 +119,7 @@ impl Logger {
             return;
         }
 
-        let mut message = Message {
+        let message = Message {
             group: self.name.clone(),
             msg_type,
             string: String::from(value.as_ref()),
@@ -128,10 +128,9 @@ impl Logger {
         };
 
         if level < Level::Debug {
-            // fixme: Can't write to files on Odyssey.
-            // if let Some(mut file) = self.file.lock().ok() {
-            // message.write_to_file(file.as_mut().unwrap());
-            // }
+            if let Some(mut file) = self.file.lock().ok() {
+                message.write_to_file(file.as_mut().unwrap());
+            }
         }
 
         let packed = message.pack();
