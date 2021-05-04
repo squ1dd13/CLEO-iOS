@@ -1,5 +1,3 @@
-# todo: Move to build.rs
-
 # Compile the Rust code and produce an ar archive.
 printf "=> Compiling Rust code...\n"
 cargo lipo --allow-run-on-non-macos || exit 1
@@ -32,7 +30,7 @@ if [[ $* == *--package* ]]; then
 
     # Create a .deb archive.
     unlink ../../../deb/CLEO.deb
-    dpkg-deb -Z gzip -b ./deb-archive ../../../deb/CLEO.deb
+    dpkg-deb -Z zstd -b ./deb-archive ../../../deb/CLEO.deb
 
     scp "../../../deb/CLEO.deb" root@$1:/User/Downloads/CLEO.deb
     ssh root@$1 'exec $SHELL -l -c "dpkg -i /User/Downloads/CLEO.deb && (killall -9 gta3sa || echo \"GTA:SA not running\")"'
