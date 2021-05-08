@@ -3,6 +3,8 @@
 
 _**Note:** This branch (`main`) is for the current version of CLEO iOS, which is written in Rust. For the original C++ version, see the [`c++` branch](https://github.com/Squ1dd13/CLEO-iOS/tree/c+%2B)._
 
+**[Join the Discord server for support, info and script suggestions.](https://discord.gg/cXwkTUasJU)**
+
 ## Completed Features
 * CSA script loading
 * FXT loading
