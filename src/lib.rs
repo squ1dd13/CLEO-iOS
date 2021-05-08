@@ -86,7 +86,7 @@ fn load() {
                          Welcome to CLEO iOS!                         
                 By @squ1dd13 (squ1dd13dev@gmail.com).                 
                         Made with ❤️ in 🇬🇧.                           
-  Check out the GitHub repo at https://github.com/Squ1dd13/CLEO-iOS.  
+  Check out the GitHub repo at https://github.com/squ1dd13/CLEO-iOS.  
 **********************************************************************
 "#
     );

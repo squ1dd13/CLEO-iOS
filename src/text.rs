@@ -9,11 +9,15 @@ lazy_static! {
 }
 
 fn get_gxt_string(text_obj_ptr: usize, key: *const c_char) -> *const u16 {
-    let key_str = unsafe { std::ffi::CStr::from_ptr(key) }.to_str().unwrap();
+    if !key.is_null() {
+        let key_str = unsafe { std::ffi::CStr::from_ptr(key) }.to_str();
 
-    if let Ok(custom_strings) = CUSTOM_STRINGS.lock() {
-        if let Some(value) = custom_strings.get(key_str) {
-            return value.as_ptr();
+        if let Ok(key_str) = key_str {
+            if let Ok(custom_strings) = CUSTOM_STRINGS.lock() {
+                if let Some(value) = custom_strings.get(key_str) {
+                    return value.as_ptr();
+                }
+            }
         }
     }
 
