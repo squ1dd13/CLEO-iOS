@@ -1,7 +1,11 @@
-use std::os::raw::c_char;
-
 use ctor::ctor;
-use log::{debug, error, info};
+
+use lazy_static::lazy_static;
+use log::{debug, error, info, warn};
+use std::{
+    os::raw::c_char,
+    sync::atomic::{AtomicBool, Ordering},
+};
 
 mod files;
 mod hook;
@@ -13,7 +17,7 @@ mod ui;
 mod targets {
     use super::*;
 
-    create_soft_target!(game_load, 0x100240178, fn(*const c_char));
+    create_soft_target!(game_load_scripts, 0x1001cff00, fn());
     create_soft_target!(script_tick, 0x1001d0f40, fn());
     create_soft_target!(
         process_touch,
@@ -28,28 +32,41 @@ mod targets {
     // create_soft_target!(vertex_shader, 0x100137cd0, fn(u64));
 }
 
-// Log a message when a game loads. This is helpful to let us know that
-//  hooking has worked, but also means we have a hook which we can use
-//  to initialise anything when a game is started if we need that in the
-//  future.
-fn game_load_hook(dat_path: *const c_char) {
-    debug!("Loading game.");
-    call_original!(targets::game_load, dat_path);
+fn load_existing_game() {
+    debug!("Loading scripts.");
+    call_original!(targets::game_load_scripts);
+
+    load_resources_if_needed();
 }
 
 fn install_hooks() {
-    targets::game_load::install(game_load_hook);
+    targets::game_load_scripts::install(load_existing_game);
     scripts::hook();
     ui::hook();
     text::hook();
 }
 
-fn load_script_dir() {
-    if let Err(err) = files::load_all(files::get_cleo_dir_path()) {
-        error!("Encountered error while loading CS directory: {}", err);
-    } else {
-        info!("Loaded CS directory with no top-level errors.");
+fn reset() {
+    debug!("Resetting hooked systems.");
+    text::reset();
+    scripts::reset();
+}
+
+fn load_resources_if_needed() {
+    if scripts::are_scripts_fresh() {
+        // Scripts have not been invalidated, so no reload needed.
+        // However, we emit a warning because this could be incorrect if the scripts are actually invalid.
+        warn!("Scripts reported as valid on resource load check.");
+        return;
     }
+
+    reset();
+
+    if let Err(err) = files::load_all(files::get_cleo_dir_path()) {
+        error!("Encountered error while loading CLEO directory: {}", err);
+    }
+
+    scripts::set_scripts_fresh(true);
 }
 
 #[ctor]
@@ -92,5 +109,4 @@ fn load() {
     );
 
     install_hooks();
-    load_script_dir();
 }

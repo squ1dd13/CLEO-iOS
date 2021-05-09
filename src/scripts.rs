@@ -1,10 +1,10 @@
-use std::fs;
 use std::io;
 use std::iter::FromIterator;
 use std::path::Path;
 use std::path::{Component, PathBuf};
+use std::{fs, sync::atomic::AtomicBool};
 
-use log::{debug, error, info, warn};
+use log::{debug, error, info, trace, warn};
 
 use crate::{call_original, hook};
 
@@ -92,6 +92,7 @@ pub struct Script {
     bytes: Vec<u8>,
 }
 
+// fixme: Use a mutex for accessing LOADED_SCRIPTS.
 static mut LOADED_SCRIPTS: Vec<Script> = vec![];
 
 pub fn loaded_scripts() -> &'static mut Vec<Script> {
@@ -245,6 +246,9 @@ impl Script {
     }
 
     fn run_next(&mut self) -> u8 {
+        // After the first tick, a new game will require the scripts to be reloaded.
+        set_scripts_fresh(false);
+
         if !self.vanilla_rep.active {
             return 1;
         };
@@ -426,6 +430,21 @@ impl Script {
     //             );
     //         }
     //     }
+}
+
+static SCRIPTS_FRESH: AtomicBool = AtomicBool::new(false);
+
+pub fn set_scripts_fresh(fresh: bool) {
+    SCRIPTS_FRESH.store(fresh, std::sync::atomic::Ordering::Relaxed);
+}
+
+pub fn are_scripts_fresh() -> bool {
+    SCRIPTS_FRESH.load(std::sync::atomic::Ordering::Relaxed)
+}
+
+pub fn reset() {
+    debug!("Resetting scripts.");
+    loaded_scripts().clear();
 }
 
 pub fn hook() {
