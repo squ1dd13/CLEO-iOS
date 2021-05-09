@@ -1,5 +1,6 @@
 # CLEO iOS
-[![forthebadge](https://forthebadge.com/images/badges/made-with-rust.svg)](https://forthebadge.com)[![forthebadge](https://forthebadge.com/images/badges/built-with-love.svg)](https://forthebadge.com)
+<!-- I love badges :D -->
+[![Discord](https://img.shields.io/discord/767478053139775528?color=7289DA&label=DISCORD&style=for-the-badge)](https://discord.gg/cXwkTUasJU) ![Downloads](https://img.shields.io/github/downloads/squ1dd13/CLEO-iOS/total?style=for-the-badge) 
 
 _**Note:** This branch (`main`) is for the current version of CLEO iOS, which is written in Rust. For the original C++ version, see the [`c++` branch](https://github.com/Squ1dd13/CLEO-iOS/tree/c+%2B)._
 
