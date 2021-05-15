@@ -1,6 +1,6 @@
 use crate::{call_original, targets};
 use lazy_static::lazy_static;
-use log::{debug, warn};
+use log::warn;
 use std::collections::HashMap;
 use std::{os::raw::c_char, sync::Mutex};
 
@@ -37,16 +37,6 @@ pub fn set_kv(key: &str, value: &str) {
                 key, value
             );
         }
-    }
-}
-
-pub fn reset() {
-    debug!("Resetting text.");
-
-    if let Ok(mut custom_strings) = CUSTOM_STRINGS.lock() {
-        custom_strings.clear();
-    } else {
-        warn!("Unable to acquire CUSTOM_STRINGS lock for text reset!");
     }
 }
 

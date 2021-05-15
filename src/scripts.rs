@@ -1,12 +1,16 @@
-use std::io;
+use std::fs;
 use std::iter::FromIterator;
 use std::path::Path;
 use std::path::{Component, PathBuf};
-use std::{fs, sync::atomic::AtomicBool};
+use std::{
+    collections::hash_map::DefaultHasher,
+    hash::{Hash, Hasher},
+    io,
+};
 
-use log::{debug, error, info, trace, warn};
+use log::{debug, error, info, warn};
 
-use crate::{call_original, hook};
+use crate::{call_original, files, hook};
 
 /// Passive scripts have the extension "csi" and are invoked via the script menu.
 #[allow(dead_code)]
@@ -85,14 +89,16 @@ struct VanillaScript {
 
 #[derive(Debug)]
 pub struct Script {
+    /// C structure mirroring standard GTA scripts. Interoperable with game code.
     vanilla_rep: VanillaScript,
 
-    // Store the byte vector with the vanilla script so the vector is dropped when
-    // we need it to be.
-    bytes: Vec<u8>,
+    /// Identifies the component which is responsible for loading and unloading this script.
+    /// Component IDs are unique to components, not scripts, so multiple scripts may share
+    /// the same component ID.
+    component_id: u64,
 }
 
-// fixme: Use a mutex for accessing LOADED_SCRIPTS.
+// fixme: We should be using a mutex for accessing LOADED_SCRIPTS.
 static mut LOADED_SCRIPTS: Vec<Script> = vec![];
 
 pub fn loaded_scripts() -> &'static mut Vec<Script> {
@@ -100,25 +106,12 @@ pub fn loaded_scripts() -> &'static mut Vec<Script> {
 }
 
 impl Script {
-    pub fn new<P: AsRef<Path>>(path: P) -> io::Result<Script> {
-        let path = path.as_ref();
-
-        let is_ext_valid = match path.extension() {
-            Some(ext) => matches!(ext.to_str().unwrap_or("bad"), /*"csi" | */ "csa"),
-            _ => false,
-        };
-
-        if !is_ext_valid {
-            return Err(io::Error::from(io::ErrorKind::InvalidInput));
-        }
-
-        let mut script_bytes = fs::read(path)?;
-
-        Ok(Script {
+    pub fn new(bytes: *mut u8, component_id: u64) -> Script {
+        Script {
             vanilla_rep: VanillaScript {
                 name: *b"a script",
-                base_ip: script_bytes.as_mut_ptr(),
-                ip: script_bytes.as_mut_ptr(),
+                base_ip: bytes,
+                ip: bytes,
                 call_stack: [std::ptr::null_mut(); 8],
                 stack_pos: 0,
                 active: true,
@@ -141,8 +134,8 @@ impl Script {
                 is_mission: false,
             },
 
-            bytes: script_bytes,
-        })
+            component_id,
+        }
     }
 
     pub fn name(&self) -> String {
@@ -189,6 +182,8 @@ impl Script {
                 // In theory, 0xdda could be used to get valid memory addresses, but scripts are
                 //  probably looking for bytes only present in the 32-bit game (if looking for
                 //  functions).
+
+                // todo: Allow memory operations on addresses within script variable space.
 
                 error!(
                     "Memory r/w unsupported on iOS! (Script '{}' used opcode {:#x}.)",
@@ -246,9 +241,6 @@ impl Script {
     }
 
     fn run_next(&mut self) -> u8 {
-        // After the first tick, a new game will require the scripts to be reloaded.
-        set_scripts_fresh(false);
-
         if !self.vanilla_rep.active {
             return 1;
         };
@@ -357,98 +349,105 @@ impl Script {
         call_original!(crate::targets::script_tick);
     }
 
-    //     fn vertex_shader_hook(value: u64) {
-    //         enum ShaderOptions {
-    //             LightStuff = 0x2,
-    //             DirLight = 0x2000,
-    //             DirBackLight = 0x1180,
+    fn reset(&mut self) {
+        // Reset everything other than the script bytes.
+        self.vanilla_rep = VanillaScript {
+            next: 0,
+            previous: 0,
+            name: *b"a script",
+            stack_pos: 0,
+            active: true,
+            bool_flag: false,
+            use_mission_cleanup: false,
+            is_external: false,
+            ovr_textbox: false,
+            attach_type: 0,
+            wakeup_time: 0,
+            condition_count: 0,
+            not_flag: false,
+            checking_game_over: false,
+            game_over: false,
+            skip_scene_pos: 0,
+            is_mission: false,
+            ..self.vanilla_rep
+        };
 
-    //         }
+        // Avoid allocating new slices; reuse the old ones.
+        self.vanilla_rep.call_stack.fill(std::ptr::null_mut());
+        self.vanilla_rep.locals.fill(0);
 
-    //         call_original!(crate::targets::vertex_shader, value);
-
-    //         get_log().important(format!("vert({:x})", value));
-
-    //         if value != 48 {
-    //             return;
-    //         }
-
-    //         static SHADER_STR_48: &str = "#version 100
-
-    // precision highp float;
-    // uniform mat4 ProjMatrix;
-    // uniform mat4 ViewMatrix;
-    // uniform mat4 ObjMatrix;
-    // attribute vec3 Position;
-    // attribute vec3 Normal;
-    // attribute vec2 TexCoord0;
-    // attribute vec4 GlobalColor;
-    // varying mediump vec2 Out_Tex0;
-    // varying lowp vec4 Out_Color;
-
-    // void main() {
-    //     vec4 WorldPos = ObjMatrix * vec4(Position, 1.0);
-    //     vec4 ViewPos = ViewMatrix * WorldPos;
-    //     gl_Position = ProjMatrix * ViewPos;
-    //     Out_Tex0 = TexCoord0;
-    //     Out_Color = vec4(1.0, GlobalColor.g, GlobalColor.b, GlobalColor.a);//GlobalColor;
-    // }";
-
-    //         static SHADER_STR_16: &str = "#version 100
-    // precision highp float;
-    // uniform mat4 ProjMatrix;
-    // uniform mat4 ViewMatrix;
-    // uniform mat4 ObjMatrix;
-    // attribute vec3 Position;
-    // attribute vec3 Normal;
-    // attribute vec4 GlobalColor;
-    // varying lowp vec4 Out_Color;
-    // void main() {
-    //     vec4 WorldPos = ObjMatrix * vec4(Position, 1.0);
-    //     vec4 ViewPos = ViewMatrix * WorldPos;
-    //     gl_Position = ProjMatrix * ViewPos;
-    //     Out_Color = GlobalColor;
-    // }";
-    //         unsafe {
-    //             get_log().normal(
-    //                 std::ffi::CStr::from_ptr(hook::slide::<*const i8>(0x100936e69))
-    //                     .to_str()
-    //                     .unwrap(),
-    //             );
-
-    //             let shader = match value {
-    //                 48 => SHADER_STR_48,
-    //                 _ => SHADER_STR_16,
-    //             };
-
-    //             hook::slide::<*mut i8>(0x100936e69).copy_from(
-    //                 std::ffi::CString::new(shader)
-    //                     .unwrap()
-    //                     .as_bytes_with_nul()
-    //                     .as_ptr() as *const i8,
-    //                 shader.len() + 1,
-    //             );
-    //         }
-    //     }
+        self.vanilla_rep.timers[0] = 0;
+        self.vanilla_rep.timers[1] = 0;
+    }
 }
 
-static SCRIPTS_FRESH: AtomicBool = AtomicBool::new(false);
+pub struct ScriptComponent {
+    /// Shared bytecode storage for all instances of the script.
+    bytes: Vec<u8>,
 
-pub fn set_scripts_fresh(fresh: bool) {
-    SCRIPTS_FRESH.store(fresh, std::sync::atomic::Ordering::Relaxed);
+    /// ID matching scripts which are controlled by this component.
+    component_id: u64,
 }
 
-pub fn are_scripts_fresh() -> bool {
-    SCRIPTS_FRESH.load(std::sync::atomic::Ordering::Relaxed)
+impl ScriptComponent {
+    pub fn new(path: &Path) -> io::Result<Box<dyn files::Component>> {
+        let is_ext_valid = match path.extension() {
+            Some(ext) => matches!(ext.to_str().unwrap_or("bad"), /*"csi" | */ "csa"),
+            _ => false,
+        };
+
+        if !is_ext_valid {
+            return Err(io::Error::from(io::ErrorKind::InvalidInput));
+        }
+
+        // A single file may only contain one script, so the hash of the path makes for
+        //  a good component ID.
+        let mut hasher = DefaultHasher::new();
+        path.hash(&mut hasher);
+
+        let mut component = ScriptComponent {
+            bytes: fs::read(path)?,
+            component_id: hasher.finish(),
+        };
+
+        // Launch an instance. This should only ever be for CSA scripts.
+        component.init();
+
+        Ok(Box::new(component))
+    }
+
+    fn init(&mut self) {
+        loaded_scripts().push(Script::new(self.bytes.as_mut_ptr(), self.component_id));
+    }
 }
 
-pub fn reset() {
-    debug!("Resetting scripts.");
-    loaded_scripts().clear();
+impl files::Component for ScriptComponent {
+    fn unload(&mut self) {
+        let scripts = loaded_scripts();
+
+        let length_before = scripts.len();
+        scripts.retain(|script| script.component_id != self.component_id);
+
+        let scripts_removed = length_before - scripts.len();
+
+        debug!(
+            "Unloaded {} script{} with component ID {:#x}",
+            scripts_removed,
+            if scripts_removed == 1 { "" } else { "s" },
+            self.component_id
+        );
+    }
+
+    fn reset(&mut self) {
+        for script in loaded_scripts().iter_mut() {
+            if script.component_id == self.component_id {
+                script.reset();
+            }
+        }
+    }
 }
 
 pub fn hook() {
     debug!("Installing script hooks");
     crate::targets::script_tick::install(Script::script_tick);
-    // crate::targets::vertex_shader::install(Script::vertex_shader_hook);
 }

@@ -1,11 +1,8 @@
 use ctor::ctor;
 
-use lazy_static::lazy_static;
-use log::{debug, error, info, warn};
-use std::{
-    os::raw::c_char,
-    sync::atomic::{AtomicBool, Ordering},
-};
+use files::ComponentSystem;
+use log::{debug, error, info};
+use std::os::raw::c_char;
 
 mod files;
 mod hook;
@@ -29,44 +26,26 @@ mod targets {
         0x10044142c,
         fn(usize, *const c_char) -> *const u16
     );
-    // create_soft_target!(vertex_shader, 0x100137cd0, fn(u64));
 }
 
-fn load_existing_game() {
+static mut COMPONENT_SYSTEM: Option<ComponentSystem> = None;
+
+fn get_component_system() -> &'static mut Option<ComponentSystem> {
+    unsafe { &mut COMPONENT_SYSTEM }
+}
+
+fn load_scripts_hook() {
     debug!("Loading scripts.");
     call_original!(targets::game_load_scripts);
 
-    load_resources_if_needed();
+    get_component_system().as_mut().unwrap().reset_all();
 }
 
 fn install_hooks() {
-    targets::game_load_scripts::install(load_existing_game);
+    targets::game_load_scripts::install(load_scripts_hook);
     scripts::hook();
     ui::hook();
     text::hook();
-}
-
-fn reset() {
-    debug!("Resetting hooked systems.");
-    text::reset();
-    scripts::reset();
-}
-
-fn load_resources_if_needed() {
-    if scripts::are_scripts_fresh() {
-        // Scripts have not been invalidated, so no reload needed.
-        // However, we emit a warning because this could be incorrect if the scripts are actually invalid.
-        warn!("Scripts reported as valid on resource load check.");
-        return;
-    }
-
-    reset();
-
-    if let Err(err) = files::load_all(files::get_cleo_dir_path()) {
-        error!("Encountered error while loading CLEO directory: {}", err);
-    }
-
-    scripts::set_scripts_fresh(true);
 }
 
 #[ctor]
@@ -77,6 +56,20 @@ fn load() {
 
     if let Err(err) = files::setup_cleo_fs() {
         error!("setup_cleo_fs error: {}", err);
+    }
+
+    files::ComponentSystem::register_extension("csa", scripts::ScriptComponent::new);
+    files::ComponentSystem::register_extension("fxt", files::LanguageFile::new);
+
+    let component_system = ComponentSystem::new(files::get_cleo_dir_path());
+
+    if let Err(err) = component_system {
+        error!("Unable to create component system! {}", err);
+        panic!("{}", err);
+    }
+
+    unsafe {
+        COMPONENT_SYSTEM = Some(component_system.unwrap());
     }
 
     logger.connect_file(files::get_log_path());
