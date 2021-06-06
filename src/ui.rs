@@ -184,37 +184,145 @@ fn process_touch(x: f32, y: f32, timestamp: f64, force: f32, touch_type: TouchTy
 
 use objc::*;
 
+fn create_ns_string(rust_string: &str) -> *const Object {
+    unsafe {
+        let c_string = std::ffi::CString::new(rust_string).expect("CString::new failed");
+        let ns_string: *const Object =
+            msg_send![class!(NSString), stringWithUTF8String: c_string.as_ptr()];
+
+        ns_string
+    }
+}
+
 fn legal_splash_did_load(this: *mut Object, sel: Sel) {
     unsafe {
-        let create_ns_string = |rust_string: &str| {
-            let ns_string: *mut Object =
-                msg_send![class!(NSString), stringWithUTF8String: rust_string.as_ptr()];
-
-            ns_string
-        };
+        // todo: Check if we need to add any reference counting calls here.
+        // todo? Individually animate our label and show the legal splash after.
 
         let view: *mut Object = msg_send![this, view];
         let bounds: CGRect = msg_send![view, bounds];
         let label: *mut Object = msg_send![class!(UILabel), alloc];
         let label: *mut Object = msg_send![label, initWithFrame: bounds];
 
-        let _: () = msg_send![label, setText: create_ns_string("CLEO\0")];
+        let text_colour: *const Object = msg_send![class!(UIColor), whiteColor];
+        let background_colour: *const Object = msg_send![class!(UIColor), blackColor];
+        let font: *mut Object = msg_send![class!(UIFont), fontWithName: create_ns_string("PricedownGTAVInt") size: 50.0];
 
-        let text_colour: *mut Object = msg_send![class!(UIColor), whiteColor];
+        let _: () = msg_send![label, setText: create_ns_string("CLEO")];
         let _: () = msg_send![label, setTextColor: text_colour];
-
-        let font: *mut Object = msg_send![class!(UIFont), fontWithName: create_ns_string("PricedownGTAVInt\0") size: 50.0];
         let _: () = msg_send![label, setFont: font];
-
-        // '1' is NSTextAlignmentCenter.
-        let _: () = msg_send![label, setTextAlignment: 1 as c_long];
-
-        let background_colour: *mut Object = msg_send![class!(UIColor), blackColor];
+        let _: () = msg_send![label, setTextAlignment: /* NSTextAlignmentCenter */ 1 as c_long];
         let _: () = msg_send![label, setBackgroundColor: background_colour];
 
         call_original!(targets::legal_splash, this, sel);
 
         let _: () = msg_send![view, addSubview: label];
+        let _: () = msg_send![label, release];
+    }
+}
+
+fn _show_script_menu() {
+    unsafe {
+        let app: *mut Object = msg_send![class!(UIApplication), sharedApplication];
+        let window: *mut Object = msg_send![app, keyWindow];
+        let window_bounds: CGRect = msg_send![window, bounds];
+
+        let menu_width = window_bounds.size.width * 0.7;
+        let menu_height = window_bounds.size.height * 0.7;
+
+        let menu: *mut Object = msg_send![class!(UIView), alloc];
+        let menu: *mut Object = msg_send![menu, initWithFrame: CGRect {
+            origin: CGPoint {
+                x: (window_bounds.size.width * 0.15).round(),
+                y: (window_bounds.size.height * 0.15).round(),
+            },
+            size: CGSize {
+                width: menu_width,
+                height: menu_height,
+            },
+        }];
+
+        let background_colour: *const Object =
+            msg_send![class!(UIColor), colorWithWhite: 0.0 alpha: 0.95];
+        let _: () = msg_send![menu, setBackgroundColor: background_colour];
+
+        let title_label: *mut Object = msg_send![class!(UILabel), alloc];
+        let title_label: *mut Object = msg_send![title_label, initWithFrame: CGRect {
+            origin: CGPoint { x: 0.0, y: 0.0 },
+            size: CGSize {
+                width: menu_width,
+                height: (menu_height * 0.2).round(),
+            },
+        }];
+
+        let text_colour: *const Object = msg_send![class!(UIColor), whiteColor];
+        let font: *mut Object = msg_send![class!(UIFont), fontWithName: create_ns_string("PricedownGTAVInt") size: 35.0];
+
+        let _: () = msg_send![title_label, setText: create_ns_string("Scripts")];
+        let _: () = msg_send![title_label, setFont: font];
+        let _: () = msg_send![title_label, setTextColor: text_colour];
+        let _: () = msg_send![title_label, setAdjustsFontSizeToFitWidth: true];
+        let _: () = msg_send![title_label, setTextAlignment: 1 as c_long];
+
+        let scroll_view: *mut Object = msg_send![class!(UIScrollView), alloc];
+        let scroll_view: *mut Object = msg_send![scroll_view, initWithFrame: CGRect {
+            origin: CGPoint {
+                x: 0.0,
+                y: (menu_height * 0.2).round(),
+            },
+            size: CGSize {
+                width: menu_width,
+                height: (menu_height * 0.8).round(),
+            },
+        }];
+
+        let button_height = (menu_height * 0.15).round();
+        let sample_data = &[
+            "Item 1", "Item 2", "Item 3", "Item 4", "Item 5", "Item 6", "Item 7", "Item 8",
+            "Item 9", "Item 10",
+        ];
+
+        let _: () = msg_send![scroll_view, setBounces: false];
+        let _: () = msg_send![scroll_view, setShowsHorizontalScrollIndicator: false];
+        let _: () = msg_send![scroll_view, setShowsVerticalScrollIndicator: false];
+        let _: () = msg_send![scroll_view, setContentSize: CGSize {
+            width: menu_width,
+            height: sample_data.len() as f64 * button_height,
+        }];
+
+        // Add the entries to the scroll view.
+        for (index, item) in sample_data.iter().enumerate() {
+            let button: *mut Object = msg_send![class!(UIButton), alloc];
+            let button: *mut Object = msg_send![button, initWithFrame: CGRect {
+                origin: CGPoint {
+                    x: 0.0,
+                    y: index as f64 * button_height,
+                },
+                size: CGSize {
+                    width: menu_width,
+                    height: button_height,
+                },
+            }];
+
+            let button_label: *mut Object = msg_send![button, titleLabel];
+            let font: *mut Object = msg_send![class!(UIFont), fontWithName: create_ns_string("ChaletComprime-CologneSixty") size: 25.0];
+
+            let _: () = msg_send![button_label, setFont: font];
+
+            let _: () = msg_send![button, setTitle: create_ns_string(*item) forState: /* UIControlStateNormal */ 0];
+
+            // todo: Touch handler.
+
+            let _: () = msg_send![scroll_view, addSubview: button];
+            let _: () = msg_send![button, release];
+        }
+
+        let _: () = msg_send![menu, addSubview: title_label];
+        let _: () = msg_send![title_label, release];
+        let _: () = msg_send![menu, addSubview: scroll_view];
+        let _: () = msg_send![scroll_view, release];
+        let _: () = msg_send![window, addSubview: menu];
+        let _: () = msg_send![menu, release];
     }
 }
 
