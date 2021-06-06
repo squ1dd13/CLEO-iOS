@@ -1,11 +1,17 @@
-use crate::{call_original, targets};
+use crate::{call_original, hook, targets};
 use cached::proc_macro::cached;
 use lazy_static::lazy_static;
 use objc::runtime::Sel;
 use runtime::Object;
-use std::{os::raw::c_long, sync::Mutex};
+use std::{
+    os::raw::c_long,
+    sync::{
+        atomic::{AtomicBool, Ordering},
+        Mutex,
+    },
+};
 
-use log::{error, warn};
+use log::{error, trace, warn};
 
 #[repr(C)]
 struct CGSize {
@@ -70,7 +76,7 @@ fn get_zone(x: f32, y: f32) -> Option<i8> {
 
 lazy_static! {
     static ref TOUCH_ZONES: Mutex<[bool; 9]> = Mutex::new([false; 9]);
-    static ref CURRENT_TOUCHES: Mutex<Vec<(f32, f32)>> = Mutex::new(Vec::new());
+    static ref CURRENT_TOUCHES: Mutex<Vec<((f32, f32, f64), (f32, f32))>> = Mutex::new(Vec::new());
 }
 
 pub fn query_zone(zone: usize) -> Option<bool> {
@@ -91,14 +97,52 @@ pub fn query_zone(zone: usize) -> Option<bool> {
     }
 }
 
+fn is_menu_swipe(x1: f32, y1: f32, time1: f64, x2: f32, y2: f32, time2: f64) -> bool {
+    const MIN_SPEED: f32 = 700.0;
+    const MIN_DISTANCE: f32 = 25.0;
+
+    if time1 <= 0.0 {
+        return false;
+    }
+
+    let delta_x = x2 - x1;
+    let delta_y = y2 - y1;
+    let delta_t = time2 - time1;
+
+    let distance = (delta_x * delta_x + delta_y * delta_y).sqrt();
+
+    if distance < MIN_DISTANCE {
+        return false;
+    }
+
+    let speed = distance / delta_t as f32;
+
+    if speed < MIN_SPEED {
+        return false;
+    }
+
+    // Only allow a downwards swipe, so don't tolerate very much sideways movement.
+    let x_is_static = (delta_x / distance).abs() < 0.4;
+    let y_is_downwards = delta_y / distance > 0.4;
+
+    x_is_static && y_is_downwards
+}
+
 // Hook the touch handler so we can use touch zones like CLEO Android does.
 fn process_touch(x: f32, y: f32, timestamp: f64, force: f32, touch_type: TouchType) {
     // Find the closest touch to the given position that we know about.
-    fn find_closest_index(touches: &[(f32, f32)], x: f32, y: f32) -> Option<usize> {
+    fn find_closest_index(
+        touches: &[((f32, f32, f64), (f32, f32))],
+        x: f32,
+        y: f32,
+    ) -> Option<usize> {
         touches
             .iter()
             .enumerate()
             .min_by(|(_, a), (_, b)| {
+                let a = a.1;
+                let b = b.1;
+
                 // Compare taxicab distance (in order to avoid square rooting).
                 let distance_a = (a.0 - x).abs() + (a.1 - y).abs();
                 let distance_b = (b.0 - x).abs() + (b.1 - y).abs();
@@ -130,6 +174,13 @@ fn process_touch(x: f32, y: f32, timestamp: f64, force: f32, touch_type: TouchTy
             match touch_type {
                 TouchType::Up => {
                     if let Some(close_index) = find_closest_index(&touches[..], x, y) {
+                        let (x1, y1, initial_timestamp) = touches[close_index].0;
+
+                        if is_menu_swipe(x1, y1, initial_timestamp, x, y, timestamp) {
+                            trace!("Menu swipe");
+                            show_script_menu();
+                        }
+
                         touches.remove(close_index);
                     } else {
                         error!("Unable to find touch to release!");
@@ -137,12 +188,12 @@ fn process_touch(x: f32, y: f32, timestamp: f64, force: f32, touch_type: TouchTy
                 }
 
                 TouchType::Down => {
-                    touches.push((x, y));
+                    touches.push(((x, y, timestamp), (x, y)));
                 }
 
                 TouchType::Move => {
                     if let Some(close_index) = find_closest_index(&touches[..], x, y) {
-                        touches[close_index] = (x, y);
+                        touches[close_index].1 = (x, y);
                     } else {
                         error!("Unable to find touch to move!");
                     }
@@ -159,7 +210,7 @@ fn process_touch(x: f32, y: f32, timestamp: f64, force: f32, touch_type: TouchTy
 
                     // Trigger the zone for each touch we find.
                     for touch in touches.iter() {
-                        if let Some(zone) = get_zone(touch.0, touch.1) {
+                        if let Some(zone) = get_zone(touch.1 .0, touch.1 .1) {
                             touch_zones[zone as usize - 1] = true;
                         }
                     }
@@ -196,7 +247,6 @@ fn create_ns_string(rust_string: &str) -> *const Object {
 
 fn legal_splash_did_load(this: *mut Object, sel: Sel) {
     unsafe {
-        // todo: Check if we need to add any reference counting calls here.
         // todo? Individually animate our label and show the legal splash after.
 
         let view: *mut Object = msg_send![this, view];
@@ -221,7 +271,32 @@ fn legal_splash_did_load(this: *mut Object, sel: Sel) {
     }
 }
 
-fn _show_script_menu() {
+lazy_static! {
+    static ref SHOWING_MENU: AtomicBool = AtomicBool::new(false);
+}
+
+static mut MENU: Option<*mut Object> = None;
+
+fn show_script_menu() {
+    if SHOWING_MENU.load(Ordering::Relaxed) {
+        // Menu is already being shown, so ignore the request.
+        return;
+    }
+
+    // Make sure we don't show the menu again until this menu is gone.
+    SHOWING_MENU.store(true, Ordering::Relaxed);
+
+    unsafe {
+        // Slow the game down.
+        *hook::slide::<*mut f32>(0x1007d3b18) = 0.01;
+
+        // If we already have a menu constructed, use that one.
+        if let Some(menu) = MENU {
+            let _: () = msg_send![menu, setHidden: false];
+            return;
+        }
+    }
+
     unsafe {
         let app: *mut Object = msg_send![class!(UIApplication), sharedApplication];
         let window: *mut Object = msg_send![app, keyWindow];
@@ -309,7 +384,7 @@ fn _show_script_menu() {
 
             let _: () = msg_send![button_label, setFont: font];
 
-            let _: () = msg_send![button, setTitle: create_ns_string(*item) forState: /* UIControlStateNormal */ 0];
+            let _: () = msg_send![button, setTitle: create_ns_string(*item) forState: /* UIControlStateNormal */ 0 as c_long];
 
             // todo: Touch handler.
 
@@ -322,7 +397,9 @@ fn _show_script_menu() {
         let _: () = msg_send![menu, addSubview: scroll_view];
         let _: () = msg_send![scroll_view, release];
         let _: () = msg_send![window, addSubview: menu];
-        let _: () = msg_send![menu, release];
+
+        // Remember this menu so we can use it in the future.
+        MENU = Some(menu);
     }
 }
 
