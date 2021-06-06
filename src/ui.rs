@@ -1,9 +1,9 @@
 use crate::{call_original, targets};
 use cached::proc_macro::cached;
 use lazy_static::lazy_static;
-use objc::*;
+use objc::runtime::Sel;
 use runtime::Object;
-use std::sync::Mutex;
+use std::{os::raw::c_long, sync::Mutex};
 
 use log::{error, warn};
 
@@ -182,6 +182,43 @@ fn process_touch(x: f32, y: f32, timestamp: f64, force: f32, touch_type: TouchTy
     call_original!(targets::process_touch, x, y, timestamp, force, touch_type);
 }
 
+use objc::*;
+
+fn legal_splash_did_load(this: *mut Object, sel: Sel) {
+    unsafe {
+        let create_ns_string = |rust_string: &str| {
+            let ns_string: *mut Object =
+                msg_send![class!(NSString), stringWithUTF8String: rust_string.as_ptr()];
+
+            ns_string
+        };
+
+        let view: *mut Object = msg_send![this, view];
+        let bounds: CGRect = msg_send![view, bounds];
+        let label: *mut Object = msg_send![class!(UILabel), alloc];
+        let label: *mut Object = msg_send![label, initWithFrame: bounds];
+
+        let _: () = msg_send![label, setText: create_ns_string("CLEO\0")];
+
+        let text_colour: *mut Object = msg_send![class!(UIColor), whiteColor];
+        let _: () = msg_send![label, setTextColor: text_colour];
+
+        let font: *mut Object = msg_send![class!(UIFont), fontWithName: create_ns_string("PricedownGTAVInt\0") size: 50.0];
+        let _: () = msg_send![label, setFont: font];
+
+        // '1' is NSTextAlignmentCenter.
+        let _: () = msg_send![label, setTextAlignment: 1 as c_long];
+
+        let background_colour: *mut Object = msg_send![class!(UIColor), blackColor];
+        let _: () = msg_send![label, setBackgroundColor: background_colour];
+
+        call_original!(targets::legal_splash, this, sel);
+
+        let _: () = msg_send![view, addSubview: label];
+    }
+}
+
 pub fn hook() {
     targets::process_touch::install(process_touch);
+    targets::legal_splash::install(legal_splash_did_load);
 }

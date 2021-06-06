@@ -1,6 +1,10 @@
 use ctor::ctor;
 
 use files::ComponentSystem;
+use objc::runtime::Sel;
+
+use objc::runtime::Object;
+
 use log::{debug, error, info};
 use std::os::raw::c_char;
 
@@ -26,6 +30,7 @@ mod targets {
         0x10044142c,
         fn(usize, *const c_char) -> *const u16
     );
+    create_soft_target!(legal_splash, 0x1000d7cac, fn(*mut Object, sel: Sel));
 }
 
 static mut COMPONENT_SYSTEM: Option<ComponentSystem> = None;

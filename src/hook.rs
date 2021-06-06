@@ -170,11 +170,13 @@ macro_rules! deref_original {
 macro_rules! call_original {
     ($hook_module:path) => {{
         use $hook_module as base;
+        #[allow(unused_unsafe)]
         unsafe { base::ORIGINAL }.unwrap()()
     }};
     ($hook_module:path, $($args:expr),+) => {{
         // Workaround for $hook_module::x not working - see #48067.
         use $hook_module as base;
+        #[allow(unused_unsafe)]
         unsafe { base::ORIGINAL }.unwrap()($($args),+)
     }}
 }
