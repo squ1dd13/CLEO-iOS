@@ -428,7 +428,7 @@ fn show_script_menu() {
     }
 }
 
-/**
+/*
         This hook fixes a bug in the game where -[SCAppDelegate persistentStoreCoordinator]
     calls -[SCAppDelegate managedObjectModel], which crashes the game because it attempts
     to call -[NSManagedObjectModel initWithContentsOfURL:] with a nil URL that it gets

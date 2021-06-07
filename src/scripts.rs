@@ -96,6 +96,12 @@ pub struct Script {
     /// Component IDs are unique to components, not scripts, so multiple scripts may share
     /// the same component ID.
     component_id: u64,
+
+    /// Whether or not this script is an injected (.csi) script. Injected scripts stay loaded
+    /// all the time, but are marked as inactive when they are not currently executing.
+    /// Typical behaviour is to unload inactive scripts, but we don't want that for injected
+    /// scripts, so this field should be checked before unloading an inactive script.
+    injected: bool,
 }
 
 // fixme: We should be using a mutex for accessing LOADED_SCRIPTS.
@@ -106,7 +112,7 @@ pub fn loaded_scripts() -> &'static mut Vec<Script> {
 }
 
 impl Script {
-    pub fn new(bytes: *mut u8, component_id: u64) -> Script {
+    pub fn new(bytes: *mut u8, component_id: u64, injected: bool) -> Script {
         Script {
             vanilla_rep: VanillaScript {
                 name: *b"a script",
@@ -114,7 +120,9 @@ impl Script {
                 ip: bytes,
                 call_stack: [std::ptr::null_mut(); 8],
                 stack_pos: 0,
-                active: true,
+
+                // Injected scripts stay inactive until they are invoked by the user.
+                active: !injected,
 
                 next: 0,
                 previous: 0,
@@ -135,6 +143,7 @@ impl Script {
             },
 
             component_id,
+            injected,
         }
     }
 
@@ -322,7 +331,12 @@ impl Script {
         let loaded = loaded_scripts();
 
         let count_before = loaded.len();
-        loaded.retain(|script| script.vanilla_rep.active);
+
+        loaded.retain(|script| {
+            // We want to retain injected scripts whether or not they are active.
+            script.injected || script.vanilla_rep.active
+        });
+
         let unloaded_count = count_before - loaded.len();
 
         if unloaded_count != 0 {
@@ -356,7 +370,7 @@ impl Script {
             previous: 0,
             name: *b"a script",
             stack_pos: 0,
-            active: true,
+            active: !self.injected,
             bool_flag: false,
             use_mission_cleanup: false,
             is_external: false,
@@ -372,7 +386,7 @@ impl Script {
             ..self.vanilla_rep
         };
 
-        // Avoid allocating new slices; reuse the old ones.
+        // Avoid allocating new slices by reusing the old ones.
         self.vanilla_rep.call_stack.fill(std::ptr::null_mut());
         self.vanilla_rep.locals.fill(0);
 
@@ -391,9 +405,10 @@ pub struct ScriptComponent {
 
 impl ScriptComponent {
     pub fn new(path: &Path) -> io::Result<Box<dyn files::Component>> {
-        let is_ext_valid = match path.extension() {
-            Some(ext) => matches!(ext.to_str().unwrap_or("bad"), /*"csi" | */ "csa"),
-            _ => false,
+        let (is_ext_valid, is_csi) = match path.extension().and_then(|ext| ext.to_str()) {
+            Some("csa") => (true, false),
+            Some("csi") => (true, true),
+            _ => (false, false),
         };
 
         if !is_ext_valid {
@@ -410,14 +425,18 @@ impl ScriptComponent {
             component_id: hasher.finish(),
         };
 
-        // Launch an instance. This should only ever be for CSA scripts.
-        component.init();
+        // Load the script.
+        component.init(is_csi);
 
         Ok(Box::new(component))
     }
 
-    fn init(&mut self) {
-        loaded_scripts().push(Script::new(self.bytes.as_mut_ptr(), self.component_id));
+    fn init(&mut self, injected: bool) {
+        loaded_scripts().push(Script::new(
+            self.bytes.as_mut_ptr(),
+            self.component_id,
+            injected,
+        ));
     }
 }
 
