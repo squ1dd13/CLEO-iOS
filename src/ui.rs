@@ -154,6 +154,10 @@ fn process_touch(x: f32, y: f32, timestamp: f64, force: f32, touch_type: TouchTy
             .map(|(index, _)| index)
     }
 
+    // If we have registered a touch, it means the user has touched outside the menu (because
+    //  if they touch the menu, we don't get the event). This is a way of dismissing the menu.
+    hide_script_menu();
+
     /*
         Problem:  We don't know how each touch event is connected to ones we already know about.
                   Therefore, we can't easily track touches between calls to the touch handler,
@@ -276,6 +280,23 @@ lazy_static! {
 }
 
 static mut MENU: Option<*mut Object> = None;
+
+fn hide_script_menu() {
+    if !SHOWING_MENU.load(Ordering::Relaxed) {
+        // Menu is not showing.
+        return;
+    }
+
+    unsafe {
+        // Hide the menu if it exists.
+        if let Some(menu) = MENU {
+            let _: () = msg_send![menu, setHidden: true];
+        }
+    }
+
+    // Allow new menus to be shown.
+    SHOWING_MENU.store(false, Ordering::Relaxed);
+}
 
 fn show_script_menu() {
     if SHOWING_MENU.load(Ordering::Relaxed) {
