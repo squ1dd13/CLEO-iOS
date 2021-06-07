@@ -1,8 +1,8 @@
-use crate::{call_original, hook, targets};
+use crate::{call_original, hook, scripts, targets};
 use cached::proc_macro::cached;
 use lazy_static::lazy_static;
 use objc::runtime::Sel;
-use runtime::Object;
+use objc::{runtime::Object, *};
 use std::{
     os::raw::c_long,
     sync::{
@@ -98,8 +98,8 @@ pub fn query_zone(zone: usize) -> Option<bool> {
 }
 
 fn is_menu_swipe(x1: f32, y1: f32, time1: f64, x2: f32, y2: f32, time2: f64) -> bool {
-    const MIN_SPEED: f32 = 700.0;
-    const MIN_DISTANCE: f32 = 25.0;
+    const MIN_SPEED: f32 = 800.0;
+    const MIN_DISTANCE: f32 = 35.0;
 
     if time1 <= 0.0 {
         return false;
@@ -237,8 +237,6 @@ fn process_touch(x: f32, y: f32, timestamp: f64, force: f32, touch_type: TouchTy
     call_original!(targets::process_touch, x, y, timestamp, force, touch_type);
 }
 
-use objc::*;
-
 fn create_ns_string(rust_string: &str) -> *const Object {
     unsafe {
         let c_string = std::ffi::CString::new(rust_string).expect("CString::new failed");
@@ -322,6 +320,11 @@ fn show_script_menu() {
         }
     }
 
+    let injected_scripts: Vec<&'static mut scripts::Script> = scripts::loaded_scripts()
+        .iter_mut()
+        .filter(|s| s.injected)
+        .collect();
+
     unsafe {
         let app: *mut Object = msg_send![class!(UIApplication), sharedApplication];
         let window: *mut Object = msg_send![app, keyWindow];
@@ -377,21 +380,17 @@ fn show_script_menu() {
         }];
 
         let button_height = (menu_height * 0.15).round();
-        let sample_data = &[
-            "Item 1", "Item 2", "Item 3", "Item 4", "Item 5", "Item 6", "Item 7", "Item 8",
-            "Item 9", "Item 10",
-        ];
 
         let _: () = msg_send![scroll_view, setBounces: false];
         let _: () = msg_send![scroll_view, setShowsHorizontalScrollIndicator: false];
         let _: () = msg_send![scroll_view, setShowsVerticalScrollIndicator: false];
         let _: () = msg_send![scroll_view, setContentSize: CGSize {
             width: menu_width,
-            height: sample_data.len() as f64 * button_height,
+            height: injected_scripts.len() as f64 * button_height,
         }];
 
         // Add the entries to the scroll view.
-        for (index, item) in sample_data.iter().enumerate() {
+        for (index, item) in injected_scripts.iter().enumerate() {
             let button: *mut Object = msg_send![class!(UIButton), alloc];
             let button: *mut Object = msg_send![button, initWithFrame: CGRect {
                 origin: CGPoint {
@@ -409,11 +408,13 @@ fn show_script_menu() {
 
             let _: () = msg_send![button_label, setFont: font];
 
-            let _: () = msg_send![button, setTitle: create_ns_string(*item) forState: /* UIControlStateNormal */ 0 as c_long];
-
-            let handler_class: *const Object = msg_send![class!(IOSReachability), class];
-            let handler_sel = sel!(reachabilityWithHostName:);
-            let _: () = msg_send![button, addTarget: handler_class action: handler_sel forControlEvents: (1 <<  6) as c_long];
+            // Set the tag to the index of the item so the handler knows what's been pressed.
+            let _: () = msg_send![button, setTag: index as c_long];
+            let _: () = msg_send![button, setTitle: create_ns_string(item.display_name.as_str()) 
+                                          forState: /* UIControlStateNormal */ 0 as c_long];
+            let _: () = msg_send![button, addTarget: class!(IOSReachability)
+                                             action: sel!(reachabilityWithHostName:)
+                                   forControlEvents: /* UIControlEventTouchUpInside */ (1 << 6) as c_long];
 
             let _: () = msg_send![scroll_view, addSubview: button];
             let _: () = msg_send![button, release];
@@ -452,13 +453,24 @@ fn reachability_with_hostname(
     hostname: *mut Object,
 ) -> *mut Object {
     unsafe {
-        let button_class: *const Object = msg_send![class!(UIButton), class];
-        let is_button: bool = msg_send![hostname, isKindOfClass: button_class];
+        let is_button: bool = msg_send![hostname, isKindOfClass: class!(UIButton)];
 
         if is_button {
-            trace!("Button pressed!");
+            let tag: c_long = msg_send![hostname, tag];
+
+            if let Some(script) = scripts::loaded_scripts()
+                .iter_mut()
+                .filter(|s| s.injected)
+                .nth(tag as usize)
+            {
+                script.reset();
+                script.activate();
+            } else {
+                error!("Requested script seems to have disappeared.");
+            }
 
             hide_script_menu();
+
             std::ptr::null_mut()
         } else {
             trace!("Normal IOSReachability call.");

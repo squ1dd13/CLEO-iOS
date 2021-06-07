@@ -101,7 +101,11 @@ pub struct Script {
     /// all the time, but are marked as inactive when they are not currently executing.
     /// Typical behaviour is to unload inactive scripts, but we don't want that for injected
     /// scripts, so this field should be checked before unloading an inactive script.
-    injected: bool,
+    pub injected: bool,
+
+    /// The name of the script to show in the script menu. This only really matters for
+    /// injected scripts.
+    pub display_name: String,
 }
 
 // fixme: We should be using a mutex for accessing LOADED_SCRIPTS.
@@ -112,7 +116,7 @@ pub fn loaded_scripts() -> &'static mut Vec<Script> {
 }
 
 impl Script {
-    pub fn new(bytes: *mut u8, component_id: u64, injected: bool) -> Script {
+    pub fn new(bytes: *mut u8, component_id: u64, display_name: String, injected: bool) -> Script {
         Script {
             vanilla_rep: VanillaScript {
                 name: *b"a script",
@@ -144,6 +148,7 @@ impl Script {
 
             component_id,
             injected,
+            display_name,
         }
     }
 
@@ -363,7 +368,11 @@ impl Script {
         call_original!(crate::targets::script_tick);
     }
 
-    fn reset(&mut self) {
+    pub fn activate(&mut self) {
+        self.vanilla_rep.active = true;
+    }
+
+    pub fn reset(&mut self) {
         // Reset everything other than the script bytes.
         self.vanilla_rep = VanillaScript {
             next: 0,
@@ -426,15 +435,22 @@ impl ScriptComponent {
         };
 
         // Load the script.
-        component.init(is_csi);
+        component.init(
+            path.file_name()
+                .and_then(|s| s.to_str())
+                .unwrap_or("untitled")
+                .to_string(),
+            is_csi,
+        );
 
         Ok(Box::new(component))
     }
 
-    fn init(&mut self, injected: bool) {
+    fn init(&mut self, name: String, injected: bool) {
         loaded_scripts().push(Script::new(
             self.bytes.as_mut_ptr(),
             self.component_id,
+            name,
             injected,
         ));
     }
