@@ -31,6 +31,11 @@ mod targets {
         fn(usize, *const c_char) -> *const u16
     );
     create_soft_target!(legal_splash, 0x1000d7cac, fn(*mut Object, sel: Sel));
+    create_soft_target!(
+        store_crash_fix,
+        0x100007c1c,
+        fn(*mut Object, sel: Sel) -> *const Object
+    );
 }
 
 static mut COMPONENT_SYSTEM: Option<ComponentSystem> = None;

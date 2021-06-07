@@ -288,6 +288,9 @@ fn hide_script_menu() {
     }
 
     unsafe {
+        // Return the game to normal speed.
+        *hook::slide::<*mut f32>(0x1007d3b18) = 1.0;
+
         // Hide the menu if it exists.
         if let Some(menu) = MENU {
             let _: () = msg_send![menu, setHidden: true];
@@ -309,7 +312,8 @@ fn show_script_menu() {
 
     unsafe {
         // Slow the game down.
-        *hook::slide::<*mut f32>(0x1007d3b18) = 0.01;
+        // todo: Stop game completely while menu is showing.
+        *hook::slide::<*mut f32>(0x1007d3b18) = 0.0;
 
         // If we already have a menu constructed, use that one.
         if let Some(menu) = MENU {
@@ -424,7 +428,31 @@ fn show_script_menu() {
     }
 }
 
+/**
+        This hook fixes a bug in the game where -[SCAppDelegate persistentStoreCoordinator]
+    calls -[SCAppDelegate managedObjectModel], which crashes the game because it attempts
+    to call -[NSManagedObjectModel initWithContentsOfURL:] with a nil URL that it gets
+    from calling -[NSBundle URLForResource:withExtension:] for the resource "gtasa.momd",
+    which does not exist.
+
+        The easiest way to fix this issue is to hook -[SCAppDelegate persistentStoreCoordinator]
+    to always return a null pointer, since the method that calls it,
+    -[SCAppDelegate managedObjectContext], checks the return value to see if it is null
+    before attempting to do anything with it. This seems to be a fairly robust fix since
+    everything further up the callstack has decent checks in place to prevent issues with
+    null pointers.
+
+        These events only occur when the app is terminated, so the crash
+    is fairly insignificant, but on a jailbroken device with crash reporting tools installed,
+    the constant crash reports can get annoying.
+*/
+fn persistent_store_coordinator(_this: *mut Object, _sel: Sel) -> *const Object {
+    trace!("-[SCAppDelegate persistentStoreCoordinator] called. Returning null to prevent crash.");
+    std::ptr::null()
+}
+
 pub fn hook() {
     targets::process_touch::install(process_touch);
     targets::legal_splash::install(legal_splash_did_load);
+    targets::store_crash_fix::install(persistent_store_coordinator);
 }
