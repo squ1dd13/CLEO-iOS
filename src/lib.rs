@@ -34,7 +34,12 @@ mod targets {
     create_soft_target!(
         store_crash_fix,
         0x100007c1c,
-        fn(*mut Object, sel: Sel) -> *const Object
+        fn(*mut Object, Sel) -> *const Object
+    );
+    create_soft_target!(
+        button_hack,
+        0x1004ebe70,
+        fn(*const Object, Sel, *mut Object) -> *mut Object
     );
 }
 

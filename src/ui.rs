@@ -411,7 +411,9 @@ fn show_script_menu() {
 
             let _: () = msg_send![button, setTitle: create_ns_string(*item) forState: /* UIControlStateNormal */ 0 as c_long];
 
-            // todo: Touch handler.
+            let handler_class: *const Object = msg_send![class!(IOSReachability), class];
+            let handler_sel = sel!(reachabilityWithHostName:);
+            let _: () = msg_send![button, addTarget: handler_class action: handler_sel forControlEvents: (1 <<  6) as c_long];
 
             let _: () = msg_send![scroll_view, addSubview: button];
             let _: () = msg_send![button, release];
@@ -425,6 +427,43 @@ fn show_script_menu() {
 
         // Remember this menu so we can use it in the future.
         MENU = Some(menu);
+    }
+}
+
+/*
+        This hook allows us to handle button presses by giving us a method with a rough
+    signature match for a button handler. Normally, this method has nothing to do with
+    buttons: it is +[IOSReachability reachabilityWithHostName:(NSString *)], which creates
+    an IOSReachability object.
+
+        UIButton handlers are typically defined on objects created by the programmer.
+    However, those objects are Objective-C objects; we don't have the ability to easily
+    make such objects, especially not by writing our own class out. Given the aim for
+    CLEO to be pure Rust, need to find a workaround. The workaround here is using an
+    object that already exists - such as the IOSReachability class - and hook a method
+    that has the signature we need. We can keep the original functionality of the method
+    by checking the class of the parameter: if we have been given a hostname in the form
+    of a UIButton, we know that this is actually a button press; otherwise, it probably
+    is a hostname.
+*/
+fn reachability_with_hostname(
+    this_class: *const Object,
+    sel: Sel,
+    hostname: *mut Object,
+) -> *mut Object {
+    unsafe {
+        let button_class: *const Object = msg_send![class!(UIButton), class];
+        let is_button: bool = msg_send![hostname, isKindOfClass: button_class];
+
+        if is_button {
+            trace!("Button pressed!");
+
+            hide_script_menu();
+            std::ptr::null_mut()
+        } else {
+            trace!("Normal IOSReachability call.");
+            call_original!(targets::button_hack, this_class, sel, hostname)
+        }
     }
 }
 
@@ -455,4 +494,5 @@ pub fn hook() {
     targets::process_touch::install(process_touch);
     targets::legal_splash::install(legal_splash_did_load);
     targets::store_crash_fix::install(persistent_store_coordinator);
+    targets::button_hack::install(reachability_with_hostname);
 }
