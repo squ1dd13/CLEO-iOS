@@ -368,8 +368,37 @@ impl Script {
         call_original!(crate::targets::script_tick);
     }
 
+    pub fn is_active(&self) -> bool {
+        self.vanilla_rep.active
+    }
+
     pub fn activate(&mut self) {
-        self.vanilla_rep.active = true;
+        self.vanilla_rep = VanillaScript {
+            ip: self.vanilla_rep.base_ip,
+            next: 0,
+            previous: 0,
+            stack_pos: 0,
+            active: true,
+            bool_flag: false,
+            use_mission_cleanup: false,
+            is_external: false,
+            ovr_textbox: false,
+            attach_type: 0,
+            wakeup_time: 0,
+            condition_count: 0,
+            not_flag: false,
+            checking_game_over: false,
+            game_over: false,
+            skip_scene_pos: 0,
+            is_mission: false,
+            ..self.vanilla_rep
+        };
+
+        self.vanilla_rep.call_stack.fill(std::ptr::null_mut());
+
+        // fixme: Do we need to do this?
+        self.vanilla_rep.timers[0] = 0;
+        self.vanilla_rep.timers[1] = 0;
     }
 
     pub fn reset(&mut self) {

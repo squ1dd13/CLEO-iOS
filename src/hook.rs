@@ -145,6 +145,7 @@ macro_rules! create_hard_target {
 #[macro_export]
 macro_rules! create_soft_target {
     ($name:ident, $addr:literal, $sig:ty) => {
+        #[allow(dead_code)]
         pub mod $name {
             #[allow(unused_imports)]
             use super::*;
@@ -186,4 +187,33 @@ pub fn slide<T: Copy>(address: usize) -> T {
         let addr_ptr: *const usize = &(address + crate::hook::get_image_aslr_offset(0));
         *(addr_ptr as *const T)
     }
+}
+
+pub fn generate_backtrace() -> String {
+    // Generate a resolved backtrace. The symbol names aren't always correct, but we
+    //  should still display them because they are helpful for Rust at least.
+    let resolved = backtrace::Backtrace::new();
+    let slide = get_image_aslr_offset(0) as u64;
+
+    let mut lines = vec![
+        format!("ASLR offset for image 0 is {:#x}.", slide),
+        "Warning: All addresses will be assumed to be from image 0.".to_string(),
+    ];
+
+    for (i, frame) in resolved.frames().iter().enumerate() {
+        let address = frame.symbol_address() as u64;
+
+        let string = format!(
+            "{}: {:#x} - {:#x} = {:#x}\n  symbols: {:?}",
+            i,
+            address,
+            slide,
+            address - slide,
+            frame.symbols()
+        );
+
+        lines.push(string);
+    }
+
+    lines.join("\n\n")
 }

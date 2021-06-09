@@ -1,4 +1,4 @@
-use crate::{call_original, hook, scripts, targets};
+use crate::{call_original, scripts, targets};
 use cached::proc_macro::cached;
 use lazy_static::lazy_static;
 use objc::runtime::Sel;
@@ -129,6 +129,7 @@ fn is_menu_swipe(x1: f32, y1: f32, time1: f64, x2: f32, y2: f32, time2: f64) -> 
 }
 
 // Hook the touch handler so we can use touch zones like CLEO Android does.
+// todo: Don't pick up touches that have been handled by a non-joypad control.
 fn process_touch(x: f32, y: f32, timestamp: f64, force: f32, touch_type: TouchType) {
     // Find the closest touch to the given position that we know about.
     fn find_closest_index(
@@ -286,12 +287,13 @@ fn hide_script_menu() {
     }
 
     unsafe {
-        // Return the game to normal speed.
-        *hook::slide::<*mut f32>(0x1007d3b18) = 1.0;
+        // Resume the game.
+        crate::hook::slide::<fn()>(0x10026ca6c)();
 
-        // Hide the menu if it exists.
+        // Remove the menu if it exists.
         if let Some(menu) = MENU {
-            let _: () = msg_send![menu, setHidden: true];
+            let _: () = msg_send![menu, removeFromSuperview];
+            let _: () = msg_send![menu, release];
         }
     }
 
@@ -308,17 +310,8 @@ fn show_script_menu() {
     // Make sure we don't show the menu again until this menu is gone.
     SHOWING_MENU.store(true, Ordering::Relaxed);
 
-    unsafe {
-        // Slow the game down.
-        // todo: Stop game completely while menu is showing.
-        *hook::slide::<*mut f32>(0x1007d3b18) = 0.0;
-
-        // If we already have a menu constructed, use that one.
-        if let Some(menu) = MENU {
-            let _: () = msg_send![menu, setHidden: false];
-            return;
-        }
-    }
+    // Pause the game so nothing happens while the user is in the menu.
+    crate::hook::slide::<fn()>(0x10026ca5c)();
 
     let injected_scripts: Vec<&'static mut scripts::Script> = scripts::loaded_scripts()
         .iter_mut()
@@ -394,11 +387,11 @@ fn show_script_menu() {
             let button: *mut Object = msg_send![class!(UIButton), alloc];
             let button: *mut Object = msg_send![button, initWithFrame: CGRect {
                 origin: CGPoint {
-                    x: 0.0,
+                    x: menu_width * 0.05,
                     y: index as f64 * button_height,
                 },
                 size: CGSize {
-                    width: menu_width,
+                    width: menu_width * 0.95,
                     height: button_height,
                 },
             }];
@@ -410,11 +403,48 @@ fn show_script_menu() {
 
             // Set the tag to the index of the item so the handler knows what's been pressed.
             let _: () = msg_send![button, setTag: index as c_long];
+            let _: () = msg_send![button, setContentHorizontalAlignment: 1 as c_long];
             let _: () = msg_send![button, setTitle: create_ns_string(item.display_name.as_str()) 
                                           forState: /* UIControlStateNormal */ 0 as c_long];
-            let _: () = msg_send![button, addTarget: class!(IOSReachability)
+
+            if !item.is_active() {
+                let _: () = msg_send![button, addTarget: class!(IOSReachability)
                                              action: sel!(reachabilityWithHostName:)
                                    forControlEvents: /* UIControlEventTouchUpInside */ (1 << 6) as c_long];
+            } else {
+                // Show the button as disabled so the user can't fuck up the script by starting it when
+                //  it's already active.
+                let _: () = msg_send![button, setEnabled: false];
+                let _: () = msg_send![button, setAlpha: 0.4];
+            }
+
+            let running: *mut Object = msg_send![class!(UILabel), alloc];
+            let running: *mut Object = msg_send![running, initWithFrame: CGRect {
+                origin: CGPoint { x: 0.0, y: 0.0 },
+                size: CGSize {
+                    width: menu_width * 0.9,
+                    height: button_height,
+                },
+            }];
+
+            // If we need a red in the future, that's 255, 40, 46.
+            let text_colour: *const Object = if item.is_active() {
+                msg_send![class!(UIColor), colorWithRed: 78.0 / 255.0 green: 149.0 / 255.0 blue: 64.0 / 255.0 alpha: 1.0]
+            } else {
+                msg_send![class!(UIColor), whiteColor]
+            };
+
+            let _: () = msg_send![button, setTitleColor: text_colour forState: /* UIControlStateNormal */ 0 as c_long];
+
+            let _: () = msg_send![running, setText: create_ns_string(if item.is_active() { "Running" } else { "Not running" })];
+            let _: () = msg_send![running, setFont: font];
+            let _: () = msg_send![running, setUserInteractionEnabled: false];
+            let _: () = msg_send![running, setTextColor: text_colour];
+            let _: () = msg_send![running, setAdjustsFontSizeToFitWidth: true];
+            let _: () = msg_send![running, setTextAlignment: 2 as c_long];
+
+            let _: () = msg_send![button, addSubview: running];
+            let _: () = msg_send![running, release];
 
             let _: () = msg_send![scroll_view, addSubview: button];
             let _: () = msg_send![button, release];
@@ -463,7 +493,6 @@ fn reachability_with_hostname(
                 .filter(|s| s.injected)
                 .nth(tag as usize)
             {
-                script.reset();
                 script.activate();
             } else {
                 error!("Requested script seems to have disappeared.");
