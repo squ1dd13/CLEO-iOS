@@ -1,166 +1,185 @@
-type Cheat = (&'static str, &'static str, u64);
+use crate::hook;
+
+pub struct Cheat {
+    pub index: u8,
+    pub code: &'static str,
+    pub description: &'static str,
+}
+
+impl Cheat {
+    const fn new(index: u8, code: &'static str, description: &'static str) -> Cheat {
+        Cheat {
+            index,
+            code,
+            description,
+        }
+    }
+
+    fn get_function(&self) -> Option<fn()> {
+        hook::slide::<Option<fn()>>(0x10065c358 + (self.index as usize * 8))
+    }
+
+    fn get_active_mut(&self) -> &'static mut bool {
+        unsafe {
+            hook::slide::<*mut bool>(0x10072dda8 + (self.index as usize))
+                .as_mut()
+                .unwrap()
+        }
+    }
+
+    pub fn is_active(&self) -> bool {
+        *self.get_active_mut()
+    }
+
+    pub fn run(&self) {
+        if let Some(function) = self.get_function() {
+            function();
+            return;
+        }
+
+        // If the cheat has no function pointer, then we need to toggle its active status.
+        let active = self.get_active_mut();
+        *active = !*active;
+    }
+}
 
 // We have to include these because the game doesn't have the array.
-// Android does, though, so I copied these from there. The order has been preserved.
+// Android does, though, so I copied the codes from there. The order has been preserved.
+// The spreadsheet at
+//   https://docs.google.com/spreadsheets/d/1-rmga12W9reALga7fct22tJ-1thxbbsfGiGltK2qgh0/edit?usp=sharing
+//  was very helpful during research, and https://gta.fandom.com/wiki/Cheats_in_GTA_San_Andreas
+//  was very helpful for writing cheat descriptions.
 #[allow(dead_code)]
-static CODES: [Cheat; 111] = [
-    ("THUGSARMOURY", "Weapon set 1", 0x104b39b44),
-    ("PROFESSIONALSKIT", "Weapon set 2", 0x104b39e04),
-    ("NUTTERSTOYS", "Weapon set 3", 0x104b3a088),
-    (
+pub static CHEATS: [Cheat; 111] = [
+    Cheat::new(0, "THUGSARMOURY", "Weapon set 1"),
+    Cheat::new(1, "PROFESSIONALSKIT", "Weapon set 2"),
+    Cheat::new(2, "NUTTERSTOYS", "Weapon set 3"),
+    Cheat::new(
+        3,
         "",
-        "Give dildo, minigun, thermal/night-vision goggles",
-        0x104b3a298,
+        "Give dildo, minigun and thermal/night-vision goggles",
     ),
-    ("", "Advance clock by 4 hours", 0x104b3a34c),
-    ("", "Skip to completion on some missions", 0x104b3a37c),
-    ("", "Debug (show mappings)", 0x104b3a394),
-    ("", "Full invincibility", 0x104b3a3a8),
-    ("", "Debug (show tap to target)", 0x104b3a3e4),
-    ("", "Debug (show targeting)", 0x104b3a420),
-    (
-        "INEEDSOMEHELP",
-        "Give health, armour and $250,000",
-        0x104b3a45c,
-    ),
-    (
-        "TURNUPTHEHEAT",
-        "Increase wanted level by two stars",
-        0x104b3a4b8,
-    ),
-    ("TURNDOWNTHEHEAT", "Clear wanted level", 0x104b3a51c),
-    ("PLEASANTLYWARM", "Sunny weather", 0x104b3a538),
-    ("TOODAMNHOT", "Very sunny weather", 0x104b3a540),
-    ("DULLDULLDAY", "Overcast weather", 0x104b3a548),
-    ("STAYINANDWATCHTV", "Rainy weather", 0x104b3a550),
-    ("CANTSEEWHEREIMGOING", "Foggy weather", 0x104b3a558),
-    ("TIMEJUSTFLIESBY", "Faster time", 0x0),
-    ("SPEEDITUP", "Faster gameplay", 0x104b3a560),
-    ("SLOWITDOWN", "Slower gameplay", 0x104b3a584),
-    (
+    Cheat::new(4, "", "Advance clock by 4 hours"),
+    Cheat::new(5, "", "Skip to completion on some missions"),
+    Cheat::new(6, "", "Debug (show mappings)"),
+    Cheat::new(7, "", "Full invincibility"),
+    Cheat::new(8, "", "Debug (show tap to target)"),
+    Cheat::new(9, "", "Debug (show targeting)"),
+    Cheat::new(10, "INEEDSOMEHELP", "Give health, armour and $250,000"),
+    Cheat::new(11, "TURNUPTHEHEAT", "Increase wanted level by two stars"),
+    Cheat::new(12, "TURNDOWNTHEHEAT", "Clear wanted level"),
+    Cheat::new(13, "PLEASANTLYWARM", "Sunny weather"),
+    Cheat::new(14, "TOODAMNHOT", "Very sunny weather"),
+    Cheat::new(15, "DULLDULLDAY", "Overcast weather"),
+    Cheat::new(16, "STAYINANDWATCHTV", "Rainy weather"),
+    Cheat::new(17, "CANTSEEWHEREIMGOING", "Foggy weather"),
+    Cheat::new(18, "TIMEJUSTFLIESBY", "Faster time"),
+    Cheat::new(19, "SPEEDITUP", "Faster gameplay"),
+    Cheat::new(20, "SLOWITDOWN", "Slower gameplay"),
+    Cheat::new(
+        21,
         "ROUGHNEIGHBOURHOOD",
         "Pedestrians riot, give player golf club",
-        0x104b3a5ac,
     ),
-    (
-        "STOPPICKINGONME",
-        "Pedestrians attack the player",
-        0x104b3a9d4,
-    ),
-    ("SURROUNDEDBYNUTTERS", "Give pedestrians weapons", 0x0),
-    ("TIMETOKICKASS", "Spawn Rhino tank", 0x104b3ab08),
-    ("OLDSPEEDDEMON", "Spawn Bloodring Banger", 0x104b3ab10),
-    ("", "Spawn stock car", 0x104b3ab18),
-    ("NOTFORPUBLICROADS", "Spawn Hotring Racer A", 0x104b3ab20),
-    ("JUSTTRYANDSTOPME", "Spawn Hotring Racer B", 0x104b3ab28),
-    ("WHERESTHEFUNERAL", "Spawn Romero", 0x104b3ab30),
-    ("CELEBRITYSTATUS", "Spawn Stretch Limousine", 0x104b3ab38),
-    ("TRUEGRIME", "Spawn Trashmaster", 0x104b3ab40),
-    ("18HOLES", "Spawn Caddy", 0x104b3ab48),
-    ("ALLCARSGOBOOM", "Explode all vehicles", 0x104b3ab50),
-    ("WHEELSONLYPLEASE", "Invisible cars", 0x0),
-    ("STICKLIKEGLUE", "Improved suspension and handling", 0x0),
-    ("GOODBYECRUELWORLD", "Suicide", 0x104b3abd8),
-    ("DONTTRYANDSTOPME", "Traffic lights are always green", 0x0),
-    ("ALLDRIVERSARECRIMINALS", "Aggressive drivers", 0x0),
-    ("PINKISTHENEWCOOL", "Pink traffic", 0x104b3ace0),
-    ("SOLONGASITSBLACK", "Black traffic", 0x104b3ad08),
-    ("", "Back to the future?", 0x0),
-    ("FLYINGFISH", "Flying boats", 0x0),
-    ("WHOATEALLTHEPIES", "Maximum fat", 0x104b3ad30),
-    ("BUFFMEUP", "Maximum muscle", 0x104b3ad78),
-    ("", "Maximum gambling skill", 0x104b3adc0),
-    ("LEANANDMEAN", "Minimum fat and muscle", 0x104b3add0),
-    (
-        "BLUESUEDESHOES",
-        "Pedestrians are Elvis Presley",
-        0x104b3ae20,
-    ),
-    (
+    Cheat::new(22, "STOPPICKINGONME", "Pedestrians attack the player"),
+    Cheat::new(23, "SURROUNDEDBYNUTTERS", "Give pedestrians weapons"),
+    Cheat::new(24, "TIMETOKICKASS", "Spawn Rhino tank"),
+    Cheat::new(25, "OLDSPEEDDEMON", "Spawn Bloodring Banger"),
+    Cheat::new(26, "", "Spawn stock car"),
+    Cheat::new(27, "NOTFORPUBLICROADS", "Spawn Hotring Racer A"),
+    Cheat::new(28, "JUSTTRYANDSTOPME", "Spawn Hotring Racer B"),
+    Cheat::new(29, "WHERESTHEFUNERAL", "Spawn Romero"),
+    Cheat::new(30, "CELEBRITYSTATUS", "Spawn Stretch Limousine"),
+    Cheat::new(31, "TRUEGRIME", "Spawn Trashmaster"),
+    Cheat::new(32, "18HOLES", "Spawn Caddy"),
+    Cheat::new(33, "ALLCARSGOBOOM", "Explode all vehicles"),
+    Cheat::new(34, "WHEELSONLYPLEASE", "Invisible cars"),
+    Cheat::new(35, "STICKLIKEGLUE", "Improved suspension and handling"),
+    Cheat::new(36, "GOODBYECRUELWORLD", "Suicide"),
+    Cheat::new(37, "DONTTRYANDSTOPME", "Traffic lights are always green"),
+    Cheat::new(38, "ALLDRIVERSARECRIMINALS", "Aggressive drivers"),
+    Cheat::new(39, "PINKISTHENEWCOOL", "Pink traffic"),
+    Cheat::new(40, "SOLONGASITSBLACK", "Black traffic"),
+    Cheat::new(41, "", "Back to the future?"),
+    Cheat::new(42, "FLYINGFISH", "Flying boats"),
+    Cheat::new(43, "WHOATEALLTHEPIES", "Maximum fat"),
+    Cheat::new(44, "BUFFMEUP", "Maximum muscle"),
+    Cheat::new(45, "", "Maximum gambling skill"),
+    Cheat::new(46, "LEANANDMEAN", "Minimum fat and muscle"),
+    Cheat::new(47, "BLUESUEDESHOES", "Pedestrians are Elvis Presley"),
+    Cheat::new(
+        48,
         "ATTACKOFTHEVILLAGEPEOPLE",
         "Pedestrians attack the player with rockets",
-        0x104b3ae98,
     ),
-    ("LIFESABEACH", "Beach party theme", 0x104b3af50),
-    ("ONLYHOMIESALLOWED", "Gang wars", 0x104b3b098),
-    (
+    Cheat::new(49, "LIFESABEACH", "Beach party theme"),
+    Cheat::new(50, "ONLYHOMIESALLOWED", "Gang wars"),
+    Cheat::new(
+        51,
         "BETTERSTAYINDOORS",
         "Pedestrians replaced with fighting gang members",
-        0x104b3b110,
     ),
-    ("NINJATOWN", "Triad theme", 0x104b3b138),
-    ("LOVECONQUERSALL", "Pimp mode", 0x104b3b254),
-    ("EVERYONEISPOOR", "Rural traffic", 0x104b3b314),
-    ("EVERYONEISRICH", "Sports car traffic", 0x104b3b34c),
-    ("CHITTYCHITTYBANGBANG", "Flying cars", 0x0),
-    ("CJPHONEHOME", "Very high bunny hops", 0x0),
-    ("JUMPJET", "Spawn Hydra", 0x104b3b384),
-    ("IWANTTOHOVER", "Spawn Vortex", 0x104b3b38c),
-    (
+    Cheat::new(52, "NINJATOWN", "Triad theme"),
+    Cheat::new(53, "LOVECONQUERSALL", "Pimp mode"),
+    Cheat::new(54, "EVERYONEISPOOR", "Rural traffic"),
+    Cheat::new(55, "EVERYONEISRICH", "Sports car traffic"),
+    Cheat::new(56, "CHITTYCHITTYBANGBANG", "Flying cars"),
+    Cheat::new(57, "CJPHONEHOME", "Very high bunny hops"),
+    Cheat::new(58, "JUMPJET", "Spawn Hydra"),
+    Cheat::new(59, "IWANTTOHOVER", "Spawn Vortex"),
+    Cheat::new(
+        60,
         "TOUCHMYCARYOUDIE",
         "Destroy other vehicles on collision",
-        0x0,
     ),
-    ("SPEEDFREAK", "All cars have nitro", 0x0),
-    ("BUBBLECARS", "Cars float away when hit", 0x0),
-    ("NIGHTPROWLER", "Always midnight", 0x104b3b394),
-    ("DONTBRINGONTHENIGHT", "Always 9PM", 0x104b3b3dc),
-    ("SCOTTISHSUMMER", "Stormy weather", 0x104b3b428),
-    ("SANDINMYEARS", "Sandstorm", 0x104b3b45c),
-    ("", "Predator?", 0x104b3b464),
-    ("KANGAROO", "10x jump height", 0x0),
-    ("NOONECANHURTME", "Infinite health", 0x0),
-    ("MANFROMATLANTIS", "Infinite lung capacity", 0x0),
-    ("LETSGOBASEJUMPING", "Spawn Parachute", 0x104b3b468),
-    ("ROCKETMAN", "Spawn Jetpack", 0x104b3b4b0),
-    ("IDOASIPLEASE", "Lock wanted level", 0x104b3b568),
-    ("BRINGITON", "Six-star wanted level", 0x104b3b5a0),
-    ("STINGLIKEABEE", "Super punches", 0x0),
-    ("IAMNEVERHUNGRY", "Player never gets hungry", 0x0),
-    ("STATEOFEMERGENCY", "Pedestrians riot", 0x104b3b5bc),
-    ("CRAZYTOWN", "Carnival theme", 0x104b3b5d8),
-    ("TAKEACHILLPILL", "Adrenaline effects", 0x104b3b774),
-    ("FULLCLIP", "Everyone has unlimited ammo", 0x0),
-    (
-        "IWANNADRIVEBY",
-        "Full weapon control in vehicles",
-        0x104b3b7d4,
-    ),
-    ("GHOSTTOWN", "No pedestrians, reduced live traffic", 0x0),
-    ("HICKSVILLE", "Rural theme", 0x104b3b838),
-    ("WANNABEINMYGANG", "Recruit anyone with pistols", 0x0),
-    ("NOONECANSTOPUS", "Recruit anyone with AK-47s", 0x0),
-    ("ROCKETMAYHEM", "Recruit anyone with rocket launchers", 0x0),
-    ("WORSHIPME", "Maximum respect", 0x0),
-    ("HELLOLADIES", "Maximum sex appeal", 0x0),
-    ("ICANGOALLNIGHT", "Maximum stamina", 0x104b3b950),
-    (
-        "PROFESSIONALKILLER",
-        "Hitman level for all weapons",
-        0x104b3b984,
-    ),
-    ("NATURALTALENT", "Maximum vehicle skills", 0x104b3ba24),
-    ("OHDUDE", "Spawn Hunter", 0x104b3ba70),
-    ("FOURWHEELFUN", "Spawn Quad", 0x104b3ba78),
-    (
-        "HITTHEROADJACK",
-        "Spawn Tanker with Tanker Trailer",
-        0x104b3ba80,
-    ),
-    ("ITSALLBULL", "Spawn Dozer", 0x104b3bbd4),
-    ("FLYINGTOSTUNT", "Spawn Stunt Plane", 0x104b3bbdc),
-    ("MONSTERMASH", "Spawn Monster Truck", 0x104b3bbe4),
-    ("", "Pimp?", 0x0),
-    ("", "Taxi nitro?", 0x0),
-    ("", "Slot cheat 1", 0x104b3bbec),
-    ("", "Slot cheat 2", 0x104b3bbec),
-    ("", "Slot cheat 3", 0x104b3bbec),
-    ("", "Slot cheat 4", 0x104b3bbec),
-    ("", "Slot cheat 5", 0x104b3bbec),
-    ("", "Slot cheat 6", 0x104b3bbec),
-    ("", "Slot cheat 7", 0x104b3bbec),
-    ("", "Slot cheat 8", 0x104b3bbec),
-    ("", "Slot cheat 9", 0x104b3bbec),
-    ("", "Slot cheat 10", 0x104b3bbec),
-    ("", "Xbox helper", 0x104b3beec),
+    Cheat::new(61, "SPEEDFREAK", "All cars have nitro"),
+    Cheat::new(62, "BUBBLECARS", "Cars float away when hit"),
+    Cheat::new(63, "NIGHTPROWLER", "Always midnight"),
+    Cheat::new(64, "DONTBRINGONTHENIGHT", "Always 9PM"),
+    Cheat::new(65, "SCOTTISHSUMMER", "Stormy weather"),
+    Cheat::new(66, "SANDINMYEARS", "Sandstorm"),
+    Cheat::new(67, "", "Predator?"),
+    Cheat::new(68, "KANGAROO", "10x jump height"),
+    Cheat::new(69, "NOONECANHURTME", "Infinite health"),
+    Cheat::new(70, "MANFROMATLANTIS", "Infinite lung capacity"),
+    Cheat::new(71, "LETSGOBASEJUMPING", "Spawn Parachute"),
+    Cheat::new(72, "ROCKETMAN", "Spawn Jetpack"),
+    Cheat::new(73, "IDOASIPLEASE", "Lock wanted level"),
+    Cheat::new(74, "BRINGITON", "Six-star wanted level"),
+    Cheat::new(75, "STINGLIKEABEE", "Super punches"),
+    Cheat::new(76, "IAMNEVERHUNGRY", "Player never gets hungry"),
+    Cheat::new(77, "STATEOFEMERGENCY", "Pedestrians riot"),
+    Cheat::new(78, "CRAZYTOWN", "Carnival theme"),
+    Cheat::new(79, "TAKEACHILLPILL", "Adrenaline effects"),
+    Cheat::new(80, "FULLCLIP", "Everyone has unlimited ammo"),
+    Cheat::new(81, "IWANNADRIVEBY", "Full weapon control in vehicles"),
+    Cheat::new(82, "GHOSTTOWN", "No pedestrians, reduced live traffic"),
+    Cheat::new(83, "HICKSVILLE", "Rural theme"),
+    Cheat::new(84, "WANNABEINMYGANG", "Recruit anyone with pistols"),
+    Cheat::new(85, "NOONECANSTOPUS", "Recruit anyone with AK-47s"),
+    Cheat::new(86, "ROCKETMAYHEM", "Recruit anyone with rocket launchers"),
+    Cheat::new(87, "WORSHIPME", "Maximum respect"),
+    Cheat::new(88, "HELLOLADIES", "Maximum sex appeal"),
+    Cheat::new(89, "ICANGOALLNIGHT", "Maximum stamina"),
+    Cheat::new(90, "PROFESSIONALKILLER", "Hitman level for all weapons"),
+    Cheat::new(91, "NATURALTALENT", "Maximum vehicle skills"),
+    Cheat::new(92, "OHDUDE", "Spawn Hunter"),
+    Cheat::new(93, "FOURWHEELFUN", "Spawn Quad"),
+    Cheat::new(94, "HITTHEROADJACK", "Spawn Tanker with Tanker Trailer"),
+    Cheat::new(95, "ITSALLBULL", "Spawn Dozer"),
+    Cheat::new(96, "FLYINGTOSTUNT", "Spawn Stunt Plane"),
+    Cheat::new(97, "MONSTERMASH", "Spawn Monster Truck"),
+    Cheat::new(98, "", "Pimp?"),
+    Cheat::new(99, "", "Taxi nitro?"),
+    Cheat::new(100, "", "Slot cheat 1"),
+    Cheat::new(101, "", "Slot cheat 2"),
+    Cheat::new(102, "", "Slot cheat 3"),
+    Cheat::new(103, "", "Slot cheat 4"),
+    Cheat::new(104, "", "Slot cheat 5"),
+    Cheat::new(105, "", "Slot cheat 6"),
+    Cheat::new(106, "", "Slot cheat 7"),
+    Cheat::new(107, "", "Slot cheat 8"),
+    Cheat::new(108, "", "Slot cheat 9"),
+    Cheat::new(109, "", "Slot cheat 10"),
+    Cheat::new(110, "", "Xbox helper"),
 ];
