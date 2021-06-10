@@ -8,6 +8,7 @@ use objc::runtime::Object;
 use log::{debug, error, info};
 use std::os::raw::c_char;
 
+mod cheats;
 mod files;
 mod hook;
 mod scripts;
