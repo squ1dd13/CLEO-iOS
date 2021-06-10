@@ -16,7 +16,13 @@ impl Cheat {
     }
 
     fn get_function(&self) -> Option<fn()> {
-        hook::slide::<Option<fn()>>(0x10065c358 + (self.index as usize * 8))
+        let func = hook::slide::<*const fn()>(0x10065c358 + (self.index as usize * 8));
+
+        if func.is_null() {
+            None
+        } else {
+            Some(unsafe { *func })
+        }
     }
 
     fn get_active_mut(&self) -> &'static mut bool {

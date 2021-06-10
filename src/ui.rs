@@ -1,4 +1,4 @@
-use crate::{call_original, scripts, targets};
+use crate::{call_original, cheats, scripts, targets};
 use cached::proc_macro::cached;
 use lazy_static::lazy_static;
 use objc::runtime::Sel;
@@ -301,6 +301,27 @@ fn hide_script_menu() {
     SHOWING_MENU.store(false, Ordering::Relaxed);
 }
 
+fn create_label(
+    frame: CGRect,
+    text: &str,
+    font: *const Object,
+    colour: *const Object,
+    alignment: u32,
+) -> *mut Object {
+    unsafe {
+        let running: *mut Object = msg_send![class!(UILabel), alloc];
+        let running: *mut Object = msg_send![running, initWithFrame: frame];
+
+        let _: () = msg_send![running, setText: create_ns_string(text)];
+        let _: () = msg_send![running, setFont: font];
+        let _: () = msg_send![running, setTextColor: colour];
+        let _: () = msg_send![running, setAdjustsFontSizeToFitWidth: true];
+        let _: () = msg_send![running, setTextAlignment: alignment as c_long];
+
+        running
+    }
+}
+
 fn show_script_menu() {
     if SHOWING_MENU.load(Ordering::Relaxed) {
         // Menu is already being shown, so ignore the request.
@@ -342,23 +363,22 @@ fn show_script_menu() {
             msg_send![class!(UIColor), colorWithWhite: 0.0 alpha: 0.95];
         let _: () = msg_send![menu, setBackgroundColor: background_colour];
 
-        let title_label: *mut Object = msg_send![class!(UILabel), alloc];
-        let title_label: *mut Object = msg_send![title_label, initWithFrame: CGRect {
-            origin: CGPoint { x: 0.0, y: 0.0 },
-            size: CGSize {
-                width: menu_width,
-                height: (menu_height * 0.2).round(),
-            },
-        }];
-
         let text_colour: *const Object = msg_send![class!(UIColor), whiteColor];
         let font: *mut Object = msg_send![class!(UIFont), fontWithName: create_ns_string("PricedownGTAVInt") size: 35.0];
 
-        let _: () = msg_send![title_label, setText: create_ns_string("Scripts")];
-        let _: () = msg_send![title_label, setFont: font];
-        let _: () = msg_send![title_label, setTextColor: text_colour];
-        let _: () = msg_send![title_label, setAdjustsFontSizeToFitWidth: true];
-        let _: () = msg_send![title_label, setTextAlignment: 1 as c_long];
+        let title_label = create_label(
+            CGRect {
+                origin: CGPoint { x: 0.0, y: 0.0 },
+                size: CGSize {
+                    width: menu_width,
+                    height: (menu_height * 0.2).round(),
+                },
+            },
+            "Scripts",
+            font,
+            text_colour,
+            1,
+        );
 
         let scroll_view: *mut Object = msg_send![class!(UIScrollView), alloc];
         let scroll_view: *mut Object = msg_send![scroll_view, initWithFrame: CGRect {
@@ -418,15 +438,6 @@ fn show_script_menu() {
                 let _: () = msg_send![button, setAlpha: 0.4];
             }
 
-            let running: *mut Object = msg_send![class!(UILabel), alloc];
-            let running: *mut Object = msg_send![running, initWithFrame: CGRect {
-                origin: CGPoint { x: 0.0, y: 0.0 },
-                size: CGSize {
-                    width: menu_width * 0.9,
-                    height: button_height,
-                },
-            }];
-
             // If we need a red in the future, that's 255, 40, 46.
             let text_colour: *const Object = if item.is_active() {
                 msg_send![class!(UIColor), colorWithRed: 78.0 / 255.0 green: 149.0 / 255.0 blue: 64.0 / 255.0 alpha: 1.0]
@@ -436,12 +447,23 @@ fn show_script_menu() {
 
             let _: () = msg_send![button, setTitleColor: text_colour forState: /* UIControlStateNormal */ 0 as c_long];
 
-            let _: () = msg_send![running, setText: create_ns_string(if item.is_active() { "Running" } else { "Not running" })];
-            let _: () = msg_send![running, setFont: font];
-            let _: () = msg_send![running, setUserInteractionEnabled: false];
-            let _: () = msg_send![running, setTextColor: text_colour];
-            let _: () = msg_send![running, setAdjustsFontSizeToFitWidth: true];
-            let _: () = msg_send![running, setTextAlignment: 2 as c_long];
+            let running = create_label(
+                CGRect {
+                    origin: CGPoint { x: 0.0, y: 0.0 },
+                    size: CGSize {
+                        width: menu_width * 0.9,
+                        height: button_height,
+                    },
+                },
+                if item.is_active() {
+                    "Running"
+                } else {
+                    "Not running"
+                },
+                font,
+                text_colour,
+                2,
+            );
 
             let _: () = msg_send![button, addSubview: running];
             let _: () = msg_send![running, release];
