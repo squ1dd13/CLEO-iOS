@@ -183,7 +183,15 @@ fn process_touch(x: f32, y: f32, timestamp: f64, force: f32, touch_type: TouchTy
 
                         if is_menu_swipe(x1, y1, initial_timestamp, x, y, timestamp) {
                             trace!("Menu swipe");
-                            show_script_menu();
+
+                            if let Some(menu) = unsafe { MENU.as_mut() } {
+                                menu.show();
+                            } else {
+                                unsafe {
+                                    MENU = Some(Menu::new());
+                                    MENU.as_mut().unwrap().show();
+                                }
+                            }
                         }
 
                         touches.remove(close_index);
@@ -274,31 +282,15 @@ fn legal_splash_did_load(this: *mut Object, sel: Sel) {
     }
 }
 
-lazy_static! {
-    static ref SHOWING_MENU: AtomicBool = AtomicBool::new(false);
-}
-
-static mut MENU: Option<*mut Object> = None;
+static mut MENU: Option<Menu> = None;
 
 fn hide_script_menu() {
-    if !SHOWING_MENU.load(Ordering::Relaxed) {
-        // Menu is not showing.
-        return;
-    }
-
     unsafe {
-        // Resume the game.
-        crate::hook::slide::<fn()>(0x10026ca6c)();
-
         // Remove the menu if it exists.
-        if let Some(menu) = MENU {
-            let _: () = msg_send![menu, removeFromSuperview];
-            let _: () = msg_send![menu, release];
+        if let Some(menu) = MENU.as_mut() {
+            menu.hide();
         }
     }
-
-    // Allow new menus to be shown.
-    SHOWING_MENU.store(false, Ordering::Relaxed);
 }
 
 fn create_label(
@@ -330,154 +322,176 @@ struct ButtonTag {
     _unused: [u8; 3],
 }
 
-fn show_script_menu() {
-    if SHOWING_MENU.load(Ordering::Relaxed) {
-        // Menu is already being shown, so ignore the request.
-        return;
-    }
+struct Menu {
+    width: f64,
+    height: f64,
 
-    // Make sure we don't show the menu again until this menu is gone.
-    SHOWING_MENU.store(true, Ordering::Relaxed);
+    base_view: *mut Object,
 
-    // Pause the game so nothing happens while the user is in the menu.
-    crate::hook::slide::<fn()>(0x10026ca5c)();
+    scripts_tab_btn: *mut Object,
+    scripts_scrollview: *mut Object,
 
-    let injected_scripts: Vec<&'static mut scripts::Script> = scripts::loaded_scripts()
-        .iter_mut()
-        .filter(|s| s.injected)
-        .collect();
+    cheats_tab_btn: *mut Object,
+    cheats_scrollview: *mut Object,
 
-    unsafe {
-        let app: *mut Object = msg_send![class!(UIApplication), sharedApplication];
-        let window: *mut Object = msg_send![app, keyWindow];
-        let window_bounds: CGRect = msg_send![window, bounds];
+    tab: u8,
+}
 
-        let menu_width = window_bounds.size.width * 0.7;
-        let menu_height = window_bounds.size.height * 0.7;
+impl Menu {
+    fn new() -> Menu {
+        let (width, height) = unsafe {
+            let app: *mut Object = msg_send![class!(UIApplication), sharedApplication];
+            let window: *mut Object = msg_send![app, keyWindow];
+            let window_bounds: CGRect = msg_send![window, bounds];
 
-        let menu: *mut Object = msg_send![class!(UIView), alloc];
-        let menu: *mut Object = msg_send![menu, initWithFrame: CGRect {
-            origin: CGPoint {
-                x: (window_bounds.size.width * 0.15).round(),
-                y: (window_bounds.size.height * 0.15).round(),
-            },
-            size: CGSize {
-                width: menu_width,
-                height: menu_height,
-            },
-        }];
-
-        let background_colour: *const Object =
-            msg_send![class!(UIColor), colorWithWhite: 0.0 alpha: 0.0]; //0.95];
-        let _: () = msg_send![menu, setBackgroundColor: background_colour];
-
-        let text_colour: *const Object = msg_send![class!(UIColor), whiteColor];
-        let font: *mut Object = msg_send![class!(UIFont), fontWithName: create_ns_string("PricedownGTAVInt") size: 35.0];
-
-        let title_label_scripts = {
-            let frame = CGRect {
-                origin: CGPoint { x: 0.0, y: 0.0 },
-                size: CGSize {
-                    width: (menu_width * 0.5),
-                    height: (menu_height * 0.2).round(),
-                },
-            };
-
-            let text = "Scripts";
-            let font = font;
-            let colour = text_colour;
-            let alignment = 1;
-
-            let running: *mut Object = msg_send![class!(UIButton), alloc];
-            let running: *mut Object = msg_send![running, initWithFrame: frame];
-
-            let _: () = msg_send![running, setTitle: create_ns_string(text) forState: 0 as c_long];
-            let label: *mut Object = msg_send![running, titleLabel];
-            let _: () = msg_send![label, setFont: font];
-            let _: () = msg_send![running, setTitleColor: colour forState: /* UIControlStateNormal */ 0 as c_long];
-            let _: () = msg_send![label, setAdjustsFontSizeToFitWidth: true];
-            let _: () = msg_send![label, setTextAlignment: alignment as c_long];
-
-            running
+            (
+                window_bounds.size.width * 0.8,
+                window_bounds.size.height * 0.8,
+            )
         };
 
-        let background_colour: *const Object =
-            msg_send![class!(UIColor), colorWithWhite: 0.0 alpha: 0.95];
-        let _: () = msg_send![title_label_scripts, setBackgroundColor: background_colour];
+        Menu {
+            width,
+            height,
+            base_view: std::ptr::null_mut(),
+            scripts_tab_btn: std::ptr::null_mut(),
+            scripts_scrollview: std::ptr::null_mut(),
+            cheats_tab_btn: std::ptr::null_mut(),
+            cheats_scrollview: std::ptr::null_mut(),
+            tab: 0,
+        }
+    }
 
-        let text_colour: *const Object = msg_send![class!(UIColor), colorWithWhite: 0.7 alpha: 1.0];
+    /// Creates the invisible view which holds all the menu's components.
+    fn create_base_view(&mut self) {
+        unsafe {
+            let base: *mut Object = msg_send![class!(UIView), alloc];
+            let base: *mut Object = msg_send![base, initWithFrame: CGRect {
+                origin: CGPoint {
+                    x: ((self.width * 1.25) * 0.1).round(),
+                    y: ((self.height * 1.25) * 0.1).round(),
+                },
+                size: CGSize {
+                    width: self.width,
+                    height: self.height,
+                },
+            }];
 
-        let title_label_cheats = {
+            let background_colour: *const Object = msg_send![class!(UIColor), clearColor];
+            let _: () = msg_send![base, setBackgroundColor: background_colour];
+
+            self.base_view = base;
+        }
+    }
+
+    /// Create a tab button (used to allow the user to select the scripts view or the cheats view).
+    fn create_single_tab_button(&self, text: &str, is_right: bool) -> *mut Object {
+        unsafe {
             let frame = CGRect {
                 origin: CGPoint {
-                    x: menu_width * 0.5,
+                    x: if is_right { self.width * 0.5 } else { 0.0 },
                     y: 0.0,
                 },
                 size: CGSize {
-                    width: (menu_width * 0.5),
-                    height: (menu_height * 0.2).round(),
+                    width: (self.width * 0.5),
+                    height: (self.height * 0.2).round(),
                 },
             };
 
-            let text = "Cheats";
-            let font = font;
-            let colour = text_colour;
-            let alignment = 1;
+            let (text_colour, background_colour) = if (self.tab == 0) != is_right {
+                let background_colour: *const Object =
+                    msg_send![class!(UIColor), colorWithWhite: 0.0 alpha: 0.95];
+                let text_colour: *const Object = msg_send![class!(UIColor), whiteColor];
 
-            let running: *mut Object = msg_send![class!(UIButton), alloc];
-            let running: *mut Object = msg_send![running, initWithFrame: frame];
+                (text_colour, background_colour)
+            } else {
+                let background_colour: *const Object =
+                    msg_send![class!(UIColor), colorWithWhite: 0.0 alpha: 0.50];
+                let text_colour: *const Object =
+                    msg_send![class!(UIColor), colorWithWhite: 0.7 alpha: 1.0];
 
-            let _: () = msg_send![running, setTitle: create_ns_string(text) forState: 0 as c_long];
-            let label: *mut Object = msg_send![running, titleLabel];
+                (text_colour, background_colour)
+            };
+
+            let font: *const Object = msg_send![class!(UIFont), fontWithName: create_ns_string("PricedownGTAVInt") size: 30.0];
+
+            let button: *mut Object = msg_send![class!(UIButton), alloc];
+            let button: *mut Object = msg_send![button, initWithFrame: frame];
+
+            let tag = ButtonTag {
+                index: if is_right { 1 } else { 0 },
+                is_tab_button: true,
+                _unused: [0; 3],
+            };
+
+            let _: () = msg_send![button, setTag: tag];
+            let _: () = msg_send![button, setTitle: create_ns_string(text) forState: 0u64];
+            let _: () = msg_send![button, setTitleColor: text_colour forState: 0u64];
+            let _: () = msg_send![button, setBackgroundColor: background_colour];
+            let _: () = msg_send![button, addTarget: class!(IOSReachability) 
+                                                 action: sel!(reachabilityWithHostName:) 
+                                       forControlEvents: /* UIControlEventTouchUpInside */ (1 << 6) as c_long];
+
+            let label: *mut Object = msg_send![button, titleLabel];
             let _: () = msg_send![label, setFont: font];
-            let _: () = msg_send![running, setTitleColor: colour forState: /* UIControlStateNormal */ 0 as c_long];
             let _: () = msg_send![label, setAdjustsFontSizeToFitWidth: true];
-            let _: () = msg_send![label, setTextAlignment: alignment as c_long];
+            let _: () = msg_send![label, setTextAlignment: 1 as c_long];
 
-            running
-        };
+            button
+        }
+    }
 
-        let background_colour: *const Object =
-            msg_send![class!(UIColor), colorWithWhite: 0.0 alpha: 0.50];
-        let _: () = msg_send![title_label_cheats, setBackgroundColor: background_colour];
+    fn create_tab_buttons(&mut self) {
+        self.scripts_tab_btn = self.create_single_tab_button("Scripts", false);
+        self.cheats_tab_btn = self.create_single_tab_button("Cheats", true);
+    }
 
-        let scroll_view: *mut Object = msg_send![class!(UIScrollView), alloc];
-        let scroll_view: *mut Object = msg_send![scroll_view, initWithFrame: CGRect {
-            origin: CGPoint {
-                x: 0.0,
-                y: (menu_height * 0.2).round(),
-            },
-            size: CGSize {
-                width: menu_width,
-                height: (menu_height * 0.8).round(),
-            },
-        }];
+    fn create_single_scrollview(&self, item_height: f64, item_count: usize) -> *mut Object {
+        unsafe {
+            let scrollview: *mut Object = msg_send![class!(UIScrollView), alloc];
+            let scrollview: *mut Object = msg_send![scrollview, initWithFrame: CGRect {
+                origin: CGPoint {
+                    x: 0.0,
+                    y: (self.height * 0.2).round(),
+                },
+                size: CGSize {
+                    width: self.width,
+                    height: (self.height * 0.8).round(),
+                },
+            }];
 
-        let background_colour: *const Object =
-            msg_send![class!(UIColor), colorWithWhite: 0.0 alpha: 0.95];
-        let _: () = msg_send![scroll_view, setBackgroundColor: background_colour];
+            let background_colour: *const Object =
+                msg_send![class!(UIColor), colorWithWhite: 0.0 alpha: 0.95];
+            let _: () = msg_send![scrollview, setBackgroundColor: background_colour];
 
-        let button_height = (menu_height * 0.15).round();
+            let _: () = msg_send![scrollview, setBounces: false];
+            let _: () = msg_send![scrollview, setShowsHorizontalScrollIndicator: false];
+            let _: () = msg_send![scrollview, setShowsVerticalScrollIndicator: false];
+            let _: () = msg_send![scrollview, setContentSize: CGSize {
+                width: self.width,
+                height: item_count as f64 * item_height,
+            }];
 
-        let _: () = msg_send![scroll_view, setBounces: false];
-        let _: () = msg_send![scroll_view, setShowsHorizontalScrollIndicator: false];
-        let _: () = msg_send![scroll_view, setShowsVerticalScrollIndicator: false];
-        let _: () = msg_send![scroll_view, setContentSize: CGSize {
-            width: menu_width,
-            height: injected_scripts.len() as f64 * button_height,
-        }];
+            scrollview
+        }
+    }
 
-        // Add the entries to the scroll view.
-        for (index, item) in injected_scripts.iter().enumerate() {
+    fn create_single_script_button(
+        &self,
+        index: usize,
+        script: &scripts::Script,
+        height: f64,
+    ) -> *mut Object {
+        unsafe {
             let button: *mut Object = msg_send![class!(UIButton), alloc];
             let button: *mut Object = msg_send![button, initWithFrame: CGRect {
                 origin: CGPoint {
-                    x: menu_width * 0.05,
-                    y: index as f64 * button_height,
+                    x: self.width * 0.05,
+                    y: index as f64 * height,
                 },
                 size: CGSize {
-                    width: menu_width * 0.95,
-                    height: button_height,
+                    width: self.width * 0.95,
+                    height,
                 },
             }];
 
@@ -486,7 +500,6 @@ fn show_script_menu() {
 
             let _: () = msg_send![button_label, setFont: font];
 
-            // Set the tag to the index of the item so the handler knows what's been pressed.
             let tag = ButtonTag {
                 index: index as u32,
                 is_tab_button: false,
@@ -501,9 +514,9 @@ fn show_script_menu() {
 
             let _: () = msg_send![button, setTag: tag];
             let _: () = msg_send![button, setContentHorizontalAlignment: 1 as c_long];
-            let _: () = msg_send![button, setTitle: create_ns_string(item.display_name.as_str()) forState: /* UIControlStateNormal */ 0 as c_long];
+            let _: () = msg_send![button, setTitle: create_ns_string(script.display_name.as_str()) forState: /* UIControlStateNormal */ 0 as c_long];
 
-            if !item.is_active() {
+            if !script.is_active() {
                 let _: () = msg_send![button, addTarget: class!(IOSReachability) action: sel!(reachabilityWithHostName:) forControlEvents: /* UIControlEventTouchUpInside */ (1 << 6) as c_long];
             } else {
                 // Show the button as disabled so the user can't fuck up the script by starting it when
@@ -513,7 +526,7 @@ fn show_script_menu() {
             }
 
             // If we need a red in the future, that's 255, 40, 46.
-            let text_colour: *const Object = if item.is_active() {
+            let text_colour: *const Object = if script.is_active() {
                 msg_send![class!(UIColor), colorWithRed: 78.0 / 255.0 green: 149.0 / 255.0 blue: 64.0 / 255.0 alpha: 1.0]
             } else {
                 msg_send![class!(UIColor), whiteColor]
@@ -525,11 +538,11 @@ fn show_script_menu() {
                 CGRect {
                     origin: CGPoint { x: 0.0, y: 0.0 },
                     size: CGSize {
-                        width: menu_width * 0.9,
-                        height: button_height,
+                        width: self.width * 0.9,
+                        height,
                     },
                 },
-                if item.is_active() {
+                if script.is_active() {
                     "Running"
                 } else {
                     "Not running"
@@ -542,20 +555,111 @@ fn show_script_menu() {
             let _: () = msg_send![button, addSubview: running];
             let _: () = msg_send![running, release];
 
-            let _: () = msg_send![scroll_view, addSubview: button];
-            let _: () = msg_send![button, release];
+            button
+        }
+    }
+
+    fn create_scrollviews(&mut self) {
+        let injected_scripts: Vec<&'static mut scripts::Script> = scripts::loaded_scripts()
+            .iter_mut()
+            .filter(|s| s.injected)
+            .collect();
+
+        self.scripts_scrollview =
+            self.create_single_scrollview(self.height * 0.15, injected_scripts.len());
+
+        for (index, item) in injected_scripts.iter().enumerate() {
+            let button = self.create_single_script_button(index, item, self.height * 0.15);
+
+            unsafe {
+                let _: () = msg_send![self.scripts_scrollview, addSubview: button];
+                let _: () = msg_send![button, release];
+            }
         }
 
-        let _: () = msg_send![menu, addSubview: title_label_scripts];
-        let _: () = msg_send![title_label_scripts, release];
-        let _: () = msg_send![menu, addSubview: title_label_cheats];
-        let _: () = msg_send![title_label_cheats, release];
-        let _: () = msg_send![menu, addSubview: scroll_view];
-        let _: () = msg_send![scroll_view, release];
-        let _: () = msg_send![window, addSubview: menu];
+        self.cheats_scrollview = self.create_single_scrollview(self.height * 0.25, 10);
+    }
 
-        // Remember this menu so we can use it in the future.
-        MENU = Some(menu);
+    fn switch_to_tab(&mut self, tab: u8) {
+        self.tab = tab;
+
+        unsafe {
+            let selected_background: *const Object =
+                msg_send![class!(UIColor), colorWithWhite: 0.0 alpha: 0.95];
+            let selected_foreground: *const Object = msg_send![class!(UIColor), whiteColor];
+            let inactive_background: *const Object =
+                msg_send![class!(UIColor), colorWithWhite: 0.0 alpha: 0.50];
+            let inactive_foreground: *const Object =
+                msg_send![class!(UIColor), colorWithWhite: 0.7 alpha: 1.0];
+
+            let (selected, inactive) = if self.tab == 0 {
+                let _: () = msg_send![self.scripts_scrollview, setHidden: false];
+                let _: () = msg_send![self.cheats_scrollview, setHidden: true];
+                (self.scripts_tab_btn, self.cheats_tab_btn)
+            } else {
+                let _: () = msg_send![self.scripts_scrollview, setHidden: true];
+                let _: () = msg_send![self.cheats_scrollview, setHidden: false];
+                (self.cheats_tab_btn, self.scripts_tab_btn)
+            };
+
+            let _: () = msg_send![selected, setBackgroundColor: selected_background];
+            let _: () = msg_send![inactive, setBackgroundColor: inactive_background];
+            let _: () = msg_send![selected, setTitleColor: selected_foreground forState: 0u64];
+            let _: () = msg_send![inactive, setTitleColor: inactive_foreground forState: 0u64];
+        }
+    }
+
+    fn create_layout(&mut self) {
+        self.create_base_view();
+        self.create_tab_buttons();
+
+        unsafe {
+            let _: () = msg_send![self.base_view, addSubview: self.scripts_tab_btn];
+            let _: () = msg_send![self.base_view, addSubview: self.cheats_tab_btn];
+        }
+
+        self.create_scrollviews();
+
+        unsafe {
+            let _: () = msg_send![self.base_view, addSubview: self.scripts_scrollview];
+            let _: () = msg_send![self.base_view, addSubview: self.cheats_scrollview];
+
+            self.switch_to_tab(self.tab);
+
+            let app: *mut Object = msg_send![class!(UIApplication), sharedApplication];
+            let window: *mut Object = msg_send![app, keyWindow];
+
+            let _: () = msg_send![window, addSubview: self.base_view];
+        }
+    }
+
+    fn show(&mut self) {
+        if !self.base_view.is_null() {
+            return;
+        }
+
+        crate::hook::slide::<fn()>(0x10026ca5c)();
+        self.create_layout();
+    }
+
+    fn hide(&mut self) {
+        if self.base_view.is_null() {
+            return;
+        }
+
+        unsafe {
+            let _: () = msg_send![self.base_view, removeFromSuperview];
+
+            let _: () = msg_send![self.scripts_tab_btn, release];
+            let _: () = msg_send![self.cheats_tab_btn, release];
+            let _: () = msg_send![self.scripts_scrollview, release];
+            let _: () = msg_send![self.cheats_scrollview, release];
+            let _: () = msg_send![self.base_view, release];
+        }
+
+        self.base_view = std::ptr::null_mut();
+
+        crate::hook::slide::<fn()>(0x10026ca6c)();
     }
 }
 
@@ -590,6 +694,10 @@ fn reachability_with_hostname(
 
             if tag.is_tab_button {
                 trace!("Tab button pressed.");
+
+                if let Some(menu) = MENU.as_mut() {
+                    menu.switch_to_tab(tag.index as u8);
+                }
             } else {
                 if let Some(script) = scripts::loaded_scripts()
                     .iter_mut()
@@ -600,9 +708,9 @@ fn reachability_with_hostname(
                 } else {
                     error!("Requested script seems to have disappeared.");
                 }
-            }
 
-            hide_script_menu();
+                hide_script_menu();
+            }
 
             std::ptr::null_mut()
         } else {
