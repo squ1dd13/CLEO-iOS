@@ -40,6 +40,39 @@ pub fn set_kv(key: &str, value: &str) {
     }
 }
 
+fn generate_numberplate(chars: *mut u8, length: i32) -> bool {
+    static mut PLATE_TICK: u8 = 0;
+
+    let tick = unsafe {
+        PLATE_TICK += 1;
+
+        if PLATE_TICK > 5 {
+            PLATE_TICK = 0;
+        }
+
+        PLATE_TICK
+    };
+
+    if (tick == 3 || tick == 5) && length == 8 {
+        // ;)
+        const CUSTOM_3: &[u8] = b"CLEO IOS";
+        const CUSTOM_5: &[u8] = b"SQUI DDY";
+
+        let custom = if tick == 3 { CUSTOM_3 } else { CUSTOM_5 };
+
+        for (i, c) in custom.iter().enumerate() {
+            unsafe {
+                chars.offset(i as isize).write(*c);
+            }
+        }
+
+        true
+    } else {
+        call_original!(targets::gen_plate, chars, length)
+    }
+}
+
 pub fn hook() {
     targets::get_gxt_string::install(get_gxt_string);
+    targets::gen_plate::install(generate_numberplate);
 }

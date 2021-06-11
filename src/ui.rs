@@ -310,15 +310,15 @@ fn create_label(
 ) -> *mut Object {
     unsafe {
         let running: *mut Object = msg_send![class!(UILabel), alloc];
-        let running: *mut Object = msg_send![running, initWithFrame: frame];
+        let label: *mut Object = msg_send![running, initWithFrame: frame];
 
-        let _: () = msg_send![running, setText: create_ns_string(text)];
-        let _: () = msg_send![running, setFont: font];
-        let _: () = msg_send![running, setTextColor: colour];
-        let _: () = msg_send![running, setAdjustsFontSizeToFitWidth: true];
-        let _: () = msg_send![running, setTextAlignment: alignment as c_long];
+        let _: () = msg_send![label, setText: create_ns_string(text)];
+        let _: () = msg_send![label, setFont: font];
+        let _: () = msg_send![label, setTextColor: colour];
+        let _: () = msg_send![label, setAdjustsFontSizeToFitWidth: true];
+        let _: () = msg_send![label, setTextAlignment: alignment as c_long];
 
-        running
+        label
     }
 }
 
@@ -360,25 +360,80 @@ fn show_script_menu() {
         }];
 
         let background_colour: *const Object =
-            msg_send![class!(UIColor), colorWithWhite: 0.0 alpha: 0.95];
+            msg_send![class!(UIColor), colorWithWhite: 0.0 alpha: 0.0]; //0.95];
         let _: () = msg_send![menu, setBackgroundColor: background_colour];
 
         let text_colour: *const Object = msg_send![class!(UIColor), whiteColor];
         let font: *mut Object = msg_send![class!(UIFont), fontWithName: create_ns_string("PricedownGTAVInt") size: 35.0];
 
-        let title_label = create_label(
-            CGRect {
-                origin: CGPoint { x: 0.0, y: 0.0 },
+        let title_label_scripts = {
+            let frame = CGRect {
+                origin: CGPoint {
+                    x: 0.0,
+                    y: 0.0,
+                },
                 size: CGSize {
-                    width: menu_width,
+                    width: (menu_width * 0.5),
                     height: (menu_height * 0.2).round(),
                 },
-            },
-            "Scripts",
-            font,
-            text_colour,
-            1,
-        );
+            };
+
+            let text = "Scripts";
+            let font = font;
+            let colour = text_colour;
+            let alignment = 1;
+
+            let running: *mut Object = msg_send![class!(UIButton), alloc];
+            let running: *mut Object = msg_send![running, initWithFrame: frame];
+
+            let _: () = msg_send![running, setTitle: create_ns_string(text) forState: 0 as c_long];
+            let label: *mut Object = msg_send![running, titleLabel];
+            let _: () = msg_send![label, setFont: font];
+            let _: () = msg_send![running, setTitleColor: colour forState: /* UIControlStateNormal */ 0 as c_long];
+            let _: () = msg_send![label, setAdjustsFontSizeToFitWidth: true];
+            let _: () = msg_send![label, setTextAlignment: alignment as c_long];
+
+            running
+        };
+
+        let background_colour: *const Object =
+            msg_send![class!(UIColor), colorWithWhite: 0.0 alpha: 0.95];
+        let _: () = msg_send![title_label_scripts, setBackgroundColor: background_colour];
+
+        let text_colour: *const Object = msg_send![class!(UIColor), colorWithWhite: 0.7 alpha: 1.0];
+
+        let title_label_cheats = {
+            let frame = CGRect {
+                        origin: CGPoint {
+                            x: menu_width * 0.5,
+                            y: 0.0,
+                        },
+                        size: CGSize {
+                            width: (menu_width * 0.5),
+                            height: (menu_height * 0.2).round(),
+                        },
+                    };
+            let text = "Cheats";
+            let font = font;
+            let colour = text_colour;
+            let alignment = 1;
+
+            let running: *mut Object = msg_send![class!(UIButton), alloc];
+            let running: *mut Object = msg_send![running, initWithFrame: frame];
+
+            let _: () = msg_send![running, setTitle: create_ns_string(text) forState: 0 as c_long];
+            let label: *mut Object = msg_send![running, titleLabel];
+            let _: () = msg_send![label, setFont: font];
+            let _: () = msg_send![running, setTitleColor: colour forState: /* UIControlStateNormal */ 0 as c_long];
+            let _: () = msg_send![label, setAdjustsFontSizeToFitWidth: true];
+            let _: () = msg_send![label, setTextAlignment: alignment as c_long];
+
+            running
+        };
+
+        let background_colour: *const Object =
+            msg_send![class!(UIColor), colorWithWhite: 0.0 alpha: 0.50];
+        let _: () = msg_send![title_label_cheats, setBackgroundColor: background_colour];
 
         let scroll_view: *mut Object = msg_send![class!(UIScrollView), alloc];
         let scroll_view: *mut Object = msg_send![scroll_view, initWithFrame: CGRect {
@@ -391,6 +446,10 @@ fn show_script_menu() {
                 height: (menu_height * 0.8).round(),
             },
         }];
+
+        let background_colour: *const Object =
+            msg_send![class!(UIColor), colorWithWhite: 0.0 alpha: 0.95];
+        let _: () = msg_send![scroll_view, setBackgroundColor: background_colour];
 
         let button_height = (menu_height * 0.15).round();
 
@@ -472,8 +531,10 @@ fn show_script_menu() {
             let _: () = msg_send![button, release];
         }
 
-        let _: () = msg_send![menu, addSubview: title_label];
-        let _: () = msg_send![title_label, release];
+        let _: () = msg_send![menu, addSubview: title_label_scripts];
+        let _: () = msg_send![title_label_scripts, release];
+        let _: () = msg_send![menu, addSubview: title_label_cheats];
+        let _: () = msg_send![title_label_cheats, release];
         let _: () = msg_send![menu, addSubview: scroll_view];
         let _: () = msg_send![scroll_view, release];
         let _: () = msg_send![window, addSubview: menu];

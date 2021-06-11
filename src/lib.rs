@@ -48,6 +48,8 @@ mod targets {
         0x1004ebe70,
         fn(*const Object, Sel, *mut Object) -> *mut Object
     );
+
+    create_soft_target!(gen_plate, 0x10037ba2c, fn(*mut u8, i32) -> bool);
 }
 
 static mut COMPONENT_SYSTEM: Option<ComponentSystem> = None;
