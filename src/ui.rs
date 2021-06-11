@@ -322,6 +322,14 @@ fn create_label(
     }
 }
 
+#[derive(Debug)]
+#[repr(C)]
+struct ButtonTag {
+    index: u32,
+    is_tab_button: bool,
+    _unused: [u8; 3],
+}
+
 fn show_script_menu() {
     if SHOWING_MENU.load(Ordering::Relaxed) {
         // Menu is already being shown, so ignore the request.
@@ -368,10 +376,7 @@ fn show_script_menu() {
 
         let title_label_scripts = {
             let frame = CGRect {
-                origin: CGPoint {
-                    x: 0.0,
-                    y: 0.0,
-                },
+                origin: CGPoint { x: 0.0, y: 0.0 },
                 size: CGSize {
                     width: (menu_width * 0.5),
                     height: (menu_height * 0.2).round(),
@@ -404,15 +409,16 @@ fn show_script_menu() {
 
         let title_label_cheats = {
             let frame = CGRect {
-                        origin: CGPoint {
-                            x: menu_width * 0.5,
-                            y: 0.0,
-                        },
-                        size: CGSize {
-                            width: (menu_width * 0.5),
-                            height: (menu_height * 0.2).round(),
-                        },
-                    };
+                origin: CGPoint {
+                    x: menu_width * 0.5,
+                    y: 0.0,
+                },
+                size: CGSize {
+                    width: (menu_width * 0.5),
+                    height: (menu_height * 0.2).round(),
+                },
+            };
+
             let text = "Cheats";
             let font = font;
             let colour = text_colour;
@@ -481,15 +487,24 @@ fn show_script_menu() {
             let _: () = msg_send![button_label, setFont: font];
 
             // Set the tag to the index of the item so the handler knows what's been pressed.
-            let _: () = msg_send![button, setTag: index as c_long];
+            let tag = ButtonTag {
+                index: index as u32,
+                is_tab_button: false,
+                _unused: [0; 3],
+            };
+
+            if std::mem::size_of_val(&tag) != 8 {
+                panic!("Size of tag structure must be 8 bytes!");
+            }
+
+            trace!("tag = {:?}", tag);
+
+            let _: () = msg_send![button, setTag: tag];
             let _: () = msg_send![button, setContentHorizontalAlignment: 1 as c_long];
-            let _: () = msg_send![button, setTitle: create_ns_string(item.display_name.as_str()) 
-                                          forState: /* UIControlStateNormal */ 0 as c_long];
+            let _: () = msg_send![button, setTitle: create_ns_string(item.display_name.as_str()) forState: /* UIControlStateNormal */ 0 as c_long];
 
             if !item.is_active() {
-                let _: () = msg_send![button, addTarget: class!(IOSReachability)
-                                             action: sel!(reachabilityWithHostName:)
-                                   forControlEvents: /* UIControlEventTouchUpInside */ (1 << 6) as c_long];
+                let _: () = msg_send![button, addTarget: class!(IOSReachability) action: sel!(reachabilityWithHostName:) forControlEvents: /* UIControlEventTouchUpInside */ (1 << 6) as c_long];
             } else {
                 // Show the button as disabled so the user can't fuck up the script by starting it when
                 //  it's already active.
@@ -569,16 +584,22 @@ fn reachability_with_hostname(
         let is_button: bool = msg_send![hostname, isKindOfClass: class!(UIButton)];
 
         if is_button {
-            let tag: c_long = msg_send![hostname, tag];
+            let tag: ButtonTag = msg_send![hostname, tag];
 
-            if let Some(script) = scripts::loaded_scripts()
-                .iter_mut()
-                .filter(|s| s.injected)
-                .nth(tag as usize)
-            {
-                script.activate();
+            trace!("tag = {:?}", tag);
+
+            if tag.is_tab_button {
+                trace!("Tab button pressed.");
             } else {
-                error!("Requested script seems to have disappeared.");
+                if let Some(script) = scripts::loaded_scripts()
+                    .iter_mut()
+                    .filter(|s| s.injected)
+                    .nth(tag.index as usize)
+                {
+                    script.activate();
+                } else {
+                    error!("Requested script seems to have disappeared.");
+                }
             }
 
             hide_script_menu();
