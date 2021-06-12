@@ -1,6 +1,12 @@
 # Compile the Rust code and produce an ar archive.
-printf "=> Compiling Rust code...\n"
-cargo lipo --allow-run-on-non-macos || exit 1
+if [[ $* == *--release* ]]; then
+    printf "=> Compiling Rust code (release)...\n"
+    cargo lipo --release --allow-run-on-non-macos || exit 1
+else
+    printf "=> Compiling Rust code (debug)...\n"
+    cargo lipo --allow-run-on-non-macos || exit 1
+fi
+
 printf "=> Finished compiling Rust code.\n"
 
 # Move to the output directory.

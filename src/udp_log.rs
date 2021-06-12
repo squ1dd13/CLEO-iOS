@@ -115,10 +115,6 @@ impl Logger {
             Level::Trace => MessageType::Normal,
         };
 
-        if self.socket.is_none() {
-            return;
-        }
-
         let message = Message {
             group: self.name.clone(),
             msg_type,
@@ -133,13 +129,16 @@ impl Logger {
             }
         }
 
+        if self.socket.is_none() {
+            return;
+        }
+
         let packed = message.pack();
 
         if packed.is_none() {
             return;
         }
 
-        // Silence 'unused Result' warning.
         let _ = self
             .socket
             .as_ref()
