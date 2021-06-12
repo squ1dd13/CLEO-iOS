@@ -49,7 +49,7 @@ impl Cheat {
     }
 }
 
-// We have to include these because the game doesn't have the array.
+// We have to include the codes because the game doesn't have the array.
 // Android does, though, so I copied the codes from there. The order has been preserved.
 // The spreadsheet at
 //   https://docs.google.com/spreadsheets/d/1-rmga12W9reALga7fct22tJ-1thxbbsfGiGltK2qgh0/edit?usp=sharing
