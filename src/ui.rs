@@ -319,7 +319,8 @@ fn create_label(
 struct ButtonTag {
     index: u32,
     is_tab_button: bool,
-    _unused: [u8; 3],
+    is_cheat_button: bool,
+    _unused: [u8; 2],
 }
 
 struct Menu {
@@ -329,10 +330,11 @@ struct Menu {
     base_view: *mut Object,
 
     scripts_tab_btn: *mut Object,
-    scripts_scrollview: *mut Object,
+    scripts_scroll_view: *mut Object,
 
     cheats_tab_btn: *mut Object,
-    cheats_scrollview: *mut Object,
+    cheats_scroll_view: *mut Object,
+    cheats_warning: *mut Object,
 
     tab: u8,
 }
@@ -355,10 +357,21 @@ impl Menu {
             height,
             base_view: std::ptr::null_mut(),
             scripts_tab_btn: std::ptr::null_mut(),
-            scripts_scrollview: std::ptr::null_mut(),
+            scripts_scroll_view: std::ptr::null_mut(),
             cheats_tab_btn: std::ptr::null_mut(),
-            cheats_scrollview: std::ptr::null_mut(),
+            cheats_scroll_view: std::ptr::null_mut(),
+            cheats_warning: std::ptr::null_mut(),
             tab: 0,
+        }
+    }
+
+    fn get_views_for_tab(&mut self, tab: u8) -> Vec<*mut Object> {
+        if tab == 0 {
+            // Scripts
+            vec![self.scripts_scroll_view]
+        } else {
+            // Cheats
+            vec![self.cheats_warning, self.cheats_scroll_view]
         }
     }
 
@@ -368,8 +381,8 @@ impl Menu {
             let base: *mut Object = msg_send![class!(UIView), alloc];
             let base: *mut Object = msg_send![base, initWithFrame: CGRect {
                 origin: CGPoint {
-                    x: ((self.width * 1.25) * 0.1).round(),
-                    y: ((self.height * 1.25) * 0.1).round(),
+                    x: ((self.width * 1.25) * 0.1),
+                    y: ((self.height * 1.25) * 0.1),
                 },
                 size: CGSize {
                     width: self.width,
@@ -394,7 +407,7 @@ impl Menu {
                 },
                 size: CGSize {
                     width: (self.width * 0.5),
-                    height: (self.height * 0.2).round(),
+                    height: (self.height * 0.2),
                 },
             };
 
@@ -421,7 +434,8 @@ impl Menu {
             let tag = ButtonTag {
                 index: if is_right { 1 } else { 0 },
                 is_tab_button: true,
-                _unused: [0; 3],
+                is_cheat_button: false,
+                _unused: [0; 2],
             };
 
             let _: () = msg_send![button, setTag: tag];
@@ -446,33 +460,38 @@ impl Menu {
         self.cheats_tab_btn = self.create_single_tab_button("Cheats", true);
     }
 
-    fn create_single_scrollview(&self, item_height: f64, item_count: usize) -> *mut Object {
+    fn create_single_scroll_view(
+        &self,
+        top_inset: f64,
+        item_height: f64,
+        item_count: usize,
+    ) -> *mut Object {
         unsafe {
-            let scrollview: *mut Object = msg_send![class!(UIScrollView), alloc];
-            let scrollview: *mut Object = msg_send![scrollview, initWithFrame: CGRect {
+            let scroll_view: *mut Object = msg_send![class!(UIScrollView), alloc];
+            let scroll_view: *mut Object = msg_send![scroll_view, initWithFrame: CGRect {
                 origin: CGPoint {
                     x: 0.0,
-                    y: (self.height * 0.2).round(),
+                    y: top_inset + (self.height * 0.2),
                 },
                 size: CGSize {
                     width: self.width,
-                    height: (self.height * 0.8).round(),
+                    height: (self.height * 0.8) - top_inset,
                 },
             }];
 
             let background_colour: *const Object =
                 msg_send![class!(UIColor), colorWithWhite: 0.0 alpha: 0.95];
-            let _: () = msg_send![scrollview, setBackgroundColor: background_colour];
+            let _: () = msg_send![scroll_view, setBackgroundColor: background_colour];
 
-            let _: () = msg_send![scrollview, setBounces: false];
-            let _: () = msg_send![scrollview, setShowsHorizontalScrollIndicator: false];
-            let _: () = msg_send![scrollview, setShowsVerticalScrollIndicator: false];
-            let _: () = msg_send![scrollview, setContentSize: CGSize {
+            let _: () = msg_send![scroll_view, setBounces: false];
+            let _: () = msg_send![scroll_view, setShowsHorizontalScrollIndicator: false];
+            let _: () = msg_send![scroll_view, setShowsVerticalScrollIndicator: false];
+            let _: () = msg_send![scroll_view, setContentSize: CGSize {
                 width: self.width,
                 height: item_count as f64 * item_height,
             }];
 
-            scrollview
+            scroll_view
         }
     }
 
@@ -503,7 +522,8 @@ impl Menu {
             let tag = ButtonTag {
                 index: index as u32,
                 is_tab_button: false,
-                _unused: [0; 3],
+                is_cheat_button: false,
+                _unused: [0; 2],
             };
 
             if std::mem::size_of_val(&tag) != 8 {
@@ -559,29 +579,232 @@ impl Menu {
         }
     }
 
-    fn create_scrollviews(&mut self) {
+    fn create_single_cheat_button(&self, cheat: &cheats::Cheat, height: f64) -> *mut Object {
+        unsafe {
+            let index = cheat.index as usize;
+
+            let button: *mut Object = msg_send![class!(UIButton), alloc];
+            let button: *mut Object = msg_send![button, initWithFrame: CGRect {
+                origin: CGPoint {
+                    x: self.width * 0.05,
+                    y: index as f64 * height,
+                },
+                size: CGSize {
+                    width: self.width * 0.95,
+                    height,
+                },
+            }];
+
+            let button_label: *mut Object = msg_send![button, titleLabel];
+            let font: *mut Object = msg_send![class!(UIFont), fontWithName: create_ns_string("ChaletComprime-CologneSixty") size: 25.0];
+
+            let _: () = msg_send![button_label, setFont: font];
+
+            let tag = ButtonTag {
+                index: index as u32,
+                is_tab_button: false,
+                is_cheat_button: true,
+                _unused: [0; 2],
+            };
+
+            if std::mem::size_of_val(&tag) != 8 {
+                panic!("Size of tag structure must be 8 bytes!");
+            }
+
+            trace!("tag = {:?}", tag);
+
+            let _: () = msg_send![button, setTag: tag];
+            let _: () = msg_send![button, setContentHorizontalAlignment: 1 as c_long];
+
+            let title = create_ns_string(if cheat.code.is_empty() {
+                "<No code>"
+            } else {
+                cheat.code
+            });
+
+            let _: () =
+                msg_send![button, setTitle: title forState: /* UIControlStateNormal */ 0 as c_long];
+
+            #[repr(C)]
+            struct UIEdgeInsets {
+                top: f64,
+                left: f64,
+                bottom: f64,
+                right: f64,
+            }
+
+            let insets = UIEdgeInsets {
+                top: 0.0,
+                left: 0.0,
+                bottom: height * 0.4,
+                right: 0.0,
+            };
+
+            let _: () = msg_send![button, setTitleEdgeInsets: insets];
+
+            if !cheat.is_active() {
+                let _: () = msg_send![button, addTarget: class!(IOSReachability) action: sel!(reachabilityWithHostName:) forControlEvents: /* UIControlEventTouchUpInside */ (1 << 6) as c_long];
+            } else {
+                // Show the button as disabled so the user can't fuck up the script by starting it when
+                //  it's already active.
+                let _: () = msg_send![button, setEnabled: false];
+                let _: () = msg_send![button, setAlpha: 0.4];
+            }
+
+            // If we need a red in the future, that's 255, 40, 46.
+            let text_colour: *const Object = if cheat.is_active() {
+                msg_send![class!(UIColor), colorWithRed: 78.0 / 255.0 green: 149.0 / 255.0 blue: 64.0 / 255.0 alpha: 1.0]
+            } else {
+                msg_send![class!(UIColor), whiteColor]
+            };
+
+            let _: () = msg_send![button, setTitleColor: text_colour forState: /* UIControlStateNormal */ 0 as c_long];
+
+            let running = create_label(
+                CGRect {
+                    origin: CGPoint { x: 0.0, y: 0.0 },
+                    size: CGSize {
+                        width: self.width * 0.9,
+                        height: height * 0.6,
+                    },
+                },
+                if cheat.is_active() {
+                    "Active"
+                } else {
+                    "Inactive"
+                },
+                font,
+                text_colour,
+                2,
+            );
+
+            let _: () = msg_send![button, addSubview: running];
+            let _: () = msg_send![running, release];
+
+            let font: *mut Object = msg_send![class!(UIFont), fontWithName: create_ns_string("ChaletComprime-CologneSixty") size: 20.0];
+
+            let description = create_label(
+                CGRect {
+                    origin: CGPoint {
+                        x: 0.0,
+                        y: height * 0.6,
+                    },
+                    size: CGSize {
+                        width: self.width * 0.9,
+                        height: height * 0.4,
+                    },
+                },
+                cheat.description,
+                font,
+                msg_send![class!(UIColor), whiteColor],
+                0,
+            );
+
+            let _: () = msg_send![description, sizeToFit];
+
+            let _: () = msg_send![button, addSubview: description];
+            let _: () = msg_send![description, release];
+
+            button
+        }
+    }
+
+    fn create_scroll_views(&mut self) {
         let injected_scripts: Vec<&'static mut scripts::Script> = scripts::loaded_scripts()
             .iter_mut()
             .filter(|s| s.injected)
             .collect();
 
-        self.scripts_scrollview =
-            self.create_single_scrollview(self.height * 0.15, injected_scripts.len());
+        self.scripts_scroll_view =
+            self.create_single_scroll_view(0.0, self.height * 0.15, injected_scripts.len());
 
         for (index, item) in injected_scripts.iter().enumerate() {
             let button = self.create_single_script_button(index, item, self.height * 0.15);
 
             unsafe {
-                let _: () = msg_send![self.scripts_scrollview, addSubview: button];
+                let _: () = msg_send![self.scripts_scroll_view, addSubview: button];
                 let _: () = msg_send![button, release];
             }
         }
 
-        self.cheats_scrollview = self.create_single_scrollview(self.height * 0.25, 10);
+        self.cheats_scroll_view = self.create_single_scroll_view(
+            self.height * 0.1,
+            self.height * 0.25,
+            cheats::CHEATS.len(),
+        );
+
+        let font: *mut Object = unsafe {
+            msg_send![class!(UIFont), fontWithName: create_ns_string("Helvetica-Bold") size: 25.0]
+        };
+
+        let colour: *mut Object = unsafe { msg_send![class!(UIColor), orangeColor] };
+
+        let warning_label = create_label(
+            CGRect {
+                origin: CGPoint {
+                    x: self.width * 0.05,
+                    y: 0.0,
+                },
+                size: CGSize {
+                    width: self.width * 0.9,
+                    height: self.height * 0.1,
+                },
+            },
+            r#"Cheats may break your save. It is strongly advised that you save to a different slot before using any cheats.
+Additionally, some cheats (especially those without codes) may crash your game in some situations."#,
+            font,
+            colour,
+            1,
+        );
+
+        unsafe {
+            let _: () = msg_send![warning_label, setNumberOfLines: 2i64];
+
+            self.cheats_warning = msg_send![class!(UIView), alloc];
+            self.cheats_warning = msg_send![self.cheats_warning, initWithFrame:CGRect {
+                origin: CGPoint {
+                    x: 0.0,
+                    y: self.height * 0.2,
+                },
+                size: CGSize {
+                    width: self.width,
+                    height: self.height * 0.1,
+                },
+            }];
+
+            let background: *const Object =
+                msg_send![class!(UIColor), colorWithWhite: 0.0 alpha: 0.95];
+            let _: () = msg_send![self.cheats_warning, setBackgroundColor: background];
+
+            let _: () = msg_send![self.cheats_warning, addSubview: warning_label];
+            let _: () = msg_send![warning_label, release];
+        }
+
+        for cheat in cheats::CHEATS.iter() {
+            let button = self.create_single_cheat_button(cheat, self.height * 0.25);
+
+            unsafe {
+                let _: () = msg_send![self.cheats_scroll_view, addSubview: button];
+                let _: () = msg_send![button, release];
+            }
+        }
     }
 
     fn switch_to_tab(&mut self, tab: u8) {
         self.tab = tab;
+
+        unsafe {
+            for view in self
+                .get_views_for_tab(if self.tab == 0 { 1 } else { 0 })
+                .iter()
+            {
+                let _: () = msg_send![*view, setHidden: true];
+            }
+
+            for view in self.get_views_for_tab(self.tab).iter() {
+                let _: () = msg_send![*view, setHidden: false];
+            }
+        }
 
         unsafe {
             let selected_background: *const Object =
@@ -593,12 +816,8 @@ impl Menu {
                 msg_send![class!(UIColor), colorWithWhite: 0.7 alpha: 1.0];
 
             let (selected, inactive) = if self.tab == 0 {
-                let _: () = msg_send![self.scripts_scrollview, setHidden: false];
-                let _: () = msg_send![self.cheats_scrollview, setHidden: true];
                 (self.scripts_tab_btn, self.cheats_tab_btn)
             } else {
-                let _: () = msg_send![self.scripts_scrollview, setHidden: true];
-                let _: () = msg_send![self.cheats_scrollview, setHidden: false];
                 (self.cheats_tab_btn, self.scripts_tab_btn)
             };
 
@@ -618,11 +837,12 @@ impl Menu {
             let _: () = msg_send![self.base_view, addSubview: self.cheats_tab_btn];
         }
 
-        self.create_scrollviews();
+        self.create_scroll_views();
 
         unsafe {
-            let _: () = msg_send![self.base_view, addSubview: self.scripts_scrollview];
-            let _: () = msg_send![self.base_view, addSubview: self.cheats_scrollview];
+            let _: () = msg_send![self.base_view, addSubview: self.scripts_scroll_view];
+            let _: () = msg_send![self.base_view, addSubview: self.cheats_warning];
+            let _: () = msg_send![self.base_view, addSubview: self.cheats_scroll_view];
 
             self.switch_to_tab(self.tab);
 
@@ -652,8 +872,9 @@ impl Menu {
 
             let _: () = msg_send![self.scripts_tab_btn, release];
             let _: () = msg_send![self.cheats_tab_btn, release];
-            let _: () = msg_send![self.scripts_scrollview, release];
-            let _: () = msg_send![self.cheats_scrollview, release];
+            let _: () = msg_send![self.scripts_scroll_view, release];
+            let _: () = msg_send![self.cheats_warning, release];
+            let _: () = msg_send![self.cheats_scroll_view, release];
             let _: () = msg_send![self.base_view, release];
         }
 
