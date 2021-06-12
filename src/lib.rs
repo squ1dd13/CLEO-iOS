@@ -36,6 +36,7 @@ mod targets {
     );
 
     create_soft_target!(legal_splash, 0x1000d7cac, fn(*mut Object, sel: Sel));
+    create_soft_target!(legal_splash_german, 0x1000c6b40, fn(*mut Object, sel: Sel));
 
     create_soft_target!(
         store_crash_fix,

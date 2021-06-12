@@ -189,6 +189,14 @@ pub fn slide<T: Copy>(address: usize) -> T {
     }
 }
 
+pub fn is_german_game() -> bool {
+    std::env::current_exe()
+        .unwrap()
+        .display()
+        .to_string()
+        .ends_with("ger")
+}
+
 pub fn generate_backtrace() -> String {
     // Generate a resolved backtrace. The symbol names aren't always correct, but we
     //  should still display them because they are helpful for Rust at least.

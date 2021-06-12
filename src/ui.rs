@@ -256,6 +256,8 @@ fn create_ns_string(rust_string: &str) -> *const Object {
 }
 
 fn legal_splash_did_load(this: *mut Object, sel: Sel) {
+    trace!("splish splosh splash");
+
     // All of this code draws the numberplate splash screen. I'm too lazy to embed an image
     //  and use a UIImageView, so the numberplate is made from scratch with UIViews and UILabels.
     unsafe {
@@ -347,7 +349,8 @@ fn legal_splash_did_load(this: *mut Object, sel: Sel) {
                 y: outer_frame.size.height / 2.0,
             }];
 
-            let border_colour: *const Object = msg_send![class!(UIColor), colorWithWhite: 0.0 alpha: 0.27];
+            let border_colour: *const Object =
+                msg_send![class!(UIColor), colorWithWhite: 0.0 alpha: 0.27];
             let border_colour: *const Object = msg_send![border_colour, CGColor];
 
             let layer: *mut Object = msg_send![backing_view, layer];
@@ -381,7 +384,11 @@ fn legal_splash_did_load(this: *mut Object, sel: Sel) {
         let _: () = msg_send![exempt, setCenter: exempt_centre];
         let _: () = msg_send![text, setCenter: text_centre];
 
-        call_original!(targets::legal_splash, this, sel);
+        if !crate::hook::is_german_game() {
+            call_original!(targets::legal_splash, this, sel);
+        } else {
+            call_original!(targets::legal_splash_german, this, sel);
+        }
 
         let _: () = msg_send![backing, addSubview: exempt];
         let _: () = msg_send![exempt, release];
@@ -1087,7 +1094,14 @@ fn persistent_store_coordinator(_this: *mut Object, _sel: Sel) -> *const Object 
 
 pub fn hook() {
     targets::process_touch::install(process_touch);
-    targets::legal_splash::install(legal_splash_did_load);
+
+    if !crate::hook::is_german_game() {
+        targets::legal_splash::install(legal_splash_did_load);
+    } else {
+        trace!("Correcting splash address for German game.");
+        targets::legal_splash_german::install(legal_splash_did_load);
+    }
+
     targets::store_crash_fix::install(persistent_store_coordinator);
     targets::button_hack::install(reachability_with_hostname);
 }
