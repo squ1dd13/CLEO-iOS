@@ -256,7 +256,7 @@ fn create_ns_string(rust_string: &str) -> *const Object {
 }
 
 fn legal_splash_did_load(this: *mut Object, sel: Sel) {
-    trace!("splish splosh splash");
+    trace!("splish splash splosh");
 
     // All of this code draws the numberplate splash screen. I'm too lazy to embed an image
     //  and use a UIImageView, so the numberplate is made from scratch with UIViews and UILabels.
@@ -652,8 +652,6 @@ impl Menu {
                 panic!("Size of tag structure must be 8 bytes!");
             }
 
-            trace!("tag = {:?}", tag);
-
             let _: () = msg_send![button, setTag: tag];
             let _: () = msg_send![button, setContentHorizontalAlignment: 1 as c_long];
             let _: () = msg_send![button, setTitle: create_ns_string(script.display_name.as_str()) forState: /* UIControlStateNormal */ 0 as c_long];
@@ -732,8 +730,6 @@ impl Menu {
             if std::mem::size_of_val(&tag) != 8 {
                 panic!("Size of tag structure must be 8 bytes!");
             }
-
-            trace!("tag = {:?}", tag);
 
             let _: () = msg_send![button, setTag: tag];
             let _: () = msg_send![button, setContentHorizontalAlignment: 1 as c_long];

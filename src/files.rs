@@ -52,6 +52,23 @@ pub fn get_cleo_dir_path() -> PathBuf {
     let mut path = std::env::temp_dir();
     path.set_file_name("Documents");
     path.push("CLEO");
+
+    if !path.exists() {
+        // Try the old path.
+        let path = Path::new("/var/mobile/Documents/CS");
+
+        if path.exists() {
+            info!("Using old pre-official path.");
+            return path.to_path_buf();
+        } else {
+            error!("Unable to find the CLEO folder!");
+
+            // Let the errors flow...
+        }
+    }
+
+    info!("Using new path.");
+
     path
 }
 
