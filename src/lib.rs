@@ -51,6 +51,8 @@ mod targets {
     );
 
     create_soft_target!(gen_plate, 0x10037ba2c, fn(*mut u8, i32) -> bool);
+
+    create_soft_target!(do_game_state, 0x1004b6a54, fn());
 }
 
 static mut COMPONENT_SYSTEM: Option<ComponentSystem> = None;

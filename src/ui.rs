@@ -970,6 +970,14 @@ Additionally, some cheats (especially those without codes) may crash your game i
     }
 
     fn show(&mut self) {
+        let game_state = unsafe {*crate::hook::slide::<*const u32>(0x1006806d0)};
+
+        // If the game state is 9, it means we are in a game. If we aren't in a game,
+        //  we don't want to show the menu.
+        if game_state != 9 {
+            return;
+        }
+
         if !self.base_view.is_null() {
             return;
         }
@@ -1088,6 +1096,12 @@ fn persistent_store_coordinator(_this: *mut Object, _sel: Sel) -> *const Object 
     std::ptr::null()
 }
 
+fn do_game_state() {
+    let state = unsafe {*crate::hook::slide::<*const u32>(0x1006806d0)};
+    trace!("state = {}", state);
+    call_original!(targets::do_game_state);
+}
+
 pub fn hook() {
     targets::process_touch::install(process_touch);
 
@@ -1100,4 +1114,5 @@ pub fn hook() {
 
     targets::store_crash_fix::install(persistent_store_coordinator);
     targets::button_hack::install(reachability_with_hostname);
+    targets::do_game_state::install(do_game_state);
 }
