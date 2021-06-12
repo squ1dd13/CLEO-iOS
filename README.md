@@ -8,14 +8,14 @@ _**Note:** This branch (`main`) is for the current version of CLEO iOS, which is
 
 ## Completed Features
 * CSA script loading
+* CSI script loading
 * FXT loading
+* Cheat menu
 
 ## Planned Features
-* CSI script loading
 * IMG editing/hooking for custom models
 * Sound modding
 * Texture modding
-* Cheat menu (for using cheats without a keyboard)
 
 A possible change would be to integrate with the game's button control
 system rather than relying on Android-style swipe gestures for showing menus.
