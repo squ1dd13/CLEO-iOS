@@ -1,16 +1,16 @@
+// fixme: This file is too long.
+
 use crate::{call_original, cheats, scripts, targets};
 use cached::proc_macro::cached;
 use lazy_static::lazy_static;
 use objc::runtime::Sel;
 use objc::{runtime::Object, *};
-use std::{
-    os::raw::c_long,
-    sync::Mutex,
-};
+use std::{os::raw::c_long, sync::Mutex};
 
 use log::{error, trace, warn};
 
 #[repr(C)]
+#[derive(Clone, Copy)]
 struct CGSize {
     width: f64,
     height: f64,
@@ -24,6 +24,7 @@ struct CGPoint {
 }
 
 #[repr(C)]
+#[derive(Clone, Copy)]
 struct CGRect {
     origin: CGPoint,
     size: CGSize,
@@ -255,28 +256,142 @@ fn create_ns_string(rust_string: &str) -> *const Object {
 }
 
 fn legal_splash_did_load(this: *mut Object, sel: Sel) {
+    // All of this code draws the numberplate splash screen. I'm too lazy to embed an image
+    //  and use a UIImageView, so the numberplate is made from scratch with UIViews and UILabels.
     unsafe {
-        // todo? Individually animate our label and show the legal splash after.
-
         let view: *mut Object = msg_send![this, view];
         let bounds: CGRect = msg_send![view, bounds];
-        let label: *mut Object = msg_send![class!(UILabel), alloc];
-        let label: *mut Object = msg_send![label, initWithFrame: bounds];
 
-        let text_colour: *const Object = msg_send![class!(UIColor), whiteColor];
+        let background_view: *mut Object = msg_send![class!(UIView), alloc];
+        let background_view: *mut Object = msg_send![background_view, initWithFrame: bounds];
+
         let background_colour: *const Object = msg_send![class!(UIColor), blackColor];
-        let font: *mut Object = msg_send![class!(UIFont), fontWithName: create_ns_string("PricedownGTAVInt") size: 50.0];
+        let _: () = msg_send![background_view, setBackgroundColor: background_colour];
 
-        let _: () = msg_send![label, setText: create_ns_string("CLEO")];
-        let _: () = msg_send![label, setTextColor: text_colour];
-        let _: () = msg_send![label, setFont: font];
-        let _: () = msg_send![label, setTextAlignment: /* NSTextAlignmentCenter */ 1 as c_long];
-        let _: () = msg_send![label, setBackgroundColor: background_colour];
+        let exempt = {
+            let font: *mut Object = msg_send![class!(UIFont), fontWithName: create_ns_string("GTALICENSE-REGULAR") size: 23.0];
+            let text_colour: *const Object =
+                msg_send![class!(UIColor), colorWithRed: 0.77 green: 0.089 blue: 0.102 alpha: 1.0];
+
+            let exempt_label: *mut Object = create_label(bounds, "SA EXEMPT", font, text_colour, 1);
+            let _: () = msg_send![exempt_label, sizeToFit];
+
+            exempt_label
+        };
+
+        let exempt_frame: CGRect = msg_send![exempt, frame];
+
+        let text = {
+            let font: *mut Object = msg_send![class!(UIFont), fontWithName: create_ns_string("GTALICENSE-REGULAR") size: 70.0];
+            let text_colour: *const Object =
+                msg_send![class!(UIColor), colorWithRed: 0.14 green: 0.37 blue: 0.62 alpha: 1.0];
+
+            let plate_label: *mut Object = create_label(
+                CGRect {
+                    origin: CGPoint {
+                        x: 0.0,
+                        y: exempt_frame.size.height,
+                    },
+                    ..bounds
+                },
+                "CLEO",
+                font,
+                text_colour,
+                1,
+            );
+
+            let _: () = msg_send![plate_label, sizeToFit];
+
+            plate_label
+        };
+
+        let text_frame: CGRect = msg_send![text, frame];
+
+        let backing_size = CGSize {
+            width: text_frame.size.width * 2.3,
+            height: text_frame.size.height * 1.9,
+        };
+
+        let (backing, backing_outer) = {
+            let outer_frame = CGRect {
+                origin: CGPoint { x: 0.0, y: 0.0 },
+                size: CGSize {
+                    width: backing_size.width + 8.0,
+                    height: backing_size.height + 8.0,
+                },
+            };
+
+            let backing_view_outer: *mut Object = msg_send![class!(UIView), alloc];
+            let backing_view_outer: *mut Object =
+                msg_send![backing_view_outer, initWithFrame: outer_frame];
+
+            let backing_view: *mut Object = msg_send![class!(UIView), alloc];
+            let backing_view: *mut Object = msg_send![backing_view, initWithFrame: CGRect {
+                origin: CGPoint {
+                    x: 0.0,
+                    y: 0.0,
+                },
+                size: backing_size,
+            }];
+
+            let white: *const Object = msg_send![class!(UIColor), whiteColor];
+            let _: () = msg_send![backing_view_outer, setBackgroundColor: white];
+
+            let _: () = msg_send![backing_view_outer, setCenter: CGPoint {
+                x: bounds.size.width / 2.0,
+                y: bounds.size.height / 2.0,
+            }];
+
+            let _: () = msg_send![backing_view, setCenter: CGPoint {
+                x: outer_frame.size.width / 2.0,
+                y: outer_frame.size.height / 2.0,
+            }];
+
+            let border_colour: *const Object = msg_send![class!(UIColor), colorWithWhite: 0.0 alpha: 0.27];
+            let border_colour: *const Object = msg_send![border_colour, CGColor];
+
+            let layer: *mut Object = msg_send![backing_view, layer];
+            let _: () = msg_send![layer, setCornerRadius: 10.0];
+            let _: () = msg_send![layer, setBorderWidth: 2.0];
+            let _: () = msg_send![layer, setBorderColor: border_colour];
+
+            let layer: *mut Object = msg_send![backing_view_outer, layer];
+            let _: () = msg_send![layer, setCornerRadius: 12.0];
+
+            let _: () = msg_send![backing_view_outer, addSubview: backing_view];
+            let _: () = msg_send![backing_view, release];
+
+            (backing_view, backing_view_outer)
+        };
+
+        // Calculate the gap between the elements and the edge of the plate on the top and bottom.
+        let y_gap =
+            (backing_size.height - (text_frame.size.height + exempt_frame.size.height)) / 2.0;
+
+        let exempt_centre = CGPoint {
+            x: backing_size.width / 2.0,
+            y: (exempt_frame.size.height / 2.0) + y_gap,
+        };
+
+        let text_centre = CGPoint {
+            x: backing_size.width / 2.0,
+            y: backing_size.height - ((text_frame.size.height / 2.0) + y_gap),
+        };
+
+        let _: () = msg_send![exempt, setCenter: exempt_centre];
+        let _: () = msg_send![text, setCenter: text_centre];
 
         call_original!(targets::legal_splash, this, sel);
 
-        let _: () = msg_send![view, addSubview: label];
-        let _: () = msg_send![label, release];
+        let _: () = msg_send![backing, addSubview: exempt];
+        let _: () = msg_send![exempt, release];
+        let _: () = msg_send![backing, addSubview: text];
+        let _: () = msg_send![text, release];
+        let _: () = msg_send![background_view, addSubview: backing_outer];
+        let _: () = msg_send![backing, release];
+
+        let _: () = msg_send![view, addSubview: background_view];
+        let _: () = msg_send![background_view, release];
     }
 }
 
@@ -361,7 +476,7 @@ impl Menu {
             cheats_scroll_view: std::ptr::null_mut(),
             cheats_warning: std::ptr::null_mut(),
             tab: 0,
-            cheat_scroll_point: CGPoint{ x: 0.0, y: 0.0 },
+            cheat_scroll_point: CGPoint { x: 0.0, y: 0.0 },
         }
     }
 
@@ -923,7 +1038,7 @@ fn reachability_with_hostname(
             } else if tag.is_cheat_button {
                 trace!("Cheat button pressed.");
                 cheats::CHEATS[tag.index as usize].run();
-                
+
                 hide_script_menu();
             } else {
                 if let Some(script) = scripts::loaded_scripts()
