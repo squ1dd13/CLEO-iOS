@@ -116,7 +116,7 @@ pub static CHEATS: [Cheat; 111] = [
     Cheat::new(
         48,
         "ATTACKOFTHEVILLAGEPEOPLE",
-        "Pedestrians attack the player with rockets",
+        "Pedestrians attack the player with guns and rockets",
     ),
     Cheat::new(49, "LIFESABEACH", "Beach party theme"),
     Cheat::new(50, "ONLYHOMIESALLOWED", "Gang wars"),
@@ -176,7 +176,7 @@ pub static CHEATS: [Cheat; 111] = [
     Cheat::new(96, "FLYINGTOSTUNT", "Spawn Stunt Plane"),
     Cheat::new(97, "MONSTERMASH", "Spawn Monster Truck"),
     Cheat::new(98, "", "Prostitutes pay you?"),
-    Cheat::new(99, "", "Taxi nitro?"),
+    Cheat::new(99, "", "Taxis have hydraulics and nitro"),
     Cheat::new(100, "", "CRASHES! Slot cheat 1"),
     Cheat::new(101, "", "CRASHES! Slot cheat 2"),
     Cheat::new(102, "", "CRASHES! Slot cheat 3"),

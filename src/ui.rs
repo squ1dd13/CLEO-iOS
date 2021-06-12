@@ -1096,12 +1096,6 @@ fn persistent_store_coordinator(_this: *mut Object, _sel: Sel) -> *const Object 
     std::ptr::null()
 }
 
-fn do_game_state() {
-    let state = unsafe {*crate::hook::slide::<*const u32>(0x1006806d0)};
-    trace!("state = {}", state);
-    call_original!(targets::do_game_state);
-}
-
 pub fn hook() {
     targets::process_touch::install(process_touch);
 
@@ -1114,5 +1108,4 @@ pub fn hook() {
 
     targets::store_crash_fix::install(persistent_store_coordinator);
     targets::button_hack::install(reachability_with_hostname);
-    targets::do_game_state::install(do_game_state);
 }
