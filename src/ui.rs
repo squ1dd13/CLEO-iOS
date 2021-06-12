@@ -5,10 +5,7 @@ use objc::runtime::Sel;
 use objc::{runtime::Object, *};
 use std::{
     os::raw::c_long,
-    sync::{
-        atomic::{AtomicBool, Ordering},
-        Mutex,
-    },
+    sync::Mutex,
 };
 
 use log::{error, trace, warn};
@@ -20,6 +17,7 @@ struct CGSize {
 }
 
 #[repr(C)]
+#[derive(Clone, Copy)]
 struct CGPoint {
     x: f64,
     y: f64,
@@ -337,6 +335,7 @@ struct Menu {
     cheats_warning: *mut Object,
 
     tab: u8,
+    cheat_scroll_point: CGPoint,
 }
 
 impl Menu {
@@ -362,6 +361,7 @@ impl Menu {
             cheats_scroll_view: std::ptr::null_mut(),
             cheats_warning: std::ptr::null_mut(),
             tab: 0,
+            cheat_scroll_point: CGPoint{ x: 0.0, y: 0.0 },
         }
     }
 
@@ -641,15 +641,7 @@ impl Menu {
             };
 
             let _: () = msg_send![button, setTitleEdgeInsets: insets];
-
-            if !cheat.is_active() {
-                let _: () = msg_send![button, addTarget: class!(IOSReachability) action: sel!(reachabilityWithHostName:) forControlEvents: /* UIControlEventTouchUpInside */ (1 << 6) as c_long];
-            } else {
-                // Show the button as disabled so the user can't fuck up the script by starting it when
-                //  it's already active.
-                let _: () = msg_send![button, setEnabled: false];
-                let _: () = msg_send![button, setAlpha: 0.4];
-            }
+            let _: () = msg_send![button, addTarget: class!(IOSReachability) action: sel!(reachabilityWithHostName:) forControlEvents: /* UIControlEventTouchUpInside */ (1 << 6) as c_long];
 
             // If we need a red in the future, that's 255, 40, 46.
             let text_colour: *const Object = if cheat.is_active() {
@@ -732,6 +724,12 @@ impl Menu {
             self.height * 0.25,
             cheats::CHEATS.len(),
         );
+
+        // There are a lot of cheats, so we save how far the user has scrolled so they don't have to
+        //  go back to the same point every time.
+        unsafe {
+            let _: () = msg_send![self.cheats_scroll_view, setContentOffset: self.cheat_scroll_point animated: false];
+        }
 
         let font: *mut Object = unsafe {
             msg_send![class!(UIFont), fontWithName: create_ns_string("Helvetica-Bold") size: 25.0]
@@ -868,6 +866,9 @@ Additionally, some cheats (especially those without codes) may crash your game i
         }
 
         unsafe {
+            // Save the cheat scroll distance.
+            self.cheat_scroll_point = msg_send![self.cheats_scroll_view, contentOffset];
+
             let _: () = msg_send![self.base_view, removeFromSuperview];
 
             let _: () = msg_send![self.scripts_tab_btn, release];
@@ -919,6 +920,11 @@ fn reachability_with_hostname(
                 if let Some(menu) = MENU.as_mut() {
                     menu.switch_to_tab(tag.index as u8);
                 }
+            } else if tag.is_cheat_button {
+                trace!("Cheat button pressed.");
+                cheats::CHEATS[tag.index as usize].run();
+                
+                hide_script_menu();
             } else {
                 if let Some(script) = scripts::loaded_scripts()
                     .iter_mut()
