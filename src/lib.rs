@@ -51,6 +51,10 @@ mod targets {
     );
 
     create_soft_target!(gen_plate, 0x10037ba2c, fn(*mut u8, i32) -> bool);
+
+    create_soft_target!(idle, 0x100242c20, fn(u64, u64));
+
+    create_soft_target!(cycles_per_millisecond, 0x10026c9c0, fn() -> u32);
 }
 
 static mut COMPONENT_SYSTEM: Option<ComponentSystem> = None;
@@ -71,6 +75,7 @@ fn install_hooks() {
     scripts::hook();
     ui::hook();
     text::hook();
+    cheats::hook();
 }
 
 #[ctor]

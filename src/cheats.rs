@@ -1,4 +1,4 @@
-use crate::hook;
+use crate::{call_original, hook};
 
 pub struct Cheat {
     pub index: u8,
@@ -47,6 +47,31 @@ impl Cheat {
         let active = self.get_active_mut();
         *active = !*active;
     }
+}
+
+// CTimer::GetCyclesPerMillisecond is called between the FPS limit being set and when it is enforced,
+//  so if we overwrite the limit here, our new value will be enforced.
+fn cycles_per_millisecond() -> u32 {
+    unsafe {
+        *crate::hook::slide::<*mut u32>(0x1008f07b8) = 60;
+    }
+
+    call_original!(crate::targets::cycles_per_millisecond)
+}
+
+fn idle(p1: u64, p2: u64) {
+    const SHOW_FPS: bool = false;
+
+    unsafe {
+        *crate::hook::slide::<*mut bool>(0x10081c519) = SHOW_FPS;
+    }
+
+    call_original!(crate::targets::idle, p1, p2);
+}
+
+pub fn hook() {
+    crate::targets::idle::install(idle);
+    crate::targets::cycles_per_millisecond::install(cycles_per_millisecond);
 }
 
 // We have to include the codes because the game doesn't have the array.
