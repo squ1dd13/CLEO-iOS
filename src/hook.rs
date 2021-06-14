@@ -130,7 +130,9 @@ impl<FuncType> Target<FuncType> {
 #[macro_export]
 macro_rules! create_hard_target {
     ($name:ident, $addr:literal, $sig:ty) => {
+        #[allow(dead_code)]
         pub mod $name {
+            #[allow(unused_imports)]
             use super::*;
 
             const TARGET: crate::hook::Target<$sig> = crate::hook::Target::Address($addr);

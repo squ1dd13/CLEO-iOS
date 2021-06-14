@@ -1,9 +1,15 @@
-use crate::{call_original, hook};
+use crate::hook;
+use lazy_static::lazy_static;
+use log::error;
 
 pub struct Cheat {
     pub index: u8,
     pub code: &'static str,
     pub description: &'static str,
+}
+
+lazy_static! {
+    static ref WAITING_CHEATS: std::sync::Mutex<Vec<u8>> = std::sync::Mutex::new(vec![]);
 }
 
 impl Cheat {
@@ -37,7 +43,15 @@ impl Cheat {
         *self.get_active_mut()
     }
 
-    pub fn run(&self) {
+    pub fn queue(&self) {
+        if let Ok(waiting) = WAITING_CHEATS.lock().as_mut() {
+            waiting.push(self.index);
+        } else {
+            error!("Unable to lock cheat queue!");
+        }
+    }
+
+    fn run(&self) {
         if let Some(function) = self.get_function() {
             function();
             return;
@@ -49,29 +63,29 @@ impl Cheat {
     }
 }
 
-// CTimer::GetCyclesPerMillisecond is called between the FPS limit being set and when it is enforced,
-//  so if we overwrite the limit here, our new value will be enforced.
-fn cycles_per_millisecond() -> u32 {
-    unsafe {
-        *crate::hook::slide::<*mut u32>(0x1008f07b8) = 60;
+// CCheat::DoCheats is where cheat codes are checked and then cheats activated (indirectly),
+//  so we need to do our cheat stuff here to ensure that the cheats don't fuck up the game by
+//  doing stuff at weird times. The point in CGame::Process where DoCheats is called is where
+//  every other system in the game expects cheats to be activated.
+// Cheats that need textures to be loaded - such as weapon or vehicle cheats - can crash the
+//  game if they are executed on the wrong thread or at the wrong time, so it is very important
+//  that we get this right.
+fn do_cheats() {
+    if let Ok(waiting) = WAITING_CHEATS.lock().as_mut() {
+        // Perform all queued cheat actions.
+        for cheat_index in waiting.iter() {
+            CHEATS[*cheat_index as usize].run();
+        }
+
+        // Clear the queue.
+        waiting.clear();
+    } else {
+        error!("Unable to lock cheat queue for CCheat::DoCheats!");
     }
-
-    call_original!(crate::targets::cycles_per_millisecond)
-}
-
-fn idle(p1: u64, p2: u64) {
-    const SHOW_FPS: bool = false;
-
-    unsafe {
-        *crate::hook::slide::<*mut bool>(0x10081c519) = SHOW_FPS;
-    }
-
-    call_original!(crate::targets::idle, p1, p2);
 }
 
 pub fn hook() {
-    crate::targets::idle::install(idle);
-    crate::targets::cycles_per_millisecond::install(cycles_per_millisecond);
+    crate::targets::do_cheats::install(do_cheats);
 }
 
 // We have to include the codes because the game doesn't have the array.

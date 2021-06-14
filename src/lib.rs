@@ -1,16 +1,14 @@
 use ctor::ctor;
-
 use files::ComponentSystem;
-use objc::runtime::Sel;
-
-use objc::runtime::Object;
-
 use log::{debug, error, info};
+use objc::runtime::Object;
+use objc::runtime::Sel;
 use std::os::raw::c_char;
 
 mod cheats;
 mod files;
 mod hook;
+mod render;
 mod scripts;
 mod text;
 mod udp_log;
@@ -55,6 +53,10 @@ mod targets {
     create_soft_target!(idle, 0x100242c20, fn(u64, u64));
 
     create_soft_target!(cycles_per_millisecond, 0x10026c9c0, fn() -> u32);
+
+    create_soft_target!(do_game_state, 0x1004b6a54, fn());
+
+    create_hard_target!(do_cheats, 0x1001a7f28, fn());
 }
 
 static mut COMPONENT_SYSTEM: Option<ComponentSystem> = None;
@@ -76,6 +78,7 @@ fn install_hooks() {
     ui::hook();
     text::hook();
     cheats::hook();
+    render::hook();
 }
 
 #[ctor]

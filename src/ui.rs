@@ -6,7 +6,6 @@ use lazy_static::lazy_static;
 use objc::runtime::Sel;
 use objc::{runtime::Object, *};
 use std::{os::raw::c_long, sync::Mutex};
-
 use log::{error, trace, warn};
 
 #[repr(C)]
@@ -1048,7 +1047,7 @@ fn reachability_with_hostname(
                 }
             } else if tag.is_cheat_button {
                 trace!("Cheat button pressed.");
-                cheats::CHEATS[tag.index as usize].run();
+                cheats::CHEATS[tag.index as usize].queue();
 
                 hide_script_menu();
             } else {
