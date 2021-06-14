@@ -8,6 +8,7 @@ use std::{
     io,
 };
 
+use log::trace;
 use log::{debug, error, info, warn};
 
 use crate::{call_original, files, hook};
@@ -511,7 +512,14 @@ impl files::Component for ScriptComponent {
     }
 }
 
+fn reset_before_start() {
+    trace!("Reset");
+    call_original!(crate::targets::reset_before_start);
+    crate::get_component_system().as_mut().unwrap().reset_all();
+}
+
 pub fn hook() {
     debug!("Installing script hooks");
     crate::targets::script_tick::install(Script::script_tick);
+    crate::targets::reset_before_start::install(reset_before_start);
 }

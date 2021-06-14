@@ -1,6 +1,6 @@
 use ctor::ctor;
 use files::ComponentSystem;
-use log::{debug, error, info};
+use log::{error, info};
 use objc::runtime::Object;
 use objc::runtime::Sel;
 use std::os::raw::c_char;
@@ -57,23 +57,18 @@ mod targets {
     create_soft_target!(do_game_state, 0x1004b6a54, fn());
 
     create_hard_target!(do_cheats, 0x1001a7f28, fn());
+
+    create_soft_target!(reset_before_start, 0x1002ce55c, fn());
 }
 
+// fixme: We need a mutex here.
 static mut COMPONENT_SYSTEM: Option<ComponentSystem> = None;
 
 fn get_component_system() -> &'static mut Option<ComponentSystem> {
     unsafe { &mut COMPONENT_SYSTEM }
 }
 
-fn load_scripts_hook() {
-    debug!("Loading scripts.");
-    call_original!(targets::game_load_scripts);
-
-    get_component_system().as_mut().unwrap().reset_all();
-}
-
 fn install_hooks() {
-    targets::game_load_scripts::install(load_scripts_hook);
     scripts::hook();
     ui::hook();
     text::hook();
