@@ -48,6 +48,16 @@ game does. **You should read any "readme" files which come with the script to fi
 areas on the screen which a script can check to see if you are touching. A numbered
 diagram of these zones can be found [here](https://3.bp.blogspot.com/--yB8v3cBRyg/U9iO-NyyXPI/AAAAAAAAAJQ/FeGJI47KbYA/s1600/EC3B.jpg).
 
+## Cheats
+* A list of cheats can be found in the CLEO menu. It can be accessed by selecting the "Cheats" tab
+at the top of the menu, to the right of the "Scripts" tab.
+* **Cheats can break save files and/or crash the game**, so be careful when using them (especially
+if using cheats that do not have cheat codes). **It is strongly recommended that you back up your save in a different slot** 
+before using cheats.
+* Some cheats can be enabled or disabled (such as causing all new cars to be a certain colour), while
+others are single events (such as giving the player money). Both types of cheat can be activated by
+tapping on them in the menu.
+
 ## Thanks to...
 * [Seemann](https://github.com/x87) for offering support and info, and for letting this project officially 
 be a part of [CLEO](http://cleo.li/).
