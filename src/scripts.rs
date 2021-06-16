@@ -253,9 +253,9 @@ impl Script {
             return hook::slide::<Handler>(0x10020980c)(&mut self.vanilla_rep, opcode);
         }
 
-        // Other opcodes have their handlers calculated. This formula is compiler-optimised, and
-        //  I'm too lazy to figure out what it actually is.
-        let offset = (((opcode as usize) * 1374389535usize) >> 33) & 0x3ffffff0;
+        // Each function handles 100 opcodes, so for every 100 we go up in the opcode, the offset
+        //  in the function table goes up by 16 (as each entry has 16 bytes).
+        let offset = opcode as usize / 100 * 16;
 
         // Add the offset to the table pointer.
         let handler_entry: *const Handler = hook::slide(0x1005c11d8 + offset);
