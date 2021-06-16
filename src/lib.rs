@@ -11,6 +11,7 @@ mod hook;
 mod render;
 mod scripts;
 mod text;
+mod touch;
 mod udp_log;
 mod ui;
 
@@ -24,7 +25,7 @@ mod targets {
     create_soft_target!(
         process_touch,
         0x1004e831c,
-        fn(f32, f32, f64, f32, ui::TouchType)
+        fn(f32, f32, f64, f32, touch::TouchType)
     );
 
     create_soft_target!(
@@ -71,6 +72,7 @@ fn get_component_system() -> &'static mut Option<ComponentSystem> {
 fn install_hooks() {
     scripts::hook();
     ui::hook();
+    touch::hook();
     text::hook();
     cheats::hook();
     render::hook();

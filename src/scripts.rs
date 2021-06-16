@@ -10,6 +10,7 @@ use std::{
 use log::trace;
 use log::{debug, error, info, warn};
 
+use crate::touch;
 use crate::{call_original, files, hook};
 
 /// A loaded game script. This struct is compatible with the game's representation of loaded scripts,
@@ -186,7 +187,7 @@ impl Script {
 
                 let zone = unsafe { *hook::slide::<*const u32>(0x1007ad690 + 4) as usize };
 
-                let state = if let Some(state) = crate::ui::query_zone(zone) {
+                let state = if let Some(state) = touch::query_zone(zone) {
                     state
                 } else {
                     warn!("Returning invalid touch state!");
@@ -203,7 +204,7 @@ impl Script {
 
                 let zone = unsafe { *hook::slide::<*const u32>(0x1007ad690) as usize };
 
-                let out = if let Some(state) = crate::ui::query_zone(zone) {
+                let out = if let Some(state) = touch::query_zone(zone) {
                     state as i32
                 } else {
                     warn!("Invalid touch state!");
