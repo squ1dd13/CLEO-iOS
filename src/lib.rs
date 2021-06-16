@@ -13,7 +13,7 @@ mod render;
 mod scripts;
 mod text;
 mod touch;
-mod udp_log;
+mod udp;
 
 mod targets {
     use super::*;
@@ -81,7 +81,7 @@ fn install_hooks() {
 #[ctor]
 fn load() {
     // Load the logger before everything else so we can log from constructors.
-    let logger = udp_log::Logger::new("cleo");
+    let logger = udp::Logger::new("cleo");
     logger.connect_udp("192.168.1.183:4568");
 
     if let Err(err) = files::setup_cleo_fs() {
@@ -105,7 +105,7 @@ fn load() {
 
     logger.connect_file(files::get_log_path());
 
-    log::set_logger(unsafe { udp_log::GLOBAL_LOGGER.as_ref().unwrap() })
+    log::set_logger(unsafe { udp::GLOBAL_LOGGER.as_ref().unwrap() })
         .map(|_| log::set_max_level(log::LevelFilter::max()))
         .unwrap();
 

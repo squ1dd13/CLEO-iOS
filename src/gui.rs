@@ -1,10 +1,10 @@
 // fixme: This file is too long.
 
 use crate::{call_original, cheats, scripts, targets};
+use log::{error, trace};
 use objc::runtime::Sel;
 use objc::{runtime::Object, *};
 use std::os::raw::c_long;
-use log::{error, trace};
 
 #[repr(C)]
 #[derive(Clone, Copy)]
@@ -57,7 +57,8 @@ fn legal_splash_did_load(this: *mut Object, sel: Sel) {
             let text_colour: *const Object =
                 msg_send![class!(UIColor), colorWithRed: 0.77 green: 0.089 blue: 0.102 alpha: 1.0];
 
-            let exempt_label: *mut Object = create_label(bounds, "FUCK ALLTUTORIALS-JAYY", font, text_colour, 1);
+            let exempt_label: *mut Object =
+                create_label(bounds, "FUCK ALLTUTORIALS-JAYY", font, text_colour, 1);
             let _: () = msg_send![exempt_label, sizeToFit];
 
             exempt_label
@@ -197,13 +198,13 @@ pub fn hide_menu() {
 
 pub fn show_menu() {
     if let Some(menu) = unsafe { MENU.as_mut() } {
-                                menu.show();
-                            } else {
-                                unsafe {
-                                    MENU = Some(Menu::new());
-                                    MENU.as_mut().unwrap().show();
-                                }
-                            }
+        menu.show();
+    } else {
+        unsafe {
+            MENU = Some(Menu::new());
+            MENU.as_mut().unwrap().show();
+        }
+    }
 }
 
 fn create_label(
@@ -763,7 +764,7 @@ Additionally, some cheats (especially those without codes) may crash your game i
     }
 
     fn show(&mut self) {
-        let game_state = unsafe {*crate::hook::slide::<*const u32>(0x1006806d0)};
+        let game_state = unsafe { *crate::hook::slide::<*const u32>(0x1006806d0) };
 
         // If the game state is 9, it means we are in a game. If we aren't in a game,
         //  we don't want to show the menu.
