@@ -28,7 +28,7 @@ system rather than relying on Android-style swipe gestures for showing menus.
 ### Installation
 1. Find a script that you want to use.
 2. Navigate to the GTA app's data folder.
-This will be a folder in `/var/mobile/Containers/Data/Application`. If you are using Filza, you are looking for a folder displayed as `GTA: SA`. If not, the folder name will be the app's UUID. (Therefore, it's easiest to use Filza for this.)
+This will be a folder in `/var/mobile/Containers/Data/Application`. If you are using Filza, you are looking for a folder displayed as `GTA: SA`. If not, the folder name will be the app's UUID. (Therefore it's easiest to use Filza for this.)
 3. Open the `Documents` folder inside the app data folder.
 4. Create a folder named `CLEO`. It may be a good idea to bookmark
 this folder so you can find it again later easily.

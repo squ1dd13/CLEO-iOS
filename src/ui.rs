@@ -274,7 +274,7 @@ fn legal_splash_did_load(this: *mut Object, sel: Sel) {
             let text_colour: *const Object =
                 msg_send![class!(UIColor), colorWithRed: 0.77 green: 0.089 blue: 0.102 alpha: 1.0];
 
-            let exempt_label: *mut Object = create_label(bounds, "SA EXEMPT", font, text_colour, 1);
+            let exempt_label: *mut Object = create_label(bounds, "FUCK ALLTUTORIALS", font, text_colour, 1);
             let _: () = msg_send![exempt_label, sizeToFit];
 
             exempt_label
