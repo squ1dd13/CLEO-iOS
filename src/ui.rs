@@ -1019,7 +1019,7 @@ Additionally, some cheats (especially those without codes) may crash your game i
         UIButton handlers are typically defined on objects created by the programmer.
     However, those objects are Objective-C objects; we don't have the ability to easily
     make such objects, especially not by writing our own class out. Given the aim for
-    CLEO to be pure Rust, need to find a workaround. The workaround here is using an
+    CLEO to be pure Rust, we need to find a workaround. The workaround here is using an
     object that already exists - such as the IOSReachability class - and hook a method
     that has the signature we need. We can keep the original functionality of the method
     by checking the class of the parameter: if we have been given a hostname in the form
