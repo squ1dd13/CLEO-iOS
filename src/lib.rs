@@ -7,13 +7,13 @@ use std::os::raw::c_char;
 
 mod cheats;
 mod files;
+mod gui;
 mod hook;
 mod render;
 mod scripts;
 mod text;
 mod touch;
 mod udp_log;
-mod ui;
 
 mod targets {
     use super::*;
@@ -71,7 +71,7 @@ fn get_component_system() -> &'static mut Option<ComponentSystem> {
 
 fn install_hooks() {
     scripts::hook();
-    ui::hook();
+    gui::hook();
     touch::hook();
     text::hook();
     cheats::hook();
