@@ -113,14 +113,14 @@ impl ComponentSystem {
 
         let mut component_system = ComponentSystem { components: vec![] };
 
-        if let Err(err) = component_system.load_dir(dir_path) {
+        if let Err(err) = component_system.load_dir(dir_path, true) {
             error!("Error loading component system directory: {}", err);
         }
 
         Ok(component_system)
     }
 
-    fn load_dir(&mut self, dir_path: impl AsRef<Path>) -> std::io::Result<()> {
+    fn load_dir(&mut self, dir_path: impl AsRef<Path>, top_level: bool) -> std::io::Result<()> {
         let directory = std::fs::read_dir(dir_path)?;
 
         for item in directory {
@@ -129,7 +129,13 @@ impl ComponentSystem {
                     let path = entry.path();
 
                     if file_type.is_dir() {
-                        if let Err(err) = self.load_dir(entry.path()) {
+                        if top_level && entry.file_name() == "Replace" {
+                            if crate::loader::set_path(&entry.path()) {
+                                continue;
+                            }
+                        }
+
+                        if let Err(err) = self.load_dir(entry.path(), false) {
                             error!("Unable to load dir: {}", err);
                         }
                     } else {

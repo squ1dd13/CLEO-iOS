@@ -9,6 +9,7 @@ mod cheats;
 mod files;
 mod gui;
 mod hook;
+mod loader;
 mod render;
 mod scripts;
 mod text;
@@ -60,6 +61,24 @@ mod targets {
     create_hard_target!(do_cheats, 0x1001a7f28, fn());
 
     create_soft_target!(reset_before_start, 0x1002ce55c, fn());
+
+    create_soft_target!(
+        sort_out_path,
+        0x1004ec56c,
+        fn(*const c_char, *const c_char, i32) -> bool
+    );
+
+    create_soft_target!(
+        open_file,
+        0x10023d660,
+        fn(*const c_char, *const c_char) -> u64
+    );
+
+    create_soft_target!(
+        more_sorting_out,
+        0x1004e4c48,
+        fn(i32, *const c_char, i32) -> *const c_char
+    );
 }
 
 // fixme: We need a mutex here.
@@ -76,6 +95,7 @@ fn install_hooks() {
     text::hook();
     cheats::hook();
     render::hook();
+    loader::hook();
 }
 
 #[ctor]
