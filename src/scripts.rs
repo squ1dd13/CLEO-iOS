@@ -1,7 +1,6 @@
 use std::fs;
 use std::iter::FromIterator;
 use std::path::Path;
-use std::path::{Component, PathBuf};
 use std::{
     collections::hash_map::DefaultHasher,
     hash::{Hash, Hasher},
@@ -12,39 +11,6 @@ use log::trace;
 use log::{debug, error, info, warn};
 
 use crate::{call_original, files, hook};
-
-/// Passive scripts have the extension "csi" and are invoked via the script menu.
-#[allow(dead_code)]
-struct PassiveScript {
-    path: String,
-    pub name: String,
-}
-
-impl PassiveScript {
-    #[allow(dead_code)]
-    fn new(path_string: String) -> PassiveScript {
-        let path = PathBuf::from(&path_string);
-
-        // We shouldn't get invalid names, but if we do, the default is just "???".
-        let mut name: String = "???".into();
-
-        if let Some(Component::Normal(string)) = path.components().last() {
-            if let Some(string) = string.to_str() {
-                name = string.into();
-            }
-        }
-
-        if name == "???" {
-            // Report the invalid path, since this is still an error.
-            warn!("Unable to get PS name from path: {}", path_string);
-        }
-
-        PassiveScript {
-            path: path_string,
-            name,
-        }
-    }
-}
 
 /// A loaded game script. This struct is compatible with the game's representation of loaded scripts,
 /// but does not use all the fields that it could. As such, not all game functions will work with CLEO scripts.
@@ -258,7 +224,7 @@ impl Script {
     fn run_next(&mut self) -> u8 {
         if !self.vanilla_rep.active {
             return 1;
-        };
+        }
 
         if self.vanilla_rep.ip.is_null() {
             panic!("Instruction pointer may not be null!");
@@ -405,6 +371,7 @@ impl Script {
     pub fn reset(&mut self) {
         // Reset everything other than the script bytes.
         self.vanilla_rep = VanillaScript {
+            ip: self.vanilla_rep.base_ip,
             next: 0,
             previous: 0,
             name: *b"a script",
