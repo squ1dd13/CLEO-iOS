@@ -10,7 +10,12 @@ fi
 printf "=> Finished compiling Rust code.\n"
 
 # Move to the output directory.
-cd target/aarch64-apple-ios/debug
+if [[ $* == *--release* ]]; then
+    cd target/aarch64-apple-ios/release
+else
+    cd target/aarch64-apple-ios/debug
+fi
+
 unlink ./libcleo.dylib
 
 # Convert the ar archive to a dylib.
