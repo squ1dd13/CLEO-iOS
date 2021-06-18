@@ -1,45 +1,13 @@
+use crate::{call_original, files, hook, text};
+use objc::{runtime::Object, *};
 use std::{
     io::{Read, Write},
     sync::Mutex,
 };
 
-use crate::files;
-
 fn get_current_version() -> Result<VersionNumber, Box<dyn std::error::Error>> {
-    const VERSION: &'static str = env!("CARGO_PKG_VERSION");
-    VersionNumber::new(VERSION)
-    // log::trace!("dpkg");
-    // // let output = std::process::Command::new("/usr/bin/dpkg")
-    // // .arg("-s")
-    // // .arg("com.squ1dd13.cleo")
-    // // .output();
-    // let output = std::process::Command::new("/bin/echo")
-    //     .arg("hello")
-    //     .output();
-
-    // log::trace!("{:?}", output);
-    // let output = output?;
-
-    // log::trace!("output");
-    // let output = std::str::from_utf8(output.stdout.as_slice())?;
-    // let lines = output.split('\n');
-
-    // log::trace!("lines");
-    // for line in lines {
-    //     let line = line.trim();
-
-    //     const VERSION_PREFIX: &str = "Version: ";
-
-    //     if !line.starts_with(VERSION_PREFIX) {
-    //         continue;
-    //     }
-
-    //     let version = &line[VERSION_PREFIX.len()..].trim();
-
-    //     return Ok(VersionNumber::new(version.to_string())?);
-    // }
-
-    // Err("Did not find version line in dpkg output.".into())
+    // This is why the Rust and .deb packages need the same version.
+    VersionNumber::new(env!("CARGO_PKG_VERSION"))
 }
 
 fn should_request_release() -> Result<bool, Box<dyn std::error::Error>> {
@@ -111,7 +79,7 @@ lazy_static::lazy_static! {
 /// Should be called a while after the update check was initiated. Returns `true` if the
 /// update check finished without errors and an update is available. Otherwise, returns
 /// `false`, logging any errors encountered.
-pub fn was_update_found() -> bool {
+fn was_update_found() -> bool {
     let result = CHECK_RESULT.lock().unwrap();
 
     if result.is_none() {
@@ -184,6 +152,78 @@ impl VersionNumber {
 
         Ok(false)
     }
+}
+
+fn show_update_prompt(screen: *mut u8) {
+    unsafe {
+        screen.offset(0x75).write(0);
+
+        // eq: MobileMenu::Load(...)
+        hook::slide::<fn(*mut u8)>(0x100339838)(screen);
+
+        // Add our custom strings so we can use them in the menu.
+        text::set_kv("CL_UPT", "Update Available");
+        text::set_kv(
+            "CL_UPM",
+            "A new CLEO update is available. Do you want to go to GitHub to download it?",
+        );
+
+        // eq: nag_menu = operator.new(0x80)
+        let menu = hook::slide::<fn(u64) -> u64>(0x1004f9be0)(0x80);
+
+        let on_yes = |_: u64| {
+            const GITHUB_URL: &str = "https://github.com/Squ1dd13/CLEO-iOS/releases/latest";
+
+            let url: *const Object = msg_send![
+                class!(NSURL),
+                URLWithString: crate::gui::create_ns_string(GITHUB_URL)
+            ];
+
+            let shared_app: *const Object = msg_send![class!(UIApplication), sharedApplication];
+
+            // eq: [[UIApplication sharedApplication] openURL: [NSURL URLWithString: ...]]
+            let _: () = msg_send![shared_app, openURL: url];
+        };
+
+        // eq: MobileMenu::InitForNag(...)
+        hook::slide::<fn(u64, *const u8, *const u8, fn(u64), u64, u64, bool) -> u64>(0x100348964)(
+            menu,                 // Menu structure (uninitialised)
+            b"CL_UPT\0".as_ptr(), // Title
+            b"CL_UPM\0".as_ptr(), // Message
+            on_yes,               // "Yes" function
+            0,                    // Callback argument
+            0,                    // "No" function
+            false,                // Enable 'back' button
+        );
+
+        // We could create a repl(C) struct, but the fields we need are at fairly large
+        //  offsets, so it's easiest just to mess with pointers.
+        let u64_ptr: *mut u64 = screen.cast();
+
+        // Offset is 6 * u64, so 48 bytes (0x30).
+        if u64_ptr.offset(6).read() != 0 {
+            // eq: MobileMenu::ProcessPending(...)
+            hook::slide::<fn(*mut u64)>(0x100338f5c)(u64_ptr);
+        }
+
+        u64_ptr.offset(6).write(menu);
+    }
+}
+
+// This function is responsible for setting up the main flow screen, so we use it to
+//  show our update prompt when the game loads.
+fn init_for_title(screen: *mut u8) {
+    // Set up the title menu.
+    call_original!(crate::targets::init_for_title, screen);
+
+    if was_update_found() {
+        // Create our prompt afterwards, so it's above the title menu.
+        show_update_prompt(screen);
+    }
+}
+
+pub fn hook() {
+    crate::targets::init_for_title::install(init_for_title);
 }
 
 #[derive(Default, Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]

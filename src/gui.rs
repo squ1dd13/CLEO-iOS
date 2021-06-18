@@ -27,7 +27,7 @@ pub struct CGRect {
     pub size: CGSize,
 }
 
-fn create_ns_string(rust_string: &str) -> *const Object {
+pub fn create_ns_string(rust_string: &str) -> *const Object {
     unsafe {
         let c_string = std::ffi::CString::new(rust_string).expect("CString::new failed");
         let ns_string: *const Object =
@@ -197,10 +197,6 @@ pub fn hide_menu() {
 }
 
 pub fn show_menu() {
-    if crate::update::was_update_found() {
-        log::info!("An update is available!");
-    }
-
     if let Some(menu) = unsafe { MENU.as_mut() } {
         menu.show();
     } else {

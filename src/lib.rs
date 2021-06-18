@@ -64,22 +64,12 @@ mod targets {
     create_soft_target!(reset_before_start, 0x1002ce55c, fn());
 
     create_soft_target!(
-        sort_out_path,
-        0x1004ec56c,
-        fn(*const c_char, *const c_char, i32) -> bool
-    );
-
-    create_soft_target!(
-        open_file,
-        0x10023d660,
-        fn(*const c_char, *const c_char) -> u64
-    );
-
-    create_soft_target!(
-        more_sorting_out,
+        find_absolute_path,
         0x1004e4c48,
         fn(i32, *const c_char, i32) -> *const c_char
     );
+
+    create_soft_target!(init_for_title, 0x100339b44, fn(*mut u8));
 }
 
 // fixme: We need a mutex here.
@@ -97,6 +87,7 @@ fn install_hooks() {
     cheats::hook();
     render::hook();
     loader::hook();
+    update::hook();
 }
 
 #[ctor]

@@ -65,16 +65,8 @@ pub fn set_path(buf: &PathBuf) -> bool {
     }
 }
 
-fn open_file(path: *const c_char, mode: *const c_char) -> u64 {
-    call_original!(crate::targets::open_file, path, mode)
-}
-
-fn sort_out_path(p1: *const c_char, p2: *const c_char, p3: i32) -> bool {
-    call_original!(crate::targets::sort_out_path, p1, p2, p3)
-}
-
-fn more_sorting_out(p1: i32, p2: *const c_char, p3: i32) -> *const c_char {
-    let r = call_original!(crate::targets::more_sorting_out, p1, p2, p3);
+fn find_absolute_path(p1: i32, p2: *const c_char, p3: i32) -> *const c_char {
+    let r = call_original!(crate::targets::find_absolute_path, p1, p2, p3);
 
     let ret = unsafe { std::ffi::CStr::from_ptr(r) }.to_str().ok();
 
@@ -97,7 +89,5 @@ fn more_sorting_out(p1: i32, p2: *const c_char, p3: i32) -> *const c_char {
 }
 
 pub fn hook() {
-    crate::targets::open_file::install(open_file);
-    crate::targets::sort_out_path::install(sort_out_path);
-    crate::targets::more_sorting_out::install(more_sorting_out);
+    crate::targets::find_absolute_path::install(find_absolute_path);
 }
