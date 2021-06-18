@@ -44,14 +44,20 @@ impl LanguageFile {
 
 impl Component for LanguageFile {}
 
-pub fn get_cleo_dir_path() -> PathBuf {
+pub fn get_data_path(resource_name: &str) -> PathBuf {
     // As of iOS 13.5, we need extra entitlements to access /var/mobile/Documents/*, so
     //  we need to use the app's own data directory instead. env::temp_dir() returns the
     //  'tmp' subdirectory of that data directory, and then we can just replace the 'tmp'
-    //  with 'Documents/CLEO' to get our own directory.
+    //  with 'Documents/*' to get our own paths.
     let mut path = std::env::temp_dir();
     path.set_file_name("Documents");
-    path.push("CLEO");
+    path.push(resource_name);
+
+    path
+}
+
+pub fn get_cleo_dir_path() -> PathBuf {
+    let path = get_data_path("CLEO");
 
     if !path.exists() {
         // Try the old path.

@@ -1,5 +1,5 @@
 use lazy_static::lazy_static;
-use log::{info, trace};
+use log::info;
 use std::path::PathBuf;
 use std::sync::Mutex;
 use std::{os::raw::c_char, path::Path};
@@ -66,46 +66,11 @@ pub fn set_path(buf: &PathBuf) -> bool {
 }
 
 fn open_file(path: *const c_char, mode: *const c_char) -> u64 {
-    let skip = if path.is_null() {
-        trace!("Null path!");
-        true
-    } else if mode.is_null() {
-        trace!("Null mode!");
-        true
-    } else {
-        false
-    };
-
-    if !skip {
-        let path = unsafe { std::ffi::CStr::from_ptr(path) }.to_str().unwrap();
-        let mode = unsafe { std::ffi::CStr::from_ptr(mode) }.to_str().unwrap();
-
-        trace!("CFileMgr::OpenFile(\"{}\", \"{}\")", path, mode);
-    }
-
     call_original!(crate::targets::open_file, path, mode)
 }
 
 fn sort_out_path(p1: *const c_char, p2: *const c_char, p3: i32) -> bool {
-    let r = call_original!(crate::targets::sort_out_path, p1, p2, p3);
-
-    let p1 = unsafe { std::ffi::CStr::from_ptr(p1) }
-        .to_str()
-        .unwrap_or("invalid");
-
-    let p2 = unsafe { std::ffi::CStr::from_ptr(p2) }
-        .to_str()
-        .unwrap_or("invalid");
-
-    trace!(
-        "sort_out_path finished with ({}, {}, {}) -> {}",
-        p1,
-        p2,
-        p3,
-        r
-    );
-
-    r
+    call_original!(crate::targets::sort_out_path, p1, p2, p3)
 }
 
 fn more_sorting_out(p1: i32, p2: *const c_char, p3: i32) -> *const c_char {
@@ -115,7 +80,6 @@ fn more_sorting_out(p1: i32, p2: *const c_char, p3: i32) -> *const c_char {
 
     if let Some(output) = ret {
         if let Some(processed) = process_path(output) {
-            // let c_str = std::ffi::CString::new(processed).unwrap();
             unsafe {
                 let buf = libc::malloc(processed.len() + 1) as *mut c_char;
 
@@ -126,7 +90,6 @@ fn more_sorting_out(p1: i32, p2: *const c_char, p3: i32) -> *const c_char {
                 buf.offset(processed.len() as isize).write(0);
                 return buf;
             }
-            // return c_str.as_ptr() as *const c_char;
         }
     }
 

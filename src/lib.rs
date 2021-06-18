@@ -15,6 +15,7 @@ mod scripts;
 mod text;
 mod touch;
 mod udp;
+mod update;
 
 mod targets {
     use super::*;
@@ -152,5 +153,6 @@ fn load() {
 "#
     );
 
+    crate::update::start_update_checking();
     install_hooks();
 }

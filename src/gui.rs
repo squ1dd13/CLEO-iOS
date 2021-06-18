@@ -197,6 +197,10 @@ pub fn hide_menu() {
 }
 
 pub fn show_menu() {
+    if crate::update::was_update_found() {
+        log::info!("An update is available!");
+    }
+
     if let Some(menu) = unsafe { MENU.as_mut() } {
         menu.show();
     } else {

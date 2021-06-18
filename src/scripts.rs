@@ -463,7 +463,11 @@ impl files::Component for ScriptComponent {
 
         let scripts_removed = length_before - scripts.len();
 
-        debug!(
+        if scripts_removed == 0 {
+            return;
+        }
+
+        info!(
             "Unloaded {} script{} with component ID {:#x}",
             scripts_removed,
             if scripts_removed == 1 { "" } else { "s" },
