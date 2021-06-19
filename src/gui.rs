@@ -57,8 +57,7 @@ fn legal_splash_did_load(this: *mut Object, sel: Sel) {
             let text_colour: *const Object =
                 msg_send![class!(UIColor), colorWithRed: 0.77 green: 0.089 blue: 0.102 alpha: 1.0];
 
-            let exempt_label: *mut Object =
-                create_label(bounds, "SA EXEMPT", font, text_colour, 1);
+            let exempt_label: *mut Object = create_label(bounds, "SA EXEMPT", font, text_colour, 1);
             let _: () = msg_send![exempt_label, sizeToFit];
 
             exempt_label
@@ -237,6 +236,11 @@ struct ButtonTag {
     _unused: [u8; 2],
 }
 
+struct Tab {
+    tab_button: *mut Object,
+    views: Vec<*mut Object>,
+}
+
 struct Menu {
     width: f64,
     height: f64,
@@ -245,12 +249,7 @@ struct Menu {
 
     close_view: *mut Object,
 
-    scripts_tab_btn: *mut Object,
-    scripts_scroll_view: *mut Object,
-
-    cheats_tab_btn: *mut Object,
-    cheats_scroll_view: *mut Object,
-    cheats_warning: *mut Object,
+    tabs: Vec<Tab>,
 
     tab: u8,
     cheat_scroll_point: CGPoint,
@@ -263,10 +262,7 @@ impl Menu {
             let window: *mut Object = msg_send![app, keyWindow];
             let window_bounds: CGRect = msg_send![window, bounds];
 
-            (
-                window_bounds.size.width,
-                window_bounds.size.height * 0.9,
-            )
+            (window_bounds.size.width, window_bounds.size.height * 0.9)
         };
 
         Menu {
@@ -274,23 +270,9 @@ impl Menu {
             height,
             base_view: std::ptr::null_mut(),
             close_view: std::ptr::null_mut(),
-            scripts_tab_btn: std::ptr::null_mut(),
-            scripts_scroll_view: std::ptr::null_mut(),
-            cheats_tab_btn: std::ptr::null_mut(),
-            cheats_scroll_view: std::ptr::null_mut(),
-            cheats_warning: std::ptr::null_mut(),
+            tabs: vec![],
             tab: 0,
             cheat_scroll_point: CGPoint { x: 0.0, y: 0.0 },
-        }
-    }
-
-    fn get_views_for_tab(&mut self, tab: u8) -> Vec<*mut Object> {
-        if tab == 0 {
-            // Scripts
-            vec![self.scripts_scroll_view]
-        } else {
-            // Cheats
-            vec![self.cheats_warning, self.cheats_scroll_view]
         }
     }
 
@@ -300,8 +282,8 @@ impl Menu {
             let base: *mut Object = msg_send![class!(UIView), alloc];
             let base: *mut Object = msg_send![base, initWithFrame: CGRect {
                 origin: CGPoint {
-                    x: 0.0,//((self.width * 1.25) * 0.1),
-                    y: 0.0,//((self.height * 1.25) * 0.1),
+                    x: 0.0,
+                    y: 0.0,
                 },
                 size: CGSize {
                     width: self.width,
@@ -324,19 +306,24 @@ impl Menu {
 
             let window_height = self.height / 0.9;
 
-            let close: *mut Object = create_label(CGRect {
-                origin: CGPoint {
-                    x: 0.0,
-                    y: self.height,
+            let close: *mut Object = create_label(
+                CGRect {
+                    origin: CGPoint {
+                        x: 0.0,
+                        y: self.height,
+                    },
+                    size: CGSize {
+                        width: self.width,
+                        height: window_height * 0.1,
+                    },
                 },
-                size: CGSize {
-                    width: self.width,
-                    height: window_height * 0.1,
-                },
-            }, "Close", font, text_colour, 1);
+                "Close",
+                font,
+                text_colour,
+                1,
+            );
 
-            let background_colour: *const Object = 
-                msg_send![class!(UIColor), colorWithRed: 255.0 / 255.0 green: 40.0 / 255.0 blue: 46.0 / 255.0 alpha: 0.3];
+            let background_colour: *const Object = msg_send![class!(UIColor), colorWithRed: 255.0 / 255.0 green: 40.0 / 255.0 blue: 46.0 / 255.0 alpha: 0.3];
             let _: () = msg_send![close, setBackgroundColor: background_colour];
 
             // If we disable user interaction, touches can pass through to the game view and the menu will close.
@@ -347,20 +334,20 @@ impl Menu {
     }
 
     /// Create a tab button (used to allow the user to select the scripts view or the cheats view).
-    fn create_single_tab_button(&self, text: &str, is_right: bool) -> *mut Object {
+    fn create_single_tab_button(&self, text: &str, is_selected: bool, index: u8) -> *mut Object {
         unsafe {
             let frame = CGRect {
                 origin: CGPoint {
-                    x: if is_right { self.width * 0.5 } else { 0.0 },
+                    x: self.width / 3.0 * index as f64,
                     y: 0.0,
                 },
                 size: CGSize {
-                    width: (self.width * 0.5),
-                    height: (self.height * 0.2),
+                    width: self.width / 3.0,
+                    height: self.height * 0.2,
                 },
             };
 
-            let (text_colour, background_colour) = if (self.tab == 0) != is_right {
+            let (text_colour, background_colour) = if is_selected {
                 let background_colour: *const Object =
                     msg_send![class!(UIColor), colorWithWhite: 0.0 alpha: 0.95];
                 let text_colour: *const Object = msg_send![class!(UIColor), whiteColor];
@@ -381,7 +368,7 @@ impl Menu {
             let button: *mut Object = msg_send![button, initWithFrame: frame];
 
             let tag = ButtonTag {
-                index: if is_right { 1 } else { 0 },
+                index: index as u32,
                 is_tab_button: true,
                 is_cheat_button: false,
                 _unused: [0; 2],
@@ -405,8 +392,18 @@ impl Menu {
     }
 
     fn create_tab_buttons(&mut self) {
-        self.scripts_tab_btn = self.create_single_tab_button("Scripts", false);
-        self.cheats_tab_btn = self.create_single_tab_button("Cheats", true);
+        self.tabs.push(Tab {
+            tab_button: self.create_single_tab_button("Scripts", true, 0),
+            views: vec![],
+        });
+        self.tabs.push(Tab {
+            tab_button: self.create_single_tab_button("Cheats", false, 1),
+            views: vec![],
+        });
+        self.tabs.push(Tab {
+            tab_button: self.create_single_tab_button("Settings", false, 2),
+            views: vec![],
+        });
     }
 
     fn create_single_scroll_view(
@@ -652,28 +649,31 @@ impl Menu {
             .filter(|s| s.injected)
             .collect();
 
-        self.scripts_scroll_view =
+        let scroll_view =
             self.create_single_scroll_view(0.0, self.height * 0.15, injected_scripts.len());
+        self.tabs[0].views.push(scroll_view);
 
         for (index, item) in injected_scripts.iter().enumerate() {
             let button = self.create_single_script_button(index, item, self.height * 0.15);
 
             unsafe {
-                let _: () = msg_send![self.scripts_scroll_view, addSubview: button];
+                let _: () = msg_send![self.tabs[0].views[0], addSubview: button];
                 let _: () = msg_send![button, release];
             }
         }
 
-        self.cheats_scroll_view = self.create_single_scroll_view(
+        let scroll_view = self.create_single_scroll_view(
             self.height * 0.1,
             self.height * 0.25,
             cheats::CHEATS.len(),
         );
 
+        self.tabs[1].views.push(scroll_view);
+
         // There are a lot of cheats, so we save how far the user has scrolled so they don't have to
         //  go back to the same point every time.
         unsafe {
-            let _: () = msg_send![self.cheats_scroll_view, setContentOffset: self.cheat_scroll_point animated: false];
+            let _: () = msg_send![self.tabs[1].views[0], setContentOffset: self.cheat_scroll_point animated: false];
         }
 
         let font: *mut Object = unsafe {
@@ -694,7 +694,7 @@ impl Menu {
                 },
             },
             r#"Cheats may break your save. It is strongly advised that you save to a different slot before using any cheats.
-Additionally, some cheats (especially those without codes) may crash your game in some situations."#,
+Additionally, some – especially those without codes – can crash the game in some situations."#,
             font,
             colour,
             1,
@@ -703,8 +703,8 @@ Additionally, some cheats (especially those without codes) may crash your game i
         unsafe {
             let _: () = msg_send![warning_label, setNumberOfLines: 2i64];
 
-            self.cheats_warning = msg_send![class!(UIView), alloc];
-            self.cheats_warning = msg_send![self.cheats_warning, initWithFrame:CGRect {
+            let cheats_warning: *mut Object = msg_send![class!(UIView), alloc];
+            let cheats_warning: *mut Object = msg_send![cheats_warning, initWithFrame:CGRect {
                 origin: CGPoint {
                     x: 0.0,
                     y: self.height * 0.2,
@@ -717,37 +717,26 @@ Additionally, some cheats (especially those without codes) may crash your game i
 
             let background: *const Object =
                 msg_send![class!(UIColor), colorWithWhite: 0.0 alpha: 0.95];
-            let _: () = msg_send![self.cheats_warning, setBackgroundColor: background];
+            let _: () = msg_send![cheats_warning, setBackgroundColor: background];
 
-            let _: () = msg_send![self.cheats_warning, addSubview: warning_label];
+            let _: () = msg_send![cheats_warning, addSubview: warning_label];
             let _: () = msg_send![warning_label, release];
+
+            self.tabs[1].views.push(cheats_warning);
         }
 
         for cheat in cheats::CHEATS.iter() {
             let button = self.create_single_cheat_button(cheat, self.height * 0.25);
 
             unsafe {
-                let _: () = msg_send![self.cheats_scroll_view, addSubview: button];
+                let _: () = msg_send![self.tabs[1].views[0], addSubview: button];
                 let _: () = msg_send![button, release];
             }
         }
     }
 
-    fn switch_to_tab(&mut self, tab: u8) {
-        self.tab = tab;
-
-        unsafe {
-            for view in self
-                .get_views_for_tab(if self.tab == 0 { 1 } else { 0 })
-                .iter()
-            {
-                let _: () = msg_send![*view, setHidden: true];
-            }
-
-            for view in self.get_views_for_tab(self.tab).iter() {
-                let _: () = msg_send![*view, setHidden: false];
-            }
-        }
+    fn switch_to_tab(&mut self, tab_index: u8) {
+        self.tab = tab_index;
 
         unsafe {
             let selected_background: *const Object =
@@ -758,16 +747,21 @@ Additionally, some cheats (especially those without codes) may crash your game i
             let inactive_foreground: *const Object =
                 msg_send![class!(UIColor), colorWithWhite: 0.7 alpha: 1.0];
 
-            let (selected, inactive) = if self.tab == 0 {
-                (self.scripts_tab_btn, self.cheats_tab_btn)
-            } else {
-                (self.cheats_tab_btn, self.scripts_tab_btn)
-            };
+            for (i, tab) in self.tabs.iter().enumerate() {
+                let is_this_tab = i == tab_index as usize;
 
-            let _: () = msg_send![selected, setBackgroundColor: selected_background];
-            let _: () = msg_send![inactive, setBackgroundColor: inactive_background];
-            let _: () = msg_send![selected, setTitleColor: selected_foreground forState: 0u64];
-            let _: () = msg_send![inactive, setTitleColor: inactive_foreground forState: 0u64];
+                for view in tab.views.iter() {
+                    let _: () = msg_send![*view, setHidden: !is_this_tab];
+                }
+
+                if is_this_tab {
+                    let _: () = msg_send![tab.tab_button, setBackgroundColor: selected_background];
+                    let _: () = msg_send![tab.tab_button, setTitleColor: selected_foreground forState: 0u64];
+                } else {
+                    let _: () = msg_send![tab.tab_button, setBackgroundColor: inactive_background];
+                    let _: () = msg_send![tab.tab_button, setTitleColor: inactive_foreground forState: 0u64];
+                }
+            }
         }
     }
 
@@ -777,16 +771,19 @@ Additionally, some cheats (especially those without codes) may crash your game i
         self.create_tab_buttons();
 
         unsafe {
-            let _: () = msg_send![self.base_view, addSubview: self.scripts_tab_btn];
-            let _: () = msg_send![self.base_view, addSubview: self.cheats_tab_btn];
+            for tab in self.tabs.iter() {
+                let _: () = msg_send![self.base_view, addSubview: tab.tab_button];
+            }
         }
 
         self.create_scroll_views();
 
         unsafe {
-            let _: () = msg_send![self.base_view, addSubview: self.scripts_scroll_view];
-            let _: () = msg_send![self.base_view, addSubview: self.cheats_warning];
-            let _: () = msg_send![self.base_view, addSubview: self.cheats_scroll_view];
+            for tab in self.tabs.iter() {
+                for view in tab.views.iter() {
+                    let _: () = msg_send![self.base_view, addSubview: *view];
+                }
+            }
 
             self.switch_to_tab(self.tab);
 
@@ -822,19 +819,24 @@ Additionally, some cheats (especially those without codes) may crash your game i
 
         unsafe {
             // Save the cheat scroll distance.
-            self.cheat_scroll_point = msg_send![self.cheats_scroll_view, contentOffset];
+            self.cheat_scroll_point = msg_send![self.tabs[1].views[0], contentOffset];
 
             let _: () = msg_send![self.base_view, removeFromSuperview];
             let _: () = msg_send![self.close_view, removeFromSuperview];
 
             let _: () = msg_send![self.close_view, release];
 
-            let _: () = msg_send![self.scripts_tab_btn, release];
-            let _: () = msg_send![self.cheats_tab_btn, release];
-            let _: () = msg_send![self.scripts_scroll_view, release];
-            let _: () = msg_send![self.cheats_warning, release];
-            let _: () = msg_send![self.cheats_scroll_view, release];
-            let _: () = msg_send![self.base_view, release];
+            for tab in self.tabs.iter() {
+                for view in tab.views.iter() {
+                    let _: () = msg_send![*view, removeFromSuperview];
+                    let _: () = msg_send![*view, release];
+                }
+
+                let _: () = msg_send![tab.tab_button, removeFromSuperview];
+                let _: () = msg_send![tab.tab_button, release];
+            }
+
+            self.tabs.clear();
         }
 
         self.base_view = std::ptr::null_mut();
