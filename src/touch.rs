@@ -3,7 +3,7 @@ use crate::{call_original, targets};
 use cached::proc_macro::cached;
 use lazy_static::lazy_static;
 use log::error;
-use log::{trace, warn};
+use log::warn;
 use objc::{runtime::Object, *};
 use std::sync::Mutex;
 
@@ -157,13 +157,17 @@ fn process_touch(x: f32, y: f32, timestamp: f64, force: f32, touch_type: TouchTy
                     if let Some(close_index) = find_closest_index(&touches[..], x, y) {
                         let (x1, y1, initial_timestamp) = touches[close_index].0;
 
-                        if is_menu_swipe(x1, y1, initial_timestamp, x, y, timestamp) {
-                            trace!("Menu swipe");
-
-                            crate::gui::show_menu();
-                        }
-
+                        let is_menu = is_menu_swipe(x1, y1, initial_timestamp, x, y, timestamp);
                         touches.remove(close_index);
+
+                        if is_menu {
+                            if !touches.is_empty() {
+                                log::info!("Ignoring menu swipe because there are other touches.");
+                            } else {
+                                log::info!("Detected valid menu swipe.");
+                                crate::gui::show_menu();
+                            }
+                        }
                     } else {
                         error!("Unable to find touch to release!");
                     }

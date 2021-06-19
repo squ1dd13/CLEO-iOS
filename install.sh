@@ -2,7 +2,8 @@
 if [[ $* == *--release* ]]; then
     # Make sure the version numbers are correct.
     printf "Please ensure that the version numbers in ./deb/control and Cargo.toml are correct.\n"
-    read -p "Press enter to continue."
+    printf '%s ' "Press enter to continue."
+    read _
 
     printf "=> Compiling Rust code (release)...\n"
     cargo lipo --release --allow-run-on-non-macos || exit 1
