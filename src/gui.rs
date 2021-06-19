@@ -243,6 +243,8 @@ struct Menu {
 
     base_view: *mut Object,
 
+    close_view: *mut Object,
+
     scripts_tab_btn: *mut Object,
     scripts_scroll_view: *mut Object,
 
@@ -262,8 +264,8 @@ impl Menu {
             let window_bounds: CGRect = msg_send![window, bounds];
 
             (
-                window_bounds.size.width * 0.8,
-                window_bounds.size.height * 0.8,
+                window_bounds.size.width,
+                window_bounds.size.height * 0.9,
             )
         };
 
@@ -271,6 +273,7 @@ impl Menu {
             width,
             height,
             base_view: std::ptr::null_mut(),
+            close_view: std::ptr::null_mut(),
             scripts_tab_btn: std::ptr::null_mut(),
             scripts_scroll_view: std::ptr::null_mut(),
             cheats_tab_btn: std::ptr::null_mut(),
@@ -297,8 +300,8 @@ impl Menu {
             let base: *mut Object = msg_send![class!(UIView), alloc];
             let base: *mut Object = msg_send![base, initWithFrame: CGRect {
                 origin: CGPoint {
-                    x: ((self.width * 1.25) * 0.1),
-                    y: ((self.height * 1.25) * 0.1),
+                    x: 0.0,//((self.width * 1.25) * 0.1),
+                    y: 0.0,//((self.height * 1.25) * 0.1),
                 },
                 size: CGSize {
                     width: self.width,
@@ -310,6 +313,36 @@ impl Menu {
             let _: () = msg_send![base, setBackgroundColor: background_colour];
 
             self.base_view = base;
+        }
+    }
+
+    /// Create the "Close" button at the bottom of the menu.
+    fn create_close_button(&mut self) {
+        unsafe {
+            let font: *const Object = msg_send![class!(UIFont), fontWithName: create_ns_string("PricedownGTAVInt") size: 30.0];
+            let text_colour: *const Object = msg_send![class!(UIColor), whiteColor];
+
+            let window_height = self.height / 0.9;
+
+            let close: *mut Object = create_label(CGRect {
+                origin: CGPoint {
+                    x: 0.0,
+                    y: self.height,
+                },
+                size: CGSize {
+                    width: self.width,
+                    height: window_height * 0.1,
+                },
+            }, "Close", font, text_colour, 1);
+
+            let background_colour: *const Object = 
+                msg_send![class!(UIColor), colorWithRed: 255.0 / 255.0 green: 40.0 / 255.0 blue: 46.0 / 255.0 alpha: 0.3];
+            let _: () = msg_send![close, setBackgroundColor: background_colour];
+
+            // If we disable user interaction, touches can pass through to the game view and the menu will close.
+            let _: () = msg_send![close, setUserInteractionEnabled: false];
+
+            self.close_view = close;
         }
     }
 
@@ -740,6 +773,7 @@ Additionally, some cheats (especially those without codes) may crash your game i
 
     fn create_layout(&mut self) {
         self.create_base_view();
+        self.create_close_button();
         self.create_tab_buttons();
 
         unsafe {
@@ -760,6 +794,7 @@ Additionally, some cheats (especially those without codes) may crash your game i
             let window: *mut Object = msg_send![app, keyWindow];
 
             let _: () = msg_send![window, addSubview: self.base_view];
+            let _: () = msg_send![window, addSubview: self.close_view];
         }
     }
 
@@ -790,6 +825,9 @@ Additionally, some cheats (especially those without codes) may crash your game i
             self.cheat_scroll_point = msg_send![self.cheats_scroll_view, contentOffset];
 
             let _: () = msg_send![self.base_view, removeFromSuperview];
+            let _: () = msg_send![self.close_view, removeFromSuperview];
+
+            let _: () = msg_send![self.close_view, release];
 
             let _: () = msg_send![self.scripts_tab_btn, release];
             let _: () = msg_send![self.cheats_tab_btn, release];
