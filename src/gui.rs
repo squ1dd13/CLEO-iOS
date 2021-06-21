@@ -233,7 +233,8 @@ struct ButtonTag {
     index: u32,
     is_tab_button: bool,
     is_cheat_button: bool,
-    _unused: [u8; 2],
+    is_setting_button: bool,
+    _unused: u8,
 }
 
 struct Tab {
@@ -371,7 +372,8 @@ impl Menu {
                 index: index as u32,
                 is_tab_button: true,
                 is_cheat_button: false,
-                _unused: [0; 2],
+                is_setting_button: false,
+                _unused: 0,
             };
 
             let _: () = msg_send![button, setTag: tag];
@@ -469,7 +471,8 @@ impl Menu {
                 index: index as u32,
                 is_tab_button: false,
                 is_cheat_button: false,
-                _unused: [0; 2],
+                is_setting_button: false,
+                _unused: 0,
             };
 
             if std::mem::size_of_val(&tag) != 8 {
@@ -523,10 +526,18 @@ impl Menu {
         }
     }
 
-    fn create_single_cheat_button(&self, cheat: &cheats::Cheat, height: f64) -> *mut Object {
+    fn create_bigger_button(
+        &self,
+        index: usize,
+        title: &str,
+        description: &str,
+        value: bool,
+        enabled_str: &str,
+        disabled_str: &str,
+        height: f64,
+        tag: ButtonTag,
+    ) -> *mut Object {
         unsafe {
-            let index = cheat.index as usize;
-
             let button: *mut Object = msg_send![class!(UIButton), alloc];
             let button: *mut Object = msg_send![button, initWithFrame: CGRect {
                 origin: CGPoint {
@@ -544,13 +555,6 @@ impl Menu {
 
             let _: () = msg_send![button_label, setFont: font];
 
-            let tag = ButtonTag {
-                index: index as u32,
-                is_tab_button: false,
-                is_cheat_button: true,
-                _unused: [0; 2],
-            };
-
             if std::mem::size_of_val(&tag) != 8 {
                 panic!("Size of tag structure must be 8 bytes!");
             }
@@ -558,11 +562,7 @@ impl Menu {
             let _: () = msg_send![button, setTag: tag];
             let _: () = msg_send![button, setContentHorizontalAlignment: 1 as c_long];
 
-            let title = create_ns_string(if cheat.code.is_empty() {
-                "<No code>"
-            } else {
-                cheat.code
-            });
+            let title = create_ns_string(title);
 
             let _: () =
                 msg_send![button, setTitle: title forState: /* UIControlStateNormal */ 0 as c_long];
@@ -586,7 +586,7 @@ impl Menu {
             let _: () = msg_send![button, addTarget: class!(IOSReachability) action: sel!(reachabilityWithHostName:) forControlEvents: /* UIControlEventTouchUpInside */ (1 << 6) as c_long];
 
             // If we need a red in the future, that's 255, 40, 46.
-            let text_colour: *const Object = if cheat.is_active() {
+            let text_colour: *const Object = if value {
                 msg_send![class!(UIColor), colorWithRed: 78.0 / 255.0 green: 149.0 / 255.0 blue: 64.0 / 255.0 alpha: 1.0]
             } else {
                 msg_send![class!(UIColor), whiteColor]
@@ -602,11 +602,7 @@ impl Menu {
                         height: height * 0.6,
                     },
                 },
-                if cheat.is_active() {
-                    "Active"
-                } else {
-                    "Inactive"
-                },
+                if value { enabled_str } else { disabled_str },
                 font,
                 text_colour,
                 2,
@@ -628,7 +624,7 @@ impl Menu {
                         height: height * 0.4,
                     },
                 },
-                cheat.description,
+                description,
                 font,
                 msg_send![class!(UIColor), whiteColor],
                 0,
@@ -641,6 +637,53 @@ impl Menu {
 
             button
         }
+    }
+
+    fn create_single_cheat_button(&self, cheat: &cheats::Cheat, height: f64) -> *mut Object {
+        self.create_bigger_button(
+            cheat.index as usize,
+            if cheat.code.is_empty() {
+                "<No code>"
+            } else {
+                cheat.code
+            },
+            cheat.description,
+            cheat.is_active(),
+            "Active",
+            "Inactive",
+            height,
+            ButtonTag {
+                index: cheat.index as u32,
+                is_tab_button: false,
+                is_cheat_button: true,
+                is_setting_button: false,
+                _unused: 0,
+            },
+        )
+    }
+
+    fn create_single_setting_button(
+        &self,
+        index: usize,
+        option: &crate::settings::OptionInfo,
+        height: f64,
+    ) -> *mut Object {
+        self.create_bigger_button(
+            index,
+            option.title,
+            option.description,
+            option.value,
+            "On",
+            "Off",
+            height,
+            ButtonTag {
+                index: index as u32,
+                is_tab_button: false,
+                is_cheat_button: false,
+                is_setting_button: true,
+                _unused: 0,
+            },
+        )
     }
 
     fn create_scroll_views(&mut self) {
@@ -733,6 +776,22 @@ Additionally, some – especially those without codes – can crash the game in 
                 let _: () = msg_send![button, release];
             }
         }
+
+        crate::settings::with_shared(&mut |options| {
+            let scroll_view =
+                self.create_single_scroll_view(0.0, self.height * 0.15, options.len());
+
+            self.tabs[2].views.push(scroll_view);
+
+            for (i, option) in options.iter().enumerate() {
+                let button = self.create_single_setting_button(i, option, self.height * 0.25);
+
+                unsafe {
+                    let _: () = msg_send![self.tabs[2].views[0], addSubview: button];
+                    let _: () = msg_send![button, release];
+                }
+            }
+        });
     }
 
     fn switch_to_tab(&mut self, tab_index: u8) {
@@ -885,6 +944,12 @@ fn reachability_with_hostname(
                 cheats::CHEATS[tag.index as usize].queue();
 
                 hide_menu();
+            } else if tag.is_setting_button {
+                trace!("Setting button pressed.");
+
+                crate::settings::with_shared(&mut |options| {
+                    options[tag.index as usize].value = !options[tag.index as usize].value;
+                });
             } else {
                 if let Some(script) = scripts::loaded_scripts()
                     .iter_mut()

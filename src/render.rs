@@ -4,17 +4,19 @@ use crate::{call_original, hook, targets};
 //  so if we overwrite the limit here, our new value will be enforced.
 fn cycles_per_millisecond() -> u32 {
     unsafe {
-        *hook::slide::<*mut u32>(0x1008f07b8) = 60;
+        crate::settings::with_shared(&mut |options| {
+            *hook::slide::<*mut u32>(0x1008f07b8) = if options[0].value { 60 } else { 30 };
+        });
     }
 
     call_original!(targets::cycles_per_millisecond)
 }
 
 fn idle(p1: u64, p2: u64) {
-    const SHOW_FPS: bool = false;
-
     unsafe {
-        *hook::slide::<*mut bool>(0x10081c519) = SHOW_FPS;
+        crate::settings::with_shared(&mut |options| {
+            *hook::slide::<*mut bool>(0x10081c519) = options[1].value;
+        });
     }
 
     call_original!(targets::idle, p1, p2);

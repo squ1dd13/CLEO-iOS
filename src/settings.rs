@@ -1,26 +1,37 @@
 use std::sync::Mutex;
 
-pub struct Settings {
-    pub sixty_fps: bool,
-    pub show_fps: bool,
+pub struct OptionInfo {
+    pub title: &'static str,
+    pub description: &'static str,
+    pub value: bool,
 }
 
-impl Settings {
-    fn default() -> Settings {
-        Settings {
-            sixty_fps: true,
-            show_fps: false,
+impl OptionInfo {
+    const fn new(title: &'static str, description: &'static str, value: bool) -> OptionInfo {
+        OptionInfo {
+            title,
+            description,
+            value,
         }
     }
 }
 
-/// Obtain a mutable reference to the shared settings struct and call a function,
-/// passing the mutable reference as an argument.
-pub fn with_shared<T>(with: fn(&mut Settings) -> T) -> T {
+pub fn with_shared<T>(with: &mut impl FnMut(&mut [OptionInfo]) -> T) -> T {
     let mut locked = SETTINGS.lock();
     with(locked.as_mut().unwrap())
 }
 
 lazy_static::lazy_static! {
-    static ref SETTINGS: Mutex<Settings> = Mutex::new(Settings::default());
+    static ref SETTINGS: Mutex<Vec<OptionInfo>> = Mutex::new(vec![
+        OptionInfo::new(
+            "60 FPS",
+            "Increase the framerate limit from 30 to 60 FPS.",
+            true,
+        ),
+        OptionInfo::new(
+            "Show FPS",
+            "Enable the game's built-in FPS visualisation.",
+            false,
+        ),
+    ]);
 }
