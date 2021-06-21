@@ -20,7 +20,31 @@ fn idle(p1: u64, p2: u64) {
     call_original!(targets::idle, p1, p2);
 }
 
+fn write_fragment_shader(mask: u32) {
+    call_original!(crate::targets::write_fragment_shader, mask);
+
+    let real_address = crate::hook::slide::<*mut u8>(0x100934e68);
+
+    unsafe {
+        let shader = std::ffi::CStr::from_ptr(real_address.cast())
+            .to_str()
+            .unwrap_or("unable to get value")
+            .to_string();
+
+        // Shader changes can be made here by replacing lines. (If CLEO ever does include
+        //  any real ability for shader modding, it will be more refined than this.)
+
+        let c_string = std::ffi::CString::new(shader).expect("CString::new failed");
+        let bytes = c_string.as_bytes_with_nul();
+
+        for i in 0..bytes.len() {
+            real_address.offset(i as isize).write(bytes[i]);
+        }
+    }
+}
+
 pub fn hook() {
     targets::idle::install(idle);
     targets::cycles_per_millisecond::install(cycles_per_millisecond);
+    targets::write_fragment_shader::install(write_fragment_shader);
 }

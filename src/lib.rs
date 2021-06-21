@@ -12,6 +12,7 @@ mod hook;
 mod loader;
 mod render;
 mod scripts;
+mod settings;
 mod text;
 mod touch;
 mod udp;
@@ -70,6 +71,8 @@ mod targets {
     );
 
     create_soft_target!(init_for_title, 0x100339b44, fn(*mut u8));
+
+    create_soft_target!(write_fragment_shader, 0x100137528, fn(u32));
 }
 
 // fixme: We need a mutex here.

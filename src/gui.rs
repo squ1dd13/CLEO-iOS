@@ -848,7 +848,7 @@ Additionally, some – especially those without codes – can crash the game in 
 /*
         This hook allows us to handle button presses by giving us a method with a rough
     signature match for a button handler. Normally, this method has nothing to do with
-    buttons: it is +[IOSReachability reachabilityWithHostName:(NSString *)], which creates
+    buttons. It is +[IOSReachability reachabilityWithHostName:(NSString *)], which creates
     an IOSReachability object.
 
         UIButton handlers are typically defined on objects created by the programmer.
@@ -859,7 +859,7 @@ Additionally, some – especially those without codes – can crash the game in 
     that has the signature we need. We can keep the original functionality of the method
     by checking the class of the parameter: if we have been given a hostname in the form
     of a UIButton, we know that this is actually a button press; otherwise, it probably
-    is a hostname.
+    /is/ a hostname.
 */
 fn reachability_with_hostname(
     this_class: *const Object,
