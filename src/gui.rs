@@ -206,6 +206,14 @@ pub fn show_menu() {
     }
 }
 
+pub fn reload_menu() {
+    unsafe {
+        if let Some(menu) = MENU.as_mut() {
+            menu.reload();
+        }
+    }
+}
+
 fn create_label(
     frame: CGRect,
     text: &str,
@@ -794,6 +802,11 @@ Additionally, some – especially those without codes – can crash the game in 
         });
     }
 
+    fn reload(&mut self) {
+        self.hide();
+        self.show();
+    }
+
     fn switch_to_tab(&mut self, tab_index: u8) {
         self.tab = tab_index;
 
@@ -943,13 +956,15 @@ fn reachability_with_hostname(
                 trace!("Cheat button pressed.");
                 cheats::CHEATS[tag.index as usize].queue();
 
-                hide_menu();
+                reload_menu();
             } else if tag.is_setting_button {
                 trace!("Setting button pressed.");
 
                 crate::settings::with_shared(&mut |options| {
                     options[tag.index as usize].value = !options[tag.index as usize].value;
                 });
+
+                reload_menu();
             } else {
                 if let Some(script) = scripts::loaded_scripts()
                     .iter_mut()
