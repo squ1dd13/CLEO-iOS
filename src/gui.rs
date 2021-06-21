@@ -262,6 +262,8 @@ struct Menu {
 
     tab: u8,
     cheat_scroll_point: CGPoint,
+
+    settings_changed: bool,
 }
 
 impl Menu {
@@ -282,6 +284,7 @@ impl Menu {
             tabs: vec![],
             tab: 0,
             cheat_scroll_point: CGPoint { x: 0.0, y: 0.0 },
+            settings_changed: false,
         }
     }
 
@@ -778,10 +781,6 @@ Additionally, some – especially those without codes – can crash the game in 
             }
         }
 
-        unsafe {
-            let _: () = msg_send![self.tabs[1].views[0], setContentOffset: self.cheat_scroll_point animated: false];
-        }
-
         for cheat in cheats::CHEATS.iter() {
             let button = self.create_single_cheat_button(cheat, self.height * 0.25);
 
@@ -791,15 +790,19 @@ Additionally, some – especially those without codes – can crash the game in 
             }
         }
 
+        unsafe {
+            let _: () = msg_send![self.tabs[1].views[0], setContentOffset: self.cheat_scroll_point animated: false];
+        }
+
         crate::settings::with_shared(&mut |options| {
             unsafe {
                 let _: () = msg_send![self.tabs[2].views[0], setContentSize: CGSize {
                     width: self.width,
-                    height: options.len() as f64 * self.height * 0.25,
+                    height: options.0.len() as f64 * self.height * 0.25,
                 }];
             }
 
-            for (i, option) in options.iter().enumerate() {
+            for (i, option) in options.0.iter().enumerate() {
                 let button = self.create_single_setting_button(i, option, self.height * 0.25);
 
                 unsafe {
@@ -813,7 +816,7 @@ Additionally, some – especially those without codes – can crash the game in 
     fn reload(&mut self) {
         // fixme: We should just update the individual buttons instead of reloading everything.
 
-        // Remove all subviews from the scroll views.
+        // Remove all subviews from the scroll views so we can add them again but with newer data.
         for tab in self.tabs.iter() {
             unsafe {
                 let subviews: *mut Object = msg_send![tab.views[0], subviews];
@@ -828,6 +831,12 @@ Additionally, some – especially those without codes – can crash the game in 
     }
 
     fn switch_to_tab(&mut self, tab_index: u8) {
+        // It's possible that the game crashes after the player launches a script, so we save
+        //  any changes to the settings when they change tab. This way, if they change from
+        //  the 'Settings' tab to the 'Scripts' tab, their settings are saved before they can
+        //  crash the game with a fucked up script.
+        self.save_settings_if_needed();
+
         self.tab = tab_index;
 
         unsafe {
@@ -888,6 +897,8 @@ Additionally, some – especially those without codes – can crash the game in 
     }
 
     fn show(&mut self) {
+        self.settings_changed = false;
+
         let game_state = unsafe { *crate::hook::slide::<*const u32>(0x1006806d0) };
 
         // If the game state is 9, it means we are in a game. If we aren't in a game,
@@ -904,10 +915,22 @@ Additionally, some – especially those without codes – can crash the game in 
         self.create_layout();
     }
 
+    fn save_settings_if_needed(&mut self) {
+        if self.settings_changed {
+            crate::settings::with_shared(&mut |options| {
+                options.save();
+            });
+
+            self.settings_changed = false;
+        }
+    }
+
     fn hide(&mut self) {
         if self.base_view.is_null() {
             return;
         }
+
+        self.save_settings_if_needed();
 
         unsafe {
             // Save the cheat scroll distance.
@@ -976,13 +999,17 @@ fn reachability_with_hostname(
                 trace!("Cheat button pressed.");
                 cheats::CHEATS[tag.index as usize].queue();
 
-                reload_menu();
+                hide_menu();
             } else if tag.is_setting_button {
                 trace!("Setting button pressed.");
 
                 crate::settings::with_shared(&mut |options| {
-                    options[tag.index as usize].value = !options[tag.index as usize].value;
+                    options.0[tag.index as usize].value = !options.0[tag.index as usize].value;
                 });
+
+                if let Some(menu) = MENU.as_mut() {
+                    menu.settings_changed = true;
+                }
 
                 reload_menu();
             } else {

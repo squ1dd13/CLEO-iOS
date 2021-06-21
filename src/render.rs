@@ -1,11 +1,15 @@
-use crate::{call_original, hook, targets};
+use crate::{call_original, hook, settings, targets};
 
 // CTimer::GetCyclesPerMillisecond is called between the FPS limit being set and when it is enforced,
 //  so if we overwrite the limit here, our new value will be enforced.
 fn cycles_per_millisecond() -> u32 {
     unsafe {
-        crate::settings::with_shared(&mut |options| {
-            *hook::slide::<*mut u32>(0x1008f07b8) = if options[0].value { 60 } else { 30 };
+        settings::with_shared(&mut |options| {
+            *hook::slide::<*mut u32>(0x1008f07b8) = if options.get(settings::Key::SixtyFPS).value {
+                60
+            } else {
+                30
+            };
         });
     }
 
@@ -14,8 +18,8 @@ fn cycles_per_millisecond() -> u32 {
 
 fn idle(p1: u64, p2: u64) {
     unsafe {
-        crate::settings::with_shared(&mut |options| {
-            *hook::slide::<*mut bool>(0x10081c519) = options[1].value;
+        settings::with_shared(&mut |options| {
+            *hook::slide::<*mut bool>(0x10081c519) = options.get(settings::Key::ShowFPS).value;
         });
     }
 
