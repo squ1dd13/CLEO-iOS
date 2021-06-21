@@ -442,10 +442,6 @@ impl Menu {
             let _: () = msg_send![scroll_view, setBounces: false];
             let _: () = msg_send![scroll_view, setShowsHorizontalScrollIndicator: false];
             let _: () = msg_send![scroll_view, setShowsVerticalScrollIndicator: false];
-            let _: () = msg_send![scroll_view, setContentSize: CGSize {
-                width: self.width,
-                height: item_count as f64 * item_height,
-            }];
 
             scroll_view
         }
@@ -704,15 +700,6 @@ impl Menu {
             self.create_single_scroll_view(0.0, self.height * 0.15, injected_scripts.len());
         self.tabs[0].views.push(scroll_view);
 
-        for (index, item) in injected_scripts.iter().enumerate() {
-            let button = self.create_single_script_button(index, item, self.height * 0.15);
-
-            unsafe {
-                let _: () = msg_send![self.tabs[0].views[0], addSubview: button];
-                let _: () = msg_send![button, release];
-            }
-        }
-
         let scroll_view = self.create_single_scroll_view(
             self.height * 0.1,
             self.height * 0.25,
@@ -720,12 +707,6 @@ impl Menu {
         );
 
         self.tabs[1].views.push(scroll_view);
-
-        // There are a lot of cheats, so we save how far the user has scrolled so they don't have to
-        //  go back to the same point every time.
-        unsafe {
-            let _: () = msg_send![self.tabs[1].views[0], setContentOffset: self.cheat_scroll_point animated: false];
-        }
 
         let font: *mut Object = unsafe {
             msg_send![class!(UIFont), fontWithName: create_ns_string("Helvetica-Bold") size: 25.0]
@@ -776,6 +757,53 @@ Additionally, some – especially those without codes – can crash the game in 
             self.tabs[1].views.push(cheats_warning);
         }
 
+        let scroll_view = self.create_single_scroll_view(
+            0.0,
+            self.height * 0.25,
+            0,
+        );
+
+        self.tabs[2].views.push(scroll_view);
+
+
+        self.populate_scroll_views();
+    }
+
+    fn populate_scroll_views(&mut self) {
+        let injected_scripts: Vec<&'static mut scripts::Script> = scripts::loaded_scripts()
+            .iter_mut()
+            .filter(|s| s.injected)
+            .collect();
+
+        unsafe {
+            let _: () = msg_send![self.tabs[0].views[0], setContentSize: CGSize {
+                width: self.width,
+                height: injected_scripts.len() as f64 * self.height * 0.15,
+            }];
+
+            let _: () = msg_send![self.tabs[1].views[0], setContentSize: CGSize {
+                width: self.width,
+                height: cheats::CHEATS.len() as f64 * self.height * 0.25,
+            }];
+
+            // There are a lot of cheats, so we save how far the user has scrolled so they don't have to
+            //  go back to the same point every time.
+            let _: () = msg_send![self.tabs[1].views[0], setContentOffset: self.cheat_scroll_point animated: false];
+        }
+
+        for (index, item) in injected_scripts.iter().enumerate() {
+            let button = self.create_single_script_button(index, item, self.height * 0.15);
+
+            unsafe {
+                let _: () = msg_send![self.tabs[0].views[0], addSubview: button];
+                let _: () = msg_send![button, release];
+            }
+        }
+
+        unsafe {
+            let _: () = msg_send![self.tabs[1].views[0], setContentOffset: self.cheat_scroll_point animated: false];
+        }
+
         for cheat in cheats::CHEATS.iter() {
             let button = self.create_single_cheat_button(cheat, self.height * 0.25);
 
@@ -786,10 +814,12 @@ Additionally, some – especially those without codes – can crash the game in 
         }
 
         crate::settings::with_shared(&mut |options| {
-            let scroll_view =
-                self.create_single_scroll_view(0.0, self.height * 0.15, options.len());
-
-            self.tabs[2].views.push(scroll_view);
+            unsafe {
+                let _: () = msg_send![self.tabs[2].views[0], setContentSize: CGSize {
+                    width: self.width,
+                    height: options.len() as f64 * self.height * 0.25,
+                }];
+            }
 
             for (i, option) in options.iter().enumerate() {
                 let button = self.create_single_setting_button(i, option, self.height * 0.25);
@@ -803,8 +833,20 @@ Additionally, some – especially those without codes – can crash the game in 
     }
 
     fn reload(&mut self) {
-        self.hide();
-        self.show();
+        // fixme: We should just update the individual buttons instead of reloading everything.
+
+        // Remove all subviews from the scroll views.
+        for tab in self.tabs.iter() {
+            unsafe {
+                let subviews: *mut Object = msg_send![tab.views[0], subviews];
+                let _: () = msg_send![
+                    subviews,
+                    makeObjectsPerformSelector: sel!(removeFromSuperview)
+                ];
+            }
+        }
+
+        self.populate_scroll_views();
     }
 
     fn switch_to_tab(&mut self, tab_index: u8) {
