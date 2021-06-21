@@ -26,6 +26,94 @@ fn idle(p1: u64, p2: u64) {
     call_original!(targets::idle, p1, p2);
 }
 
+#[repr(C)]
+struct RGBA {
+    red: u8,
+    green: u8,
+    blue: u8,
+    alpha: u8,
+}
+
+fn display_fps() {
+    let delta_time = crate::hook::slide::<fn() -> u32>(0x1004e8c70)();
+    let current_delta = crate::hook::slide::<*mut isize>(0x1007baf00);
+    let new_delta_index = unsafe { *current_delta } % 40;
+
+    unsafe {
+        *current_delta += 1;
+    }
+
+    let delta_times: *mut u32 = crate::hook::slide(0x1007bae60);
+
+    unsafe {
+        delta_times
+            .offset(new_delta_index as isize)
+            .write(delta_time);
+    }
+
+    // eq: CFont::SetBackground(...)
+    crate::hook::slide::<fn(u8, u8)>(0x100381b94)(1, 0);
+
+    // eq: CFont::SetBackgroundColor(...)
+    crate::hook::slide::<fn(*const RGBA)>(0x100381ba8)(&RGBA {
+        red: 0,
+        green: 0,
+        blue: 0,
+        alpha: 180,
+    });
+
+    // eq: CFont::SetScale(...)
+    crate::hook::slide::<fn(f32)>(0x1003819e0)(1.12);
+
+    // eq: CFont::SetOrientation(...)
+    crate::hook::slide::<fn(u32)>(0x100381be4)(0);
+
+    // eq: CFont::SetJustify(...)
+    crate::hook::slide::<fn(u8)>(0x100381bd4)(0);
+
+    // eq: CFont::SetCentreSize(...)
+    crate::hook::slide::<fn(f32)>(0x100381ad0)(200.0);
+
+    // eq: CFont::SetProportional(...)
+    crate::hook::slide::<fn(u8)>(0x100381b84)(0);
+
+    // eq: CFont::SetFontStyle(...)
+    crate::hook::slide::<fn(u8)>(0x100381a20)(1);
+
+    // eq: CFont::SetEdge(...)
+    crate::hook::slide::<fn(u8)>(0x100381b58)(0);
+
+    // eq: CFont::SetColor(...)
+    crate::hook::slide::<fn(*const RGBA)>(0x100381824)(&RGBA {
+        red: 9,
+        green: 243,
+        blue: 11,
+        alpha: 255,
+    });
+
+    let fps = unsafe {
+        let delta_last_frame = *delta_times.offset((*current_delta - 1) % 40);
+        let delta_this_frame = *delta_times.offset(*current_delta % 40);
+        let delta = delta_last_frame - delta_this_frame;
+
+        39000.0 / delta as f32
+    };
+
+    // CFont::PrintString expects UTF16, so encode our FPS string as such.
+    let mut bytes: Vec<u16> = format!("FPS: {:.2}", fps).encode_utf16().collect();
+    bytes.push(0);
+
+    let (x, y) = unsafe {
+        let screen_wide = *crate::hook::slide::<*const i32>(0x1008f07b0);
+        let screen_high = *crate::hook::slide::<*const i32>(0x1008f07b4);
+
+        (screen_wide as f32 * 0.5, screen_high as f32 * 0.05)
+    };
+
+    // eq: CFont::PrintString(...)
+    crate::hook::slide::<fn(f32, f32, *const u16)>(0x1003809c8)(x, y, bytes.as_ptr());
+}
+
 fn write_fragment_shader(mask: u32) {
     call_original!(crate::targets::write_fragment_shader, mask);
 
@@ -53,4 +141,5 @@ pub fn hook() {
     targets::idle::install(idle);
     targets::cycles_per_millisecond::install(cycles_per_millisecond);
     targets::write_fragment_shader::install(write_fragment_shader);
+    targets::display_fps::install(display_fps);
 }
