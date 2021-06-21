@@ -416,12 +416,7 @@ impl Menu {
         });
     }
 
-    fn create_single_scroll_view(
-        &self,
-        top_inset: f64,
-        item_height: f64,
-        item_count: usize,
-    ) -> *mut Object {
+    fn create_single_scroll_view(&self, top_inset: f64) -> *mut Object {
         unsafe {
             let scroll_view: *mut Object = msg_send![class!(UIScrollView), alloc];
             let scroll_view: *mut Object = msg_send![scroll_view, initWithFrame: CGRect {
@@ -691,21 +686,10 @@ impl Menu {
     }
 
     fn create_scroll_views(&mut self) {
-        let injected_scripts: Vec<&'static mut scripts::Script> = scripts::loaded_scripts()
-            .iter_mut()
-            .filter(|s| s.injected)
-            .collect();
-
-        let scroll_view =
-            self.create_single_scroll_view(0.0, self.height * 0.15, injected_scripts.len());
+        let scroll_view = self.create_single_scroll_view(0.0);
         self.tabs[0].views.push(scroll_view);
 
-        let scroll_view = self.create_single_scroll_view(
-            self.height * 0.1,
-            self.height * 0.25,
-            cheats::CHEATS.len(),
-        );
-
+        let scroll_view = self.create_single_scroll_view(self.height * 0.1);
         self.tabs[1].views.push(scroll_view);
 
         let font: *mut Object = unsafe {
@@ -757,14 +741,8 @@ Additionally, some – especially those without codes – can crash the game in 
             self.tabs[1].views.push(cheats_warning);
         }
 
-        let scroll_view = self.create_single_scroll_view(
-            0.0,
-            self.height * 0.25,
-            0,
-        );
-
+        let scroll_view = self.create_single_scroll_view(0.0);
         self.tabs[2].views.push(scroll_view);
-
 
         self.populate_scroll_views();
     }
