@@ -65,5 +65,6 @@ be a part of [CLEO](http://cleo.li/).
 his Android-specific opcodes ([here](https://gtaforums.com/topic/663125-android-cleo-android/)).
 * [DK22Pac](https://github.com/DK22Pac) and all the others who have contributed to 
 [plugin-sdk](https://github.com/DK22Pac/plugin-sdk), which was very helpful for creating game structures.
+* oliver#1219 for gifting me GTA III and VC (amongst other games) to help research into getting CLEO working in those games too.
 * Members of the CLEO iOS [Discord server](https://discord.gg/cXwkTUasJU) for reporting bugs, helping investigate them and testing fixes.
 * The GTA modding community in general for doing so much of the research which made CLEO iOS possible.
