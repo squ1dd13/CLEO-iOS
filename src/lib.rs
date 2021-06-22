@@ -6,6 +6,7 @@ use objc::runtime::Sel;
 use std::os::raw::c_char;
 
 mod cheats;
+mod controller;
 mod files;
 mod gui;
 mod hook;
@@ -77,6 +78,8 @@ mod targets {
     create_soft_target!(load_settings, 0x1002ce8e4, fn(u64));
 
     create_hard_target!(display_fps, 0x100241cd8, fn());
+
+    create_soft_target!(update_pads, 0x100244908, fn());
 }
 
 // fixme: We need a mutex here.
@@ -96,6 +99,7 @@ fn install_hooks() {
     render::hook();
     scripts::hook();
     cheats::hook();
+    controller::hook();
 }
 
 #[ctor]
