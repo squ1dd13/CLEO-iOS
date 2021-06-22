@@ -41,6 +41,7 @@ lazy_static::lazy_static! {
     static ref CONTROLLER_STATE: Mutex<Option<ControllerState>> = Mutex::new(None);
 }
 
+#[allow(dead_code)]
 pub fn with_shared_state<T>(with: &mut impl FnMut(&Option<ControllerState>) -> T) -> T {
     let mut locked = CONTROLLER_STATE.lock();
     with(locked.as_mut().unwrap())
