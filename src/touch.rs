@@ -133,7 +133,7 @@ fn process_touch(x: f32, y: f32, timestamp: f64, force: f32, touch_type: TouchTy
 
     // If we have registered a touch, it means the user has touched outside the menu (because
     //  if they touch the menu, we don't get the event). This is a way of dismissing the menu.
-    crate::gui::hide_menu();
+    crate::gui::hide_menu_on_main_thread();
 
     /*
         Problem:  We don't know how each touch event is connected to ones we already know about.
@@ -165,6 +165,7 @@ fn process_touch(x: f32, y: f32, timestamp: f64, force: f32, touch_type: TouchTy
                                 log::info!("Ignoring menu swipe because there are other touches.");
                             } else {
                                 log::info!("Detected valid menu swipe.");
+
                                 crate::gui::show_menu();
                             }
                         }

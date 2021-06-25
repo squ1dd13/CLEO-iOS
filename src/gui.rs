@@ -1,10 +1,13 @@
 // fixme: This file is too long.
 
 use crate::{call_original, cheats, scripts, targets};
+use libc::c_ulong;
 use log::{error, trace};
 use objc::runtime::Sel;
 use objc::{runtime::Object, *};
 use std::os::raw::c_long;
+use std::sync::Arc;
+use std::sync::Mutex;
 
 #[repr(C)]
 #[derive(Clone, Copy)]
@@ -25,6 +28,14 @@ pub struct CGPoint {
 pub struct CGRect {
     pub origin: CGPoint,
     pub size: CGSize,
+}
+
+#[repr(C)]
+struct UIEdgeInsets {
+    top: f64,
+    left: f64,
+    bottom: f64,
+    right: f64,
 }
 
 pub fn create_ns_string(rust_string: &str) -> *const Object {
@@ -184,35 +195,39 @@ fn legal_splash_did_load(this: *mut Object, sel: Sel) {
     }
 }
 
-static mut MENU: Option<Menu> = None;
-
-pub fn hide_menu() {
-    unsafe {
-        // Remove the menu if it exists.
-        if let Some(menu) = MENU.as_mut() {
-            menu.hide();
-        }
-    }
+lazy_static::lazy_static! {
+    static ref MENU: Arc<Mutex<Option<Menu>>> = Arc::new(Mutex::new(None));
 }
 
-pub fn show_menu() {
-    if let Some(menu) = unsafe { MENU.as_mut() } {
-        menu.show();
-    } else {
-        unsafe {
-            MENU = Some(Menu::new());
-            MENU.as_mut().unwrap().show();
-        }
-    }
-}
+// static mut MENU: Option<Menu> = None;
 
-pub fn reload_menu() {
-    unsafe {
-        if let Some(menu) = MENU.as_mut() {
-            menu.reload();
-        }
-    }
-}
+// pub fn hide_menu() {
+//     unsafe {
+//         // Remove the menu if it exists.
+//         if let Some(menu) = MENU.as_mut() {
+//             menu.hide();
+//         }
+//     }
+// }
+
+// pub fn show_menu() {
+//     if let Some(menu) = unsafe { MENU.as_mut() } {
+//         menu.show();
+//     } else {
+//         unsafe {
+//             MENU = Some(Menu::new());
+//             MENU.as_mut().unwrap().show();
+//         }
+//     }
+// }
+
+// pub fn reload_menu() {
+//     unsafe {
+//         if let Some(menu) = MENU.as_mut() {
+//             menu.reload();
+//         }
+//     }
+// }
 
 fn create_label(
     frame: CGRect,
@@ -250,7 +265,7 @@ struct Tab {
     views: Vec<*mut Object>,
 }
 
-struct Menu {
+pub struct Menu {
     width: f64,
     height: f64,
 
@@ -264,7 +279,12 @@ struct Menu {
     cheat_scroll_point: CGPoint,
 
     settings_changed: bool,
+
+    controller_row: Option<usize>,
 }
+
+// We keep our Menu instances behind an Arc<Mutex>, so it is safe to pass it between threads.
+unsafe impl Send for Menu {}
 
 impl Menu {
     fn new() -> Menu {
@@ -285,7 +305,119 @@ impl Menu {
             tab: 0,
             cheat_scroll_point: CGPoint { x: 0.0, y: 0.0 },
             settings_changed: false,
+            controller_row: None,
         }
+    }
+
+    fn correct_row_number(number: isize, row_count: usize) -> usize {
+        let n = if number < 0 {
+            row_count - 1
+        } else if number as usize >= row_count {
+            0
+        } else {
+            number as usize
+        };
+
+        if n != number as usize {
+            log::trace!("correcting {} to {}", number, n);
+        }
+
+        n
+    }
+
+    fn move_selected_row(&mut self, delta: i8) {
+        let new_row = if let Some(current_row) = self.controller_row {
+            current_row as isize + delta as isize
+        } else {
+            delta as isize
+        };
+
+        self.set_selected_row(new_row);
+    }
+
+    fn set_selected_row(&mut self, new_row: isize) {
+        let tab = &mut self.tabs[self.tab as usize];
+
+        let new_row = unsafe {
+            let subviews: *mut Object = msg_send![tab.views[0], subviews];
+            let count: c_ulong = msg_send![subviews, count];
+            let count = count as usize;
+
+            let new_row = Self::correct_row_number(new_row, count as usize);
+
+            let clear: *const Object = msg_send![class!(UIColor), clearColor];
+            let background_colour: *const Object = msg_send![class!(UIColor), colorWithRed: 78.0 / 255.0 green: 149.0 / 255.0 blue: 64.0 / 255.0 alpha: 0.3];
+
+            for i in 0..count {
+                let row: *mut Object = msg_send![subviews, objectAtIndex: i];
+
+                let background = if i == new_row {
+                    let row_frame: CGRect = msg_send![row, frame];
+                    let row_height = row_frame.size.height;
+                    let top_offset_y = row_height * i as f64;
+                    let bottom_offset_y = row_height * (i + 1) as f64;
+
+                    let current_offset: CGPoint = msg_send![tab.views[0], contentOffset];
+
+                    let scroll_frame: CGRect = msg_send![tab.views[0], frame];
+                    let scroll_height = scroll_frame.size.height;
+
+                    let visible_top = current_offset.y;
+                    let visible_bottom = current_offset.y + scroll_height;
+
+                    let new_y = if top_offset_y.round() < visible_top.round() {
+                        log::trace!("top_offset_y < visible_top");
+                        top_offset_y
+                    } else if bottom_offset_y.round() > visible_bottom.round() {
+                        log::trace!("bottom_offset_y > visible_bottom");
+                        current_offset.y + (bottom_offset_y - visible_bottom)
+                    } else {
+                        current_offset.y
+                    };
+
+                    // let should_animate = (new_y - current_offset.y).abs() < 0.5 * row_height;
+
+                    // let new_y = if bottom_offset_y > (current_offset.y + row_height) {
+                    // top_offset_y
+                    // } else if top_offset_y > current_offset.y {
+                    // bottom_offset_y
+                    // } else {
+                    // top_offset_y
+                    // };
+
+                    static mut CURRENT_TARGET: f64 = 0.0;
+
+                    if CURRENT_TARGET.round() != new_y.round() {
+                        let required_offset = CGPoint { x: 0.0, y: new_y };
+                        let _: () = msg_send![tab.views[0], setContentOffset: required_offset animated: false];
+                        CURRENT_TARGET = new_y;
+                    }
+
+                    //  let required_offset = CGPoint { x: 0.0, y: if delta };
+                    // let _: () = msg_send![tab.views[0], setContentOffset: required_offset animated: false];
+
+                    // if (top_offset_y - current_offset.y).abs() >= scroll_height {
+                    //     let new_y = if top_offset_y < current_offset.y {
+                    //         current_offset.y - scroll_height
+                    //     } else {
+                    //         current_offset.y + scroll_height
+                    //     };
+                    //     let required_offset = CGPoint { x: 0.0, y: new_y };
+                    //     let _: () = msg_send![tab.views[0], setContentOffset: required_offset animated: false];
+                    // }
+
+                    background_colour
+                } else {
+                    clear
+                };
+
+                let _: () = msg_send![row, setBackgroundColor: background];
+            }
+
+            new_row
+        };
+
+        self.controller_row = Some(new_row);
     }
 
     /// Creates the invisible view which holds all the menu's components.
@@ -455,14 +587,23 @@ impl Menu {
             let button: *mut Object = msg_send![class!(UIButton), alloc];
             let button: *mut Object = msg_send![button, initWithFrame: CGRect {
                 origin: CGPoint {
-                    x: self.width * 0.05,
+                    x: 0.0,
                     y: index as f64 * height,
                 },
                 size: CGSize {
-                    width: self.width * 0.95,
+                    width: self.width,
                     height,
                 },
             }];
+
+            let insets = UIEdgeInsets {
+                top: 0.0,
+                left: self.width * 0.05,
+                bottom: 0.0,
+                right: 0.0,
+            };
+
+            let _: () = msg_send![button, setTitleEdgeInsets: insets];
 
             let button_label: *mut Object = msg_send![button, titleLabel];
             let font: *mut Object = msg_send![class!(UIFont), fontWithName: create_ns_string("ChaletComprime-CologneSixty") size: 25.0];
@@ -505,7 +646,10 @@ impl Menu {
 
             let running = create_label(
                 CGRect {
-                    origin: CGPoint { x: 0.0, y: 0.0 },
+                    origin: CGPoint {
+                        x: self.width * 0.05,
+                        y: 0.0,
+                    },
                     size: CGSize {
                         width: self.width * 0.9,
                         height,
@@ -543,11 +687,11 @@ impl Menu {
             let button: *mut Object = msg_send![class!(UIButton), alloc];
             let button: *mut Object = msg_send![button, initWithFrame: CGRect {
                 origin: CGPoint {
-                    x: self.width * 0.05,
+                    x: 0.0,
                     y: index as f64 * height,
                 },
                 size: CGSize {
-                    width: self.width * 0.95,
+                    width: self.width,
                     height,
                 },
             }];
@@ -569,17 +713,9 @@ impl Menu {
             let _: () =
                 msg_send![button, setTitle: title forState: /* UIControlStateNormal */ 0 as c_long];
 
-            #[repr(C)]
-            struct UIEdgeInsets {
-                top: f64,
-                left: f64,
-                bottom: f64,
-                right: f64,
-            }
-
             let insets = UIEdgeInsets {
                 top: 0.0,
-                left: 0.0,
+                left: self.width * 0.05,
                 bottom: height * 0.4,
                 right: 0.0,
             };
@@ -598,7 +734,10 @@ impl Menu {
 
             let running = create_label(
                 CGRect {
-                    origin: CGPoint { x: 0.0, y: 0.0 },
+                    origin: CGPoint {
+                        x: self.width * 0.05,
+                        y: 0.0,
+                    },
                     size: CGSize {
                         width: self.width * 0.9,
                         height: height * 0.6,
@@ -618,7 +757,7 @@ impl Menu {
             let description = create_label(
                 CGRect {
                     origin: CGPoint {
-                        x: 0.0,
+                        x: self.width * 0.05,
                         y: height * 0.6,
                     },
                     size: CGSize {
@@ -837,6 +976,8 @@ Additionally, some – especially those without codes – can crash the game in 
         //  crash the game with a fucked up script.
         self.save_settings_if_needed();
 
+        let should_set_row = self.tab != tab_index;
+
         self.tab = tab_index;
 
         unsafe {
@@ -863,6 +1004,10 @@ Additionally, some – especially those without codes – can crash the game in 
                     let _: () = msg_send![tab.tab_button, setTitleColor: inactive_foreground forState: 0u64];
                 }
             }
+        }
+
+        if should_set_row {
+            self.set_selected_row(0);
         }
     }
 
@@ -925,7 +1070,7 @@ Additionally, some – especially those without codes – can crash the game in 
         }
     }
 
-    fn hide(&mut self) {
+    fn destroy(&mut self) {
         if self.base_view.is_null() {
             return;
         }
@@ -956,8 +1101,81 @@ Additionally, some – especially those without codes – can crash the game in 
 
         self.base_view = std::ptr::null_mut();
 
+        // Unpause the game.
         crate::hook::slide::<fn()>(0x10026ca6c)();
     }
+
+    pub fn handle_controller_input(&mut self, input: &crate::controller::ControllerState) {
+        let tab_delta = if input.dpad_left != 0 || input.left_shoulder_2 != 0 {
+            -1
+        } else if input.dpad_right != 0 || input.right_shoulder_2 != 0 {
+            1
+        } else {
+            0
+        };
+
+        let row_delta = if input.dpad_down != 0 {
+            1
+        } else if input.dpad_up != 0 {
+            -1
+        } else {
+            0
+        };
+
+        let old_tab_number = self.tab as isize;
+        let new_tab_number = old_tab_number + tab_delta;
+
+        let new_tab_number = if new_tab_number < 0 {
+            2
+        } else if new_tab_number > 2 {
+            0
+        } else {
+            new_tab_number
+        };
+
+        self.switch_to_tab(new_tab_number as u8);
+        self.move_selected_row(row_delta);
+    }
+}
+
+/// Obtains a reference to the menu and calls the given closure with that reference,
+/// assuming that the closure is valid when run from the current thread.
+fn with_menu_on_this_thread<T>(with: impl Fn(&mut Menu) -> T) -> Option<T> {
+    let mut locked = MENU.lock();
+    let option = locked.as_mut().unwrap();
+
+    if option.is_some() {
+        let menu_ref = option.as_mut().unwrap();
+        Some(with(menu_ref))
+    } else {
+        None
+    }
+}
+
+pub fn with_shared_menu<T: Send>(with: impl Fn(&mut Menu) -> T + Sync) -> Option<T> {
+    with_menu_on_this_thread(|menu| dispatch::Queue::main().exec_sync(|| Some(with(menu))))
+        .and_then(|v| v)
+}
+
+pub fn show_menu() {
+    if with_shared_menu(|menu| {
+        menu.show();
+    })
+    .is_none()
+    {
+        // Menu wasn't shown because it doesn't exist, so we need to create it and try again.
+        let mut locked = MENU.lock().unwrap();
+        *locked = Some(Menu::new());
+        locked.as_mut().unwrap().show();
+    }
+}
+
+pub fn hide_menu_on_main_thread() {
+    with_menu_on_this_thread(|menu| {
+        menu.destroy();
+    });
+
+    *MENU.lock().unwrap() = None;
 }
 
 /*
@@ -992,14 +1210,14 @@ fn reachability_with_hostname(
             if tag.is_tab_button {
                 trace!("Tab button pressed.");
 
-                if let Some(menu) = MENU.as_mut() {
+                with_menu_on_this_thread(|menu| {
                     menu.switch_to_tab(tag.index as u8);
-                }
+                });
             } else if tag.is_cheat_button {
                 trace!("Cheat button pressed.");
                 cheats::CHEATS[tag.index as usize].queue();
 
-                hide_menu();
+                hide_menu_on_main_thread();
             } else if tag.is_setting_button {
                 trace!("Setting button pressed.");
 
@@ -1007,11 +1225,10 @@ fn reachability_with_hostname(
                     options.0[tag.index as usize].value = !options.0[tag.index as usize].value;
                 });
 
-                if let Some(menu) = MENU.as_mut() {
+                with_menu_on_this_thread(|menu| {
                     menu.settings_changed = true;
-                }
-
-                reload_menu();
+                    menu.reload();
+                });
             } else {
                 if let Some(script) = scripts::loaded_scripts()
                     .iter_mut()
@@ -1023,7 +1240,7 @@ fn reachability_with_hostname(
                     error!("Requested script seems to have disappeared.");
                 }
 
-                hide_menu();
+                hide_menu_on_main_thread();
             }
 
             std::ptr::null_mut()
