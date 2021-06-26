@@ -88,11 +88,18 @@ fn update_pads() {
             // fixme: We need to change our approach to getting controller input based on the iOS version.
 
             let select_pressed = {
-                let button: *const Object = msg_send![extended_gamepad, buttonOptions];
+                let responds: bool =
+                    msg_send![extended_gamepad, respondsToSelector: sel!(buttonOptions)];
 
-                if !button.is_null() {
-                    let pressed: f32 = msg_send![button, value];
-                    pressed > 0.125
+                if responds {
+                    let button: *const Object = msg_send![extended_gamepad, buttonOptions];
+
+                    if !button.is_null() {
+                        let pressed: f32 = msg_send![button, value];
+                        pressed > 0.125
+                    } else {
+                        false
+                    }
                 } else {
                     false
                 }
