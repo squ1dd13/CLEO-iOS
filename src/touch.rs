@@ -133,7 +133,7 @@ fn process_touch(x: f32, y: f32, timestamp: f64, force: f32, touch_type: TouchTy
 
     // If we have registered a touch, it means the user has touched outside the menu (because
     //  if they touch the menu, we don't get the event). This is a way of dismissing the menu.
-    crate::gui::hide_menu_on_main_thread();
+    crate::menu::hide_on_main_thread();
 
     /*
         Problem:  We don't know how each touch event is connected to ones we already know about.
@@ -168,7 +168,7 @@ fn process_touch(x: f32, y: f32, timestamp: f64, force: f32, touch_type: TouchTy
 
                                 // Show the menu from a second thread because the touch handlers are typically called
                                 //  from the main thread (and we don't want a deadlock).
-                                std::thread::spawn(|| crate::gui::show_menu());
+                                std::thread::spawn(|| crate::menu::show());
                             }
                         }
                     } else {

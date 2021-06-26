@@ -11,6 +11,7 @@ mod files;
 mod gui;
 mod hook;
 mod loader;
+mod menu;
 mod render;
 mod scripts;
 mod settings;
@@ -94,6 +95,7 @@ fn install_hooks() {
     loader::hook();
     settings::hook();
     gui::hook();
+    menu::hook();
     touch::hook();
     text::hook();
     render::hook();

@@ -125,16 +125,16 @@ fn update_pads() {
         // If with_shared_menu returns None, then we know that there isn't a menu currently.
         // In order to let the player use the button to toggle the menu, we change what we
         //  do based on whether a menu exists.
-        if crate::gui::with_shared_menu(|_| {}).is_none() {
+        if crate::menu::with_shared_menu(|_| {}).is_none() {
             // No menu, so create and show one.
-            crate::gui::show_menu();
+            crate::menu::show();
         } else {
             // There is a menu, so remove it.
-            dispatch::Queue::main().exec_sync(|| crate::gui::hide_menu_on_main_thread());
+            dispatch::Queue::main().exec_sync(|| crate::menu::hide_on_main_thread());
         }
     }
 
-    crate::gui::with_shared_menu(|menu| {
+    crate::menu::with_shared_menu(|menu| {
         menu.handle_controller_input(current_state);
     });
 }
