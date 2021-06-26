@@ -366,24 +366,12 @@ impl Menu {
                     let visible_bottom = current_offset.y + scroll_height;
 
                     let new_y = if top_offset_y.round() < visible_top.round() {
-                        log::trace!("top_offset_y < visible_top");
                         top_offset_y
                     } else if bottom_offset_y.round() > visible_bottom.round() {
-                        log::trace!("bottom_offset_y > visible_bottom");
                         current_offset.y + (bottom_offset_y - visible_bottom)
                     } else {
                         current_offset.y
                     };
-
-                    // let should_animate = (new_y - current_offset.y).abs() < 0.5 * row_height;
-
-                    // let new_y = if bottom_offset_y > (current_offset.y + row_height) {
-                    // top_offset_y
-                    // } else if top_offset_y > current_offset.y {
-                    // bottom_offset_y
-                    // } else {
-                    // top_offset_y
-                    // };
 
                     static mut CURRENT_TARGET: f64 = 0.0;
 
@@ -392,19 +380,6 @@ impl Menu {
                         let _: () = msg_send![tab.views[0], setContentOffset: required_offset animated: false];
                         CURRENT_TARGET = new_y;
                     }
-
-                    //  let required_offset = CGPoint { x: 0.0, y: if delta };
-                    // let _: () = msg_send![tab.views[0], setContentOffset: required_offset animated: false];
-
-                    // if (top_offset_y - current_offset.y).abs() >= scroll_height {
-                    //     let new_y = if top_offset_y < current_offset.y {
-                    //         current_offset.y - scroll_height
-                    //     } else {
-                    //         current_offset.y + scroll_height
-                    //     };
-                    //     let required_offset = CGPoint { x: 0.0, y: new_y };
-                    //     let _: () = msg_send![tab.views[0], setContentOffset: required_offset animated: false];
-                    // }
 
                     background_colour
                 } else {
@@ -1042,6 +1017,10 @@ Additionally, some – especially those without codes – can crash the game in 
     }
 
     fn show(&mut self) {
+        if !self.base_view.is_null() {
+            return;
+        }
+
         self.settings_changed = false;
 
         let game_state = unsafe { *crate::hook::slide::<*const u32>(0x1006806d0) };
@@ -1049,10 +1028,6 @@ Additionally, some – especially those without codes – can crash the game in 
         // If the game state is 9, it means we are in a game. If we aren't in a game,
         //  we don't want to show the menu.
         if game_state != 9 {
-            return;
-        }
-
-        if !self.base_view.is_null() {
             return;
         }
 
@@ -1158,15 +1133,25 @@ pub fn with_shared_menu<T: Send>(with: impl Fn(&mut Menu) -> T + Sync) -> Option
 }
 
 pub fn show_menu() {
+    let game_state = unsafe { *crate::hook::slide::<*const u32>(0x1006806d0) };
+
+    if game_state != 9 {
+        return;
+    }
+
     if with_shared_menu(|menu| {
+        log::trace!("Menu exists already.");
         menu.show();
     })
     .is_none()
     {
-        // Menu wasn't shown because it doesn't exist, so we need to create it and try again.
-        let mut locked = MENU.lock().unwrap();
-        *locked = Some(Menu::new());
-        locked.as_mut().unwrap().show();
+        log::trace!("Menu does not yet exist.");
+        dispatch::Queue::main().exec_sync(|| {
+            // Menu wasn't shown because it doesn't exist, so we need to create it and try again.
+            let mut locked = MENU.lock().unwrap();
+            *locked = Some(Menu::new());
+            locked.as_mut().unwrap().show();
+        });
     }
 }
 

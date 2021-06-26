@@ -1,3 +1,4 @@
+use objc::{runtime::Object, *};
 use std::sync::atomic::AtomicU16;
 
 #[repr(C)]
@@ -42,10 +43,10 @@ static UPDATE_COUNTER: AtomicU16 = AtomicU16::new(0);
 fn update_pads() {
     crate::call_original!(crate::targets::update_pads);
 
-    let (previous_state, current_state) = unsafe {
-        let ptr: *const ControllerState = crate::hook::slide(0x1007baf5c);
+    let (current_state, previous_state) = unsafe {
+        let ptr: *mut ControllerState = crate::hook::slide(0x1007baf5c);
 
-        let refs = (ptr.offset(0).as_ref(), ptr.offset(1).as_ref());
+        let refs = (ptr.offset(0).as_mut(), ptr.offset(1).as_ref());
 
         if refs.0.is_none() || refs.1.is_none() {
             log::error!("Null controller state!");
@@ -55,6 +56,55 @@ fn update_pads() {
         (refs.0.unwrap(), refs.1.unwrap())
     };
 
+    unsafe {
+        // The game's controller structure has fields for 'start' and 'select', but doesn't actually
+        //  assign them values, so we need to check for those buttons.
+        let controllers: *const Object = msg_send![class!(GCController), controllers];
+        let count: usize = msg_send![controllers, count];
+
+        for i in 0..count {
+            let controller: *const Object = msg_send![controllers, objectAtIndex: i];
+            let extended_gamepad: *const Object = msg_send![controller, extendedGamepad];
+
+            if extended_gamepad.is_null() {
+                continue;
+            }
+
+            // fn pressed(button: *const Object) -> bool {
+            //     if !button.is_null() {
+            //         let pressed: f32 = unsafe { msg_send![button, value] };
+            //         pressed > 0.125
+            //     } else {
+            //         false
+            //     }
+            // }
+
+            // let button_0 = pressed(msg_send![extended_gamepad, button0]);
+            // let button_1 = pressed(msg_send![extended_gamepad, button1]);
+            // let button_2 = pressed(msg_send![extended_gamepad, button2]);
+
+            // log::trace!("0: {:?}, 1: {:?}, 2: {:?}", button_0, button_1, button_2);
+
+            // fixme: We need to change our approach to getting controller input based on the iOS version.
+
+            let select_pressed = {
+                let button: *const Object = msg_send![extended_gamepad, buttonOptions];
+
+                if !button.is_null() {
+                    let pressed: f32 = msg_send![button, value];
+                    pressed > 0.125
+                } else {
+                    false
+                }
+            };
+
+            if select_pressed {
+                current_state.select = 255;
+                break;
+            }
+        }
+    }
+
     let counter = UPDATE_COUNTER.load(std::sync::atomic::Ordering::Relaxed);
 
     if previous_state != current_state || counter >= 10 {
@@ -62,6 +112,19 @@ fn update_pads() {
     } else {
         UPDATE_COUNTER.store(counter + 1, std::sync::atomic::Ordering::Relaxed);
         return;
+    }
+
+    if current_state.select != 0 {
+        // If with_shared_menu returns None, then we know that there isn't a menu currently.
+        // In order to let the player use the button to toggle the menu, we change what we
+        //  do based on whether a menu exists.
+        if crate::gui::with_shared_menu(|_| {}).is_none() {
+            // No menu, so create and show one.
+            crate::gui::show_menu();
+        } else {
+            // There is a menu, so remove it.
+            dispatch::Queue::main().exec_sync(|| crate::gui::hide_menu_on_main_thread());
+        }
     }
 
     crate::gui::with_shared_menu(|menu| {

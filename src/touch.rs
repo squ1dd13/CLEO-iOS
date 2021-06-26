@@ -166,7 +166,9 @@ fn process_touch(x: f32, y: f32, timestamp: f64, force: f32, touch_type: TouchTy
                             } else {
                                 log::info!("Detected valid menu swipe.");
 
-                                crate::gui::show_menu();
+                                // Show the menu from a second thread because the touch handlers are typically called
+                                //  from the main thread (and we don't want a deadlock).
+                                std::thread::spawn(|| crate::gui::show_menu());
                             }
                         }
                     } else {
