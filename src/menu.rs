@@ -7,13 +7,22 @@ use std::os::raw::c_long;
 use std::sync::Arc;
 use std::sync::Mutex;
 
-lazy_static::lazy_static! {
-    static ref MENU: Arc<Mutex<Option<Menu>>> = Arc::new(Mutex::new(None));
+fn get_scroll_view_delegate() -> *const Object {
+    // We know this is only going to be accessed from the main thread.
+    static mut SCROLL_DELEGATE: *const Object = std::ptr::null();
+
+    unsafe {
+        if SCROLL_DELEGATE.is_null() {
+            SCROLL_DELEGATE = msg_send![class!(UIPullDownTableView), new];
+        }
+
+        SCROLL_DELEGATE
+    }
 }
 
-#[derive(Debug)]
 #[repr(C)]
-struct ButtonTag {
+#[derive(Clone, Copy, Debug)]
+pub struct ButtonTag {
     index: u32,
     is_tab_button: bool,
     is_cheat_button: bool,
@@ -21,9 +30,76 @@ struct ButtonTag {
     _unused: u8,
 }
 
+impl ButtonTag {
+    fn perform_action(&self) {
+        if self.is_tab_button {
+            trace!("Tab button pressed.");
+            MenuAction::queue(MenuAction::SetTab(self.index as u8));
+        } else if self.is_cheat_button {
+            trace!("Cheat button pressed.");
+            cheats::CHEATS[self.index as usize].queue();
+
+            MenuAction::queue(MenuAction::Hide);
+        } else if self.is_setting_button {
+            trace!("Setting button pressed.");
+
+            crate::settings::with_shared(&mut |options| {
+                options.0[self.index as usize].value = !options.0[self.index as usize].value;
+            });
+
+            MenuAction::queue(MenuAction::SaveSettings);
+            MenuAction::queue(MenuAction::Reload);
+        } else {
+            if let Some(script) = scripts::loaded_scripts()
+                .iter_mut()
+                .filter(|s| s.injected)
+                .nth(self.index as usize)
+            {
+                script.activate();
+            } else {
+                error!("Requested script seems to have disappeared.");
+            }
+
+            MenuAction::queue(MenuAction::Hide);
+        }
+    }
+}
+
 struct Tab {
     tab_button: *mut Object,
     views: Vec<*mut Object>,
+}
+
+struct TabState {
+    selected_row: usize,
+    touch_scroll_offset: f64,
+}
+
+struct MenuState {
+    tabs: Vec<TabState>,
+    tab_index: usize,
+}
+
+impl MenuState {
+    fn default() -> MenuState {
+        MenuState {
+            tabs: vec![
+                TabState {
+                    selected_row: 0,
+                    touch_scroll_offset: 0.0,
+                },
+                TabState {
+                    selected_row: 0,
+                    touch_scroll_offset: 0.0,
+                },
+                TabState {
+                    selected_row: 0,
+                    touch_scroll_offset: 0.0,
+                },
+            ],
+            tab_index: 0,
+        }
+    }
 }
 
 pub struct Menu {
@@ -36,19 +112,17 @@ pub struct Menu {
 
     tabs: Vec<Tab>,
 
-    tab: u8,
-    cheat_scroll_point: CGPoint,
-
     settings_changed: bool,
+    touch_mode: bool,
 
-    controller_row: Option<usize>,
+    state: MenuState,
 }
 
 // We keep our Menu instances behind an Arc<Mutex>, so it is safe to pass it between threads.
 unsafe impl Send for Menu {}
 
 impl Menu {
-    fn new() -> Menu {
+    fn new(state: MenuState) -> Menu {
         let (width, height) = unsafe {
             let app: *mut Object = msg_send![class!(UIApplication), sharedApplication];
             let window: *mut Object = msg_send![app, keyWindow];
@@ -63,10 +137,9 @@ impl Menu {
             base_view: std::ptr::null_mut(),
             close_view: std::ptr::null_mut(),
             tabs: vec![],
-            tab: 0,
-            cheat_scroll_point: CGPoint { x: 0.0, y: 0.0 },
             settings_changed: false,
-            controller_row: None,
+            touch_mode: true,
+            state,
         }
     }
 
@@ -86,24 +159,28 @@ impl Menu {
         n
     }
 
-    fn move_selected_row(&mut self, delta: i8) {
-        let new_row = if let Some(current_row) = self.controller_row {
-            current_row as isize + delta as isize
-        } else {
-            delta as isize
+    fn move_selected_tab_row(&mut self, delta: isize) {
+        let tab = &mut self.tabs[self.state.tab_index];
+
+        let row_count: usize = unsafe {
+            let subviews: *mut Object = msg_send![tab.views[0], subviews];
+            msg_send![subviews, count]
         };
 
-        self.set_selected_row(new_row);
+        let selected_row = &mut self.state.tabs[self.state.tab_index].selected_row;
+        *selected_row = Self::correct_row_number(*selected_row as isize + delta, row_count);
+
+        self.refresh_rows();
     }
 
-    fn set_selected_row(&mut self, new_row: isize) {
-        let tab = &mut self.tabs[self.tab as usize];
+    fn refresh_rows(&mut self) {
+        let tab = &self.tabs[self.state.tab_index];
 
-        let new_row = unsafe {
+        unsafe {
             let subviews: *mut Object = msg_send![tab.views[0], subviews];
             let count: usize = msg_send![subviews, count];
 
-            let new_row_index = Self::correct_row_number(new_row, count as usize);
+            let selected_index = self.state.tabs[self.state.tab_index].selected_row;
 
             let clear: *const Object = msg_send![class!(UIColor), clearColor];
             let background_colour: *const Object = msg_send![class!(UIColor), colorWithRed: 78.0 / 255.0 green: 149.0 / 255.0 blue: 64.0 / 255.0 alpha: 0.3];
@@ -111,7 +188,7 @@ impl Menu {
             for i in 0..count {
                 let row: *mut Object = msg_send![subviews, objectAtIndex: i];
 
-                let background = if i == new_row_index {
+                let background = if !self.touch_mode && i == selected_index {
                     let row_height = {
                         let row_frame: CGRect = msg_send![row, frame];
                         row_frame.size.height
@@ -153,11 +230,7 @@ impl Menu {
 
                 let _: () = msg_send![row, setBackgroundColor: background];
             }
-
-            new_row_index
-        };
-
-        self.controller_row = Some(new_row);
+        }
     }
 
     /// Creates the invisible view which holds all the menu's components.
@@ -256,10 +329,12 @@ impl Menu {
             tab_button: self.create_single_tab_button("Scripts", true, 0),
             views: vec![],
         });
+
         self.tabs.push(Tab {
             tab_button: self.create_single_tab_button("Cheats", false, 1),
             views: vec![],
         });
+
         self.tabs.push(Tab {
             tab_button: self.create_single_tab_button("Settings", false, 2),
             views: vec![],
@@ -285,6 +360,7 @@ impl Menu {
             let _: () = msg_send![scroll_view, setBounces: false];
             let _: () = msg_send![scroll_view, setShowsHorizontalScrollIndicator: false];
             let _: () = msg_send![scroll_view, setShowsVerticalScrollIndicator: false];
+            let _: () = msg_send![scroll_view, setDelegate: get_scroll_view_delegate()];
 
             scroll_view
         }
@@ -542,10 +618,6 @@ Additionally, some – especially those without codes – can crash the game in 
                 width: self.width,
                 height: cheats::CHEATS.len() as f64 * self.height * 0.25,
             }];
-
-            // There are a lot of cheats, so we save how far the user has scrolled so they don't have to
-            //  go back to the same point every time.
-            let _: () = msg_send![self.tabs[1].views[0], setContentOffset: self.cheat_scroll_point animated: false];
         }
 
         for (index, item) in injected_scripts.iter().enumerate() {
@@ -566,10 +638,6 @@ Additionally, some – especially those without codes – can crash the game in 
             }
         }
 
-        unsafe {
-            let _: () = msg_send![self.tabs[1].views[0], setContentOffset: self.cheat_scroll_point animated: false];
-        }
-
         crate::settings::with_shared(&mut |options| {
             unsafe {
                 let _: () = msg_send![self.tabs[2].views[0], setContentSize: CGSize {
@@ -587,6 +655,14 @@ Additionally, some – especially those without codes – can crash the game in 
                 }
             }
         });
+
+        for (i, tab) in self.tabs.iter().enumerate() {
+            let offset = CGPoint { x: 0.0, y: self.state.tabs[i].touch_scroll_offset };
+
+            unsafe {
+                let _: () = msg_send![tab.views[0], setContentOffset: offset animated: false];
+            }
+        }
     }
 
     fn reload(&mut self) {
@@ -604,18 +680,25 @@ Additionally, some – especially those without codes – can crash the game in 
         }
 
         self.populate_scroll_views();
+        self.refresh_rows();
     }
 
-    fn switch_to_tab(&mut self, tab_index: u8) {
+    fn switch_to_tab(&mut self, tab_index: usize) {
         // It's possible that the game crashes after the player launches a script, so we save
         //  any changes to the settings when they change tab. This way, if they change from
         //  the 'Settings' tab to the 'Scripts' tab, their settings are saved before they can
         //  crash the game with a fucked up script.
         self.save_settings_if_needed();
 
-        let should_set_row = self.tab != tab_index;
+        if self.touch_mode {
+            unsafe {
+                let offset: CGPoint =
+                    msg_send![self.tabs[self.state.tab_index].views[0], contentOffset];
+                self.state.tabs[self.state.tab_index].touch_scroll_offset = offset.y;
+            }
+        }
 
-        self.tab = tab_index;
+        self.state.tab_index = tab_index;
 
         unsafe {
             let selected_background: *const Object =
@@ -643,8 +726,21 @@ Additionally, some – especially those without codes – can crash the game in 
             }
         }
 
-        if should_set_row {
-            self.set_selected_row(0);
+        self.refresh_rows();
+
+        if self.touch_mode {
+            unsafe {
+                let offset = CGPoint {
+                    x: 0.0,
+                    y: self.state.tabs[self.state.tab_index].touch_scroll_offset,
+                };
+
+                let _: () = msg_send![
+                    self.tabs[self.state.tab_index].views[0],
+                    setContentOffset: offset
+                    animated: false
+                ];
+            }
         }
     }
 
@@ -668,7 +764,7 @@ Additionally, some – especially those without codes – can crash the game in 
                 }
             }
 
-            self.switch_to_tab(self.tab);
+            self.switch_to_tab(self.state.tab_index);
 
             let app: *mut Object = msg_send![class!(UIApplication), sharedApplication];
             let window: *mut Object = msg_send![app, keyWindow];
@@ -678,7 +774,7 @@ Additionally, some – especially those without codes – can crash the game in 
         }
     }
 
-    fn show(&mut self) {
+    fn show(&mut self, from_controller: bool) {
         if !self.base_view.is_null() {
             return;
         }
@@ -695,6 +791,15 @@ Additionally, some – especially those without codes – can crash the game in 
 
         crate::hook::slide::<fn()>(0x10026ca5c)();
         self.create_layout();
+
+        // If the menu was shown from controller input, we want the input mode
+        //  to be controller first.
+        self.set_touch_mode(!from_controller);
+
+        if !self.touch_mode {
+            // We want the controller selection to show instantly.
+            crate::controller::request_update();
+        }
     }
 
     fn save_settings_if_needed(&mut self) {
@@ -707,23 +812,25 @@ Additionally, some – especially those without codes – can crash the game in 
         }
     }
 
-    fn destroy(&mut self) {
+    fn destroy(mut self) -> MenuState {
         if self.base_view.is_null() {
-            return;
+            trace!("Nothing to do: base_view is already null.");
+            return self.state;
         }
 
+        trace!("Saving settings before closing menu...");
         self.save_settings_if_needed();
 
+        trace!("Removing visual components.");
         unsafe {
-            // Save the cheat scroll distance.
-            self.cheat_scroll_point = msg_send![self.tabs[1].views[0], contentOffset];
-
             let _: () = msg_send![self.base_view, removeFromSuperview];
             let _: () = msg_send![self.close_view, removeFromSuperview];
 
             let _: () = msg_send![self.close_view, release];
 
-            for tab in self.tabs.iter() {
+            for (i, tab) in self.tabs.iter().enumerate() {
+                self.state.tabs[i].touch_scroll_offset = msg_send![tab.views[0], contentOffset];
+
                 for view in tab.views.iter() {
                     let _: () = msg_send![*view, removeFromSuperview];
                     let _: () = msg_send![*view, release];
@@ -739,90 +846,65 @@ Additionally, some – especially those without codes – can crash the game in 
         self.base_view = std::ptr::null_mut();
 
         // Unpause the game.
+        trace!("Returning game to pre-menu state.");
         crate::hook::slide::<fn()>(0x10026ca6c)();
+
+        self.state
     }
 
-    pub fn handle_controller_input(&mut self, input: &crate::controller::ControllerState) {
-        let tab_delta = if input.dpad_left != 0 || input.left_shoulder_2 != 0 {
-            -1
-        } else if input.dpad_right != 0 || input.right_shoulder_2 != 0 {
-            1
-        } else {
-            0
-        };
+    fn set_touch_mode(&mut self, is_touch: bool) {
+        if self.touch_mode == is_touch {
+            // Nothing to do.
+            return;
+        }
 
-        let row_delta = if input.dpad_down != 0 {
-            1
-        } else if input.dpad_up != 0 {
-            -1
-        } else {
-            0
-        };
+        self.touch_mode = is_touch;
 
-        let old_tab_number = self.tab as isize;
-        let new_tab_number = old_tab_number + tab_delta;
-
-        let new_tab_number = if new_tab_number < 0 {
-            2
-        } else if new_tab_number > 2 {
-            0
-        } else {
-            new_tab_number
-        };
-
-        self.switch_to_tab(new_tab_number as u8);
-        self.move_selected_row(row_delta);
+        self.refresh_rows();
     }
 }
 
-/// Obtains a reference to the menu and calls the given closure with that reference,
-/// assuming that the closure is valid when run from the current thread.
-fn with_menu_on_this_thread<T>(with: impl Fn(&mut Menu) -> T) -> Option<T> {
-    let mut locked = MENU.lock();
-    let option = locked.as_mut().unwrap();
-
-    if option.is_some() {
-        let menu_ref = option.as_mut().unwrap();
-        Some(with(menu_ref))
+pub fn queue_controller_input(input: &mut crate::controller::ControllerState) {
+    if !input.has_input() {
+        return;
     } else {
-        None
+        // There is controller input, so disable touch mode.
+        MenuAction::queue(MenuAction::SetTouchMode(false));
     }
-}
 
-pub fn with_shared_menu<T: Send>(with: impl Fn(&mut Menu) -> T + Sync) -> Option<T> {
-    with_menu_on_this_thread(|menu| dispatch::Queue::main().exec_sync(|| Some(with(menu))))
-        .and_then(|v| v)
-}
+    // fixme: The close button leaks through into the game, making the player punch on exit.
 
-pub fn show() {
-    let game_state = unsafe { *crate::hook::slide::<*const u32>(0x1006806d0) };
-
-    if game_state != 9 {
+    // Back button.
+    if input.button_circle != 0 {
+        MenuAction::queue(MenuAction::Hide);
         return;
     }
 
-    if with_shared_menu(|menu| {
-        log::trace!("Menu exists already.");
-        menu.show();
-    })
-    .is_none()
-    {
-        log::trace!("Menu does not yet exist.");
-        dispatch::Queue::main().exec_sync(|| {
-            // Menu wasn't shown because it doesn't exist, so we need to create it and try again.
-            let mut locked = MENU.lock().unwrap();
-            *locked = Some(Menu::new());
-            locked.as_mut().unwrap().show();
-        });
+    // Confirm button.
+    if input.button_cross != 0 {
+        // Perform the action currently selected.
+        MenuAction::queue(MenuAction::PerformAction);
     }
-}
 
-pub fn hide_on_main_thread() {
-    with_menu_on_this_thread(|menu| {
-        menu.destroy();
-    });
+    let tab_delta = if input.dpad_left != 0 || input.left_shoulder_2 != 0 {
+        -1
+    } else if input.dpad_right != 0 || input.right_shoulder_2 != 0 {
+        1
+    } else {
+        0
+    };
 
-    *MENU.lock().unwrap() = None;
+    MenuAction::queue(MenuAction::ChangeTab(tab_delta));
+
+    let row_delta = if input.dpad_down != 0 {
+        1
+    } else if input.dpad_up != 0 {
+        -1
+    } else {
+        0
+    };
+
+    MenuAction::queue(MenuAction::ChangeRow(row_delta));
 }
 
 /*
@@ -832,7 +914,7 @@ pub fn hide_on_main_thread() {
     an IOSReachability object.
 
         UIButton handlers are typically defined on objects created by the programmer.
-    However, those objects are Objective-C objects; we don't have the ability to easily
+    However, those objects are Objective-C objects. We don't have the ability to easily
     make such objects, especially not by writing our own class out. Given the aim for
     CLEO to be pure Rust, we need to find a workaround. The workaround here is using an
     object that already exists - such as the IOSReachability class - and hook a method
@@ -850,45 +932,13 @@ fn reachability_with_hostname(
         let is_button: bool = msg_send![hostname, isKindOfClass: class!(UIButton)];
 
         if is_button {
-            let tag: ButtonTag = msg_send![hostname, tag];
-
-            trace!("tag = {:?}", tag);
-
-            if tag.is_tab_button {
-                trace!("Tab button pressed.");
-
-                with_menu_on_this_thread(|menu| {
-                    menu.switch_to_tab(tag.index as u8);
-                });
-            } else if tag.is_cheat_button {
-                trace!("Cheat button pressed.");
-                cheats::CHEATS[tag.index as usize].queue();
-
-                hide_on_main_thread();
-            } else if tag.is_setting_button {
-                trace!("Setting button pressed.");
-
-                crate::settings::with_shared(&mut |options| {
-                    options.0[tag.index as usize].value = !options.0[tag.index as usize].value;
-                });
-
-                with_menu_on_this_thread(|menu| {
-                    menu.settings_changed = true;
-                    menu.reload();
-                });
-            } else {
-                if let Some(script) = scripts::loaded_scripts()
-                    .iter_mut()
-                    .filter(|s| s.injected)
-                    .nth(tag.index as usize)
-                {
-                    script.activate();
-                } else {
-                    error!("Requested script seems to have disappeared.");
-                }
-
-                hide_on_main_thread();
-            }
+            // This function only runs when the button itself was pressed, and not if the
+            //  action is triggered by a controller. Therefore, we need to switch the mode
+            //  of the menu to touch here because we know the most recent interaction was touch.
+            trace!("Queueing stuff...");
+            MenuAction::queue(MenuAction::SetTouchMode(true));
+            MenuAction::queue(MenuAction::PerformFromTouch(msg_send![hostname, tag]));
+            trace!("Done");
 
             std::ptr::null_mut()
         } else {
@@ -898,6 +948,219 @@ fn reachability_with_hostname(
     }
 }
 
+/*
+    In order to let us find out when the user interacts with a scroll view, we need a delegate for
+    that scroll view. The game contains a class called UIPullDownTableView which acts as its own
+    delegate, so we can use a dummy instance of that as our delegate, and hook the methods we want
+    in order to detect events.
+*/
+fn scroll_view_did_end_dragging(
+    this: *const Object,
+    sel: Sel,
+    scroll_view: *mut Object,
+    decelerate: bool,
+) {
+    if this == get_scroll_view_delegate() {
+        // One of our own calls.
+        MenuAction::queue(MenuAction::SetTouchMode(true));
+
+        return;
+    }
+
+    call_original!(targets::end_dragging, this, sel, scroll_view, decelerate);
+}
+
+/**
+    The MenuAction queue is a way to easily ensure that we don't get deadlocks when two systems
+    want to modify the menu. Only the queue system has access to the menu, and everyone else
+    can only request that a certain thing be done to the menu by the event queue.
+*/
+#[derive(Clone, Copy)]
+pub enum MenuAction {
+    // bool is whether the action comes from a controller.
+    Show(bool),
+    Toggle(bool),
+    Hide,
+
+    PerformAction,
+    PerformFromTouch(ButtonTag),
+
+    SetTouchMode(bool),
+
+    // isize values are deltas.
+    ChangeRow(isize),
+    ChangeTab(isize),
+
+    SetTab(u8),
+
+    Reload,
+    SaveSettings,
+}
+
+lazy_static::lazy_static! {
+    static ref MENU_EVENT_QUEUE: Mutex<Vec<MenuAction>> = Mutex::new(vec![]);
+}
+
+impl MenuAction {
+    pub fn queue(action: MenuAction) {
+        MENU_EVENT_QUEUE.lock().as_mut().unwrap().push(action);
+    }
+
+    fn perform(&self) {
+        lazy_static::lazy_static! {
+           static ref MENU: Arc<Mutex<Option<Menu>>> = Arc::new(Mutex::new(None));
+        }
+
+        static mut STATE: Option<MenuState> = None;
+
+        fn with_menu_ref(with: impl Fn(&mut Menu) + Sync) -> Option<()> {
+            MENU.lock()
+                .unwrap()
+                .as_mut()
+                .and_then(|menu| Some(dispatch::Queue::main().exec_sync(|| with(menu))))
+        }
+
+        match self {
+            MenuAction::Show(from_controller) => {
+                let game_state = unsafe { *crate::hook::slide::<*const u32>(0x1006806d0) };
+
+                if game_state != 9 {
+                    return;
+                }
+
+                dispatch::Queue::main().exec_sync(|| {
+                    let state = if let Some(state) = unsafe { STATE.take() } {
+                        state
+                    } else {
+                        MenuState::default()
+                    };
+
+                    let mut locked = MENU.lock().unwrap();
+                    *locked = Some(Menu::new(state));
+                    locked.as_mut().unwrap().show(*from_controller);
+                });
+            }
+
+            MenuAction::Toggle(from_controller) => {
+                if MENU.lock().unwrap().is_none() {
+                    MenuAction::Show(*from_controller).perform();
+                } else {
+                    MenuAction::Hide.perform();
+                }
+            }
+
+            MenuAction::Hide => {
+                dispatch::Queue::main().exec_sync(|| {
+                    if let Some(menu) = MENU.lock().unwrap().take() {
+                        unsafe {
+                            STATE = Some(menu.destroy());
+                        }
+                    }
+
+                    *MENU.lock().unwrap() = None;
+                });
+            }
+
+            MenuAction::PerformAction => {
+                with_menu_ref(|menu| {
+                    let row_index = menu.state.tabs[menu.state.tab_index].selected_row;
+                    let tab = &mut menu.tabs[menu.state.tab_index];
+
+                    unsafe {
+                        let subviews: *mut Object = msg_send![tab.views[0], subviews];
+                        let count: usize = msg_send![subviews, count];
+
+                        if row_index > count {
+                            log::error!("row_index > count");
+                            return;
+                        }
+
+                        let row: *mut Object = msg_send![subviews, objectAtIndex: row_index];
+                        let tag: ButtonTag = msg_send![row, tag];
+                        tag.perform_action();
+                    }
+                });
+            }
+
+            MenuAction::PerformFromTouch(tag) => {
+                tag.perform_action();
+            }
+
+            MenuAction::SetTouchMode(touch_mode) => {
+                with_menu_ref(|menu| {
+                    menu.set_touch_mode(*touch_mode);
+                });
+            }
+
+            MenuAction::ChangeRow(row_delta) => {
+                with_menu_ref(|menu| {
+                    menu.move_selected_tab_row(*row_delta);
+                    menu.refresh_rows();
+                });
+            }
+
+            MenuAction::ChangeTab(tab_delta) => {
+                with_menu_ref(|menu| {
+                    let new_tab_number = menu.state.tab_index as isize + tab_delta;
+
+                    let new_tab_number = if new_tab_number < 0 {
+                        2
+                    } else if new_tab_number > 2 {
+                        0
+                    } else {
+                        new_tab_number
+                    };
+
+                    menu.switch_to_tab(new_tab_number as usize);
+                });
+            }
+
+            MenuAction::SetTab(index) => {
+                with_menu_ref(|menu| {
+                    menu.switch_to_tab(*index as usize);
+                });
+            }
+
+            MenuAction::Reload => {
+                with_menu_ref(|menu| {
+                    menu.reload();
+                });
+            }
+
+            MenuAction::SaveSettings => {
+                with_menu_ref(|menu| {
+                    menu.settings_changed = true;
+                    menu.save_settings_if_needed();
+                });
+            }
+        }
+    }
+
+    pub fn process_queue() {
+        let queue = {
+            let mut locked = MENU_EVENT_QUEUE.lock().unwrap();
+
+            // Clone the event queue so we don't need to keep it locked while we're processing the actions.
+            // This allows actions to queue new events while we're still iterating over the current actions,
+            //  which is helpful if, for example, the menu should be hidden after a script button is pressed.
+            let queue = locked.clone();
+            locked.clear();
+
+            queue
+        };
+
+        for action in queue.iter() {
+            action.perform();
+        }
+    }
+}
+
 pub fn hook() {
     targets::button_hack::install(reachability_with_hostname);
+    targets::end_dragging::install(scroll_view_did_end_dragging);
+
+    // Start the menu update loop.
+    std::thread::spawn(|| loop {
+        MenuAction::process_queue();
+    });
 }

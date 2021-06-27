@@ -81,6 +81,12 @@ mod targets {
     create_hard_target!(display_fps, 0x100241cd8, fn());
 
     create_soft_target!(update_pads, 0x100244908, fn());
+
+    create_soft_target!(
+        end_dragging,
+        0x1000cbd08,
+        fn(*const Object, Sel, *mut Object, bool)
+    );
 }
 
 // fixme: We need a mutex here.

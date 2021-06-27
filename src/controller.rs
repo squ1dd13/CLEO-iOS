@@ -1,6 +1,8 @@
 use objc::{runtime::Object, *};
 use std::sync::atomic::AtomicU16;
 
+use crate::menu::MenuAction;
+
 #[repr(C)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct ControllerState {
@@ -38,7 +40,19 @@ pub struct ControllerState {
     pub radio_track_skip: i16,
 }
 
+impl ControllerState {
+    pub fn has_input(&self) -> bool {
+        // eq: CControllerState::CheckForInput(...)
+        crate::hook::slide::<fn(*const ControllerState) -> bool>(0x100244118)(self)
+    }
+}
+
 static UPDATE_COUNTER: AtomicU16 = AtomicU16::new(0);
+
+pub fn request_update() {
+    // Set the update counter really high so the next call to update_pads triggers a menu update.
+    UPDATE_COUNTER.store(1000, std::sync::atomic::Ordering::Relaxed);
+}
 
 fn update_pads() {
     crate::call_original!(crate::targets::update_pads);
@@ -56,6 +70,8 @@ fn update_pads() {
         (refs.0.unwrap(), refs.1.unwrap())
     };
 
+    let counter = UPDATE_COUNTER.load(std::sync::atomic::Ordering::Relaxed);
+
     unsafe {
         // The game's controller structure has fields for 'start' and 'select', but doesn't actually
         //  assign them values, so we need to check for those buttons.
@@ -69,21 +85,6 @@ fn update_pads() {
             if extended_gamepad.is_null() {
                 continue;
             }
-
-            // fn pressed(button: *const Object) -> bool {
-            //     if !button.is_null() {
-            //         let pressed: f32 = unsafe { msg_send![button, value] };
-            //         pressed > 0.125
-            //     } else {
-            //         false
-            //     }
-            // }
-
-            // let button_0 = pressed(msg_send![extended_gamepad, button0]);
-            // let button_1 = pressed(msg_send![extended_gamepad, button1]);
-            // let button_2 = pressed(msg_send![extended_gamepad, button2]);
-
-            // log::trace!("0: {:?}, 1: {:?}, 2: {:?}", button_0, button_1, button_2);
 
             // fixme: We need to change our approach to getting controller input based on the iOS version.
 
@@ -112,8 +113,6 @@ fn update_pads() {
         }
     }
 
-    let counter = UPDATE_COUNTER.load(std::sync::atomic::Ordering::Relaxed);
-
     if previous_state != current_state || counter >= 10 {
         UPDATE_COUNTER.store(0, std::sync::atomic::Ordering::Relaxed);
     } else {
@@ -121,22 +120,17 @@ fn update_pads() {
         return;
     }
 
-    if current_state.select != 0 {
+    // If the counter is 1000, the update was requested by the menu. In this case, we
+    //  don't want to act on the state of the select button because it is likely that the user is still
+    //  holding it down, so if the menu has only just been shown then it will be removed again.
+    if counter != 1000 && current_state.select != 0 {
         // If with_shared_menu returns None, then we know that there isn't a menu currently.
         // In order to let the player use the button to toggle the menu, we change what we
         //  do based on whether a menu exists.
-        if crate::menu::with_shared_menu(|_| {}).is_none() {
-            // No menu, so create and show one.
-            crate::menu::show();
-        } else {
-            // There is a menu, so remove it.
-            dispatch::Queue::main().exec_sync(|| crate::menu::hide_on_main_thread());
-        }
+        MenuAction::queue(MenuAction::Toggle(true));
     }
 
-    crate::menu::with_shared_menu(|menu| {
-        menu.handle_controller_input(current_state);
-    });
+    crate::menu::queue_controller_input(current_state);
 }
 
 pub fn hook() {
