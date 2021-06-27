@@ -124,9 +124,6 @@ fn update_pads() {
     //  don't want to act on the state of the select button because it is likely that the user is still
     //  holding it down, so if the menu has only just been shown then it will be removed again.
     if counter != 1000 && current_state.select != 0 {
-        // If with_shared_menu returns None, then we know that there isn't a menu currently.
-        // In order to let the player use the button to toggle the menu, we change what we
-        //  do based on whether a menu exists.
         MenuAction::queue(MenuAction::Toggle(true));
     }
 
