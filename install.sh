@@ -6,10 +6,10 @@ if [[ $* == *--release* ]]; then
     read _
 
     printf "=> Compiling Rust code (release)...\n"
-    cargo lipo --release --allow-run-on-non-macos || exit 1
+    cargo lipo --targets aarch64-apple-ios --release --allow-run-on-non-macos || exit 1
 else
     printf "=> Compiling Rust code (debug)...\n"
-    cargo lipo --allow-run-on-non-macos || exit 1
+    cargo lipo --targets aarch64-apple-ios --allow-run-on-non-macos || exit 1
 fi
 
 printf "=> Finished compiling Rust code.\n"
