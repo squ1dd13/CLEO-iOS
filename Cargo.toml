@@ -1,6 +1,6 @@
 [package]
 name = "cleo"
-version = "2.0.5"
+version = "2.0.6"
 authors = ["Squ1dd13 <squ1dd13dev@gmail.com>"]
 edition = "2018"
 description = "CLEO SA for iOS"
