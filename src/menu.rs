@@ -829,7 +829,8 @@ Additionally, some – especially those without codes – can crash the game in 
             let _: () = msg_send![self.close_view, release];
 
             for (i, tab) in self.tabs.iter().enumerate() {
-                self.state.tabs[i].touch_scroll_offset = msg_send![tab.views[0], contentOffset];
+                let offset: CGPoint = msg_send![tab.views[0], contentOffset];
+                self.state.tabs[i].touch_scroll_offset = offset.y;
 
                 for view in tab.views.iter() {
                     let _: () = msg_send![*view, removeFromSuperview];
@@ -1030,8 +1031,10 @@ impl MenuAction {
 
                 dispatch::Queue::main().exec_sync(|| {
                     let state = if let Some(state) = unsafe { STATE.take() } {
+                        log::info!("Using existing menu state.");
                         state
                     } else {
+                        log::info!("No menu state saved. Default wil be used.");
                         MenuState::default()
                     };
 
@@ -1053,6 +1056,7 @@ impl MenuAction {
                 dispatch::Queue::main().exec_sync(|| {
                     if let Some(menu) = MENU.lock().unwrap().take() {
                         unsafe {
+                            log::info!("Saving state.");
                             STATE = Some(menu.destroy());
                         }
                     }
