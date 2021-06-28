@@ -22,12 +22,20 @@ impl Cheat {
     }
 
     fn get_function(&self) -> Option<fn()> {
-        let func = hook::slide::<*const fn()>(0x10065c358 + (self.index as usize * 8));
+        let entry_address = 0x10065c358 + (self.index as usize * 8);
+        let ptr = hook::slide::<*const *const u64>(entry_address);
 
-        if func.is_null() {
+        // The array pointer shouldn't be null, but we check it just in case.
+        // The more important check is the second, which ensures that the function pointer is not 0.
+        if ptr.is_null() || unsafe { *ptr }.is_null() {
             None
         } else {
-            Some(unsafe { *func })
+            // Get the value again, but this time as a pointer to a function.
+            // The reason we don't get it as a *const fn() the first time is that 'fn' is itself
+            //  the function pointer, but we can't check if it is null. We use *const *const u64
+            //  instead because we can check the inner pointer as well.
+            let func_ptr = hook::slide::<*const fn()>(entry_address);
+            Some(unsafe { *func_ptr })
         }
     }
 
@@ -53,6 +61,7 @@ impl Cheat {
 
     fn run(&self) {
         if let Some(function) = self.get_function() {
+            log::info!("Calling cheat function {:?}", function);
             function();
             return;
         }
