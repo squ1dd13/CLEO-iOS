@@ -15,6 +15,7 @@ mod menu;
 mod render;
 mod scripts;
 mod settings;
+mod stream;
 mod text;
 mod touch;
 mod udp;
@@ -87,6 +88,8 @@ mod targets {
         0x1000cbd08,
         fn(*const Object, Sel, *mut Object, bool)
     );
+
+    create_hard_target!(cd_stream_init, 0x100177eb8, fn(i32));
 }
 
 // fixme: We need a mutex here.
@@ -97,6 +100,7 @@ fn get_component_system() -> &'static mut Option<ComponentSystem> {
 }
 
 fn install_hooks() {
+    stream::hook();
     update::hook();
     loader::hook();
     settings::hook();
