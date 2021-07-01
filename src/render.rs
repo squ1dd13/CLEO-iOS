@@ -1,3 +1,5 @@
+use libc::c_char;
+
 use crate::{call_original, hook, settings, targets};
 
 // CTimer::GetCyclesPerMillisecond is called between the FPS limit being set and when it is enforced,
@@ -137,9 +139,19 @@ fn write_fragment_shader(mask: u32) {
     }
 }
 
+fn set_loading_messages(msg_1: *const c_char, msg_2: *const c_char) {
+    unsafe {
+        let msg_1 = std::ffi::CStr::from_ptr(msg_1).to_str().unwrap_or("???");
+        let msg_2 = std::ffi::CStr::from_ptr(msg_2).to_str().unwrap_or("???");
+
+        log::trace!("{}: {}", msg_1, msg_2);
+    }
+}
+
 pub fn hook() {
     targets::idle::install(idle);
     targets::cycles_per_millisecond::install(cycles_per_millisecond);
     targets::write_fragment_shader::install(write_fragment_shader);
     targets::display_fps::install(display_fps);
+    targets::loading_messages::install(set_loading_messages);
 }

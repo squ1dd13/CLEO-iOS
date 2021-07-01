@@ -121,8 +121,6 @@ fn stream_thread(_: usize) {
         let stream_index = queue.first() as isize;
         let mut stream = unsafe { &mut *streams.offset(stream_index) };
 
-        log::trace!("stream = {:#?}", stream);
-
         // Mark the stream as in use.
         stream.processing = true;
 
@@ -183,14 +181,6 @@ fn stream_read(
     source: StreamSource,
     sector_count: u32,
 ) -> bool {
-    log::trace!(
-        "stream_read({}, {:#?}, {:#x}, {})",
-        stream_index,
-        buffer,
-        source.0,
-        sector_count
-    );
-
     unsafe {
         hook::slide::<*mut u32>(0x100939240).write(source.0 + sector_count);
     }
@@ -286,6 +276,7 @@ impl Queue {
         }
     }
 
+    #[allow(dead_code)]
     fn finalise(&mut self) {
         unsafe {
             libc::free(self.data.cast());
@@ -298,8 +289,6 @@ impl Queue {
     }
 
     fn add(&mut self, value: u32) {
-        log::trace!("{:#?}", self);
-
         unsafe {
             self.data.offset(self.tail as isize).write(value);
         }
