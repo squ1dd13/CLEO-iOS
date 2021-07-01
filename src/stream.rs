@@ -1,4 +1,4 @@
-use crate::hook;
+use crate::{hook, targets};
 
 fn zero_memory(ptr: *mut u8, bytes: usize) {
     for i in 0..bytes {
@@ -16,11 +16,11 @@ fn streaming_queue() -> &'static mut Queue {
     }
 }
 
-fn streams_array() -> &'static mut *mut Stream {
+fn streams_array() -> *mut Stream {
     unsafe {
-        hook::slide::<*mut *mut Stream>(0x100939118)
-            .as_mut()
-            .unwrap()
+        *hook::slide::<*mut *mut Stream>(0x100939118)
+        // .as_mut()
+        // .unwrap()
     }
 }
 
@@ -113,17 +113,21 @@ fn stream_thread(_: usize) {
     log::trace!("Streaming thread started!");
 
     loop {
-        let stream_semaphore = unsafe { *hook::slide::<*mut *mut u8>(0x1006ac8e0) };
+        let stream_semaphore = hook::get_global_mut(0x1006ac8e0);
 
         // eq: OS_SemaphoreWait(...)
         hook::slide::<fn(*mut u8)>(0x1004e8b84)(stream_semaphore);
+
+        log::trace!("loop");
 
         let queue = streaming_queue();
         let streams = streams_array();
 
         // Get the first stream index from the queue and then get a reference to the stream.
         let stream_index = queue.first() as isize;
-        let stream = unsafe { streams.offset(stream_index).as_mut().unwrap() };
+        let mut stream = unsafe { &mut *streams.offset(stream_index) };
+
+        log::trace!("stream = {:#?}", stream);
 
         // Mark the stream as in use.
         stream.processing = true;
@@ -167,11 +171,79 @@ fn stream_thread(_: usize) {
     }
 }
 
+fn stream_read(
+    stream_index: u32,
+    buffer: *mut u8,
+    source: StreamSource,
+    sector_count: u32,
+) -> bool {
+    log::trace!(
+        "stream_read({}, {:#?}, {:#x}, {}",
+        stream_index,
+        buffer,
+        source.0,
+        sector_count
+    );
+
+    let last_position = source.0 + sector_count;
+    *hook::get_global_mut(0x100939240) = last_position;
+
+    let stream = unsafe { &mut *streams_array().offset(stream_index as isize) };
+
+    unsafe {
+        stream.file =
+            *hook::slide::<*mut *mut u8>(0x100939140).offset(source.image_index() as isize * 8);
+    }
+
+    if stream.sectors_to_read != 0 || stream.processing {
+        return false;
+    }
+
+    // Set up the stream for getting the resource we want
+    stream.status = 0;
+    stream.sector_offset = source.sector_offset();
+    stream.sectors_to_read = sector_count;
+    stream.buffer = buffer;
+    stream.locked = false;
+
+    streaming_queue().add(stream_index);
+
+    let stream_semaphore = unsafe { *hook::slide::<*mut *mut u8>(0x1006ac8e0) };
+
+    // eq: OS_SemaphorePost(...)
+    hook::slide::<fn(*mut u8)>(0x1004e8b5c)(stream_semaphore);
+
+    true
+}
+
 pub fn hook() {
-    crate::targets::cd_stream_init::install(stream_init);
+    const CD_STREAM_INIT: crate::hook::Target<fn(i32)> = crate::hook::Target::Address(0x100177eb8);
+    CD_STREAM_INIT.hook_hard(stream_init);
+
+    const CD_STREAM_READ: crate::hook::Target<fn(u32, *mut u8, StreamSource, u32) -> bool> =
+        crate::hook::Target::Address(0x100178048);
+    CD_STREAM_READ.hook_hard(stream_read);
 }
 
 #[repr(C)]
+struct StreamSource(u32);
+
+impl StreamSource {
+    fn image_index(&self) -> u8 {
+        // The top 8 bits encode the index of the image that the resource is from in the global
+        //  image handle array.
+        (self.0 >> 24) as u8
+    }
+
+    fn sector_offset(&self) -> u32 {
+        // The bottom 24 bits encode the number of sectors the resource is from the beginning of
+        //  the file.
+        self.0 & 0xffffff
+    }
+}
+
+#[repr(C)]
+#[derive(Debug)]
 struct Stream {
     sector_offset: u32,
     sectors_to_read: u32,
@@ -187,6 +259,7 @@ struct Stream {
 }
 
 #[repr(C)]
+#[derive(Debug)]
 struct Queue {
     data: *mut u32,
     head: u32,
@@ -216,6 +289,8 @@ impl Queue {
     }
 
     fn add(&mut self, value: u32) {
+        log::trace!("{:#?}", self);
+
         unsafe {
             self.data.offset(self.tail as isize).write(value);
         }
@@ -235,11 +310,5 @@ impl Queue {
         if self.head != self.tail {
             self.head = (self.head + 1) % self.capacity;
         }
-    }
-}
-
-impl Drop for Queue {
-    fn drop(&mut self) {
-        self.finalise();
     }
 }
