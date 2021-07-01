@@ -1,4 +1,4 @@
-use crate::{hook, targets};
+use crate::hook;
 
 fn zero_memory(ptr: *mut u8, bytes: usize) {
     for i in 0..bytes {
@@ -17,11 +17,7 @@ fn streaming_queue() -> &'static mut Queue {
 }
 
 fn streams_array() -> *mut Stream {
-    unsafe {
-        *hook::slide::<*mut *mut Stream>(0x100939118)
-        // .as_mut()
-        // .unwrap()
-    }
+    hook::get_global(0x100939118)
 }
 
 fn stream_init(stream_count: i32) {
@@ -113,12 +109,10 @@ fn stream_thread(_: usize) {
     log::trace!("Streaming thread started!");
 
     loop {
-        let stream_semaphore = hook::get_global_mut(0x1006ac8e0);
+        let stream_semaphore = hook::get_global(0x1006ac8e0);
 
         // eq: OS_SemaphoreWait(...)
         hook::slide::<fn(*mut u8)>(0x1004e8b84)(stream_semaphore);
-
-        log::trace!("loop");
 
         let queue = streaming_queue();
         let streams = streams_array();
@@ -178,21 +172,24 @@ fn stream_read(
     sector_count: u32,
 ) -> bool {
     log::trace!(
-        "stream_read({}, {:#?}, {:#x}, {}",
+        "stream_read({}, {:#?}, {:#x}, {})",
         stream_index,
         buffer,
         source.0,
         sector_count
     );
 
-    let last_position = source.0 + sector_count;
-    *hook::get_global_mut(0x100939240) = last_position;
+    unsafe {
+        hook::slide::<*mut u32>(0x100939240).write(source.0 + sector_count);
+    }
 
     let stream = unsafe { &mut *streams_array().offset(stream_index as isize) };
 
     unsafe {
-        stream.file =
-            *hook::slide::<*mut *mut u8>(0x100939140).offset(source.image_index() as isize * 8);
+        let handle_arr_base: *mut *mut u8 = hook::slide(0x100939140);
+        let handle_ptr: *mut u8 = *handle_arr_base.offset(source.image_index() as isize);
+
+        stream.file = handle_ptr;
     }
 
     if stream.sectors_to_read != 0 || stream.processing {
@@ -208,7 +205,7 @@ fn stream_read(
 
     streaming_queue().add(stream_index);
 
-    let stream_semaphore = unsafe { *hook::slide::<*mut *mut u8>(0x1006ac8e0) };
+    let stream_semaphore = hook::get_global(0x1006ac8e0);
 
     // eq: OS_SemaphorePost(...)
     hook::slide::<fn(*mut u8)>(0x1004e8b5c)(stream_semaphore);

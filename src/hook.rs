@@ -191,14 +191,9 @@ pub fn slide<T: Copy>(address: usize) -> T {
     }
 }
 
-pub fn get_global_mut<T>(address: usize) -> &'static mut T {
-    let slid: *mut T = slide(address);
-    unsafe { slid.as_mut().unwrap() }
-}
-
-pub fn get_global<T>(address: usize) -> &'static T {
+pub fn get_global<T: Copy>(address: usize) -> T {
     let slid: *const T = slide(address);
-    unsafe { slid.as_ref().unwrap() }
+    unsafe { *slid }
 }
 
 pub fn is_german_game() -> bool {
