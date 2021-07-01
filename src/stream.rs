@@ -165,6 +165,18 @@ fn stream_thread(_: usize) {
     }
 }
 
+/*
+
+    Plan:
+      - Before archives are loaded for streaming, open them and find information for the models we're overriding.
+      - Let the streaming system load, but before streaming begins, change the model info so our models can be loaded (e.g. increase load size).
+      - When a request is made for an overridden model, load the custom model from the file instead of from the archive.
+         * Keep all custom models files open so we can read straight away.
+      - Custom files go in x.img folders, with ".img" being associated with an archive component which registers the new files with the
+         streaming system.
+
+*/
+
 fn stream_read(
     stream_index: u32,
     buffer: *mut u8,
