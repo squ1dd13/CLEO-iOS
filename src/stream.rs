@@ -1,3 +1,5 @@
+use libc::c_char;
+
 use crate::hook;
 
 fn zero_memory(ptr: *mut u8, bytes: usize) {
@@ -215,6 +217,42 @@ fn stream_read(
     true
 }
 
+fn stream_open(path: *const c_char, _: bool) -> i32 {
+    let handles: *mut *mut u8 = hook::slide(0x100939140);
+
+    // Find the first available place in the handles array.
+    let mut index = 0;
+
+    for i in 0..32isize {
+        unsafe {
+            if handles.offset(i).read().is_null() {
+                break;
+            }
+        }
+
+        index += 1;
+    }
+
+    // eq: OS_FileOpen(...)
+    let file_open: fn(u64, *mut *mut u8, *const c_char, u64) = hook::slide(0x1004e4f94);
+    file_open(0, unsafe { handles.offset(index) }, path, 0);
+
+    unsafe {
+        if handles.offset(index).read().is_null() {
+            return 0;
+        }
+    }
+
+    let image_names: *mut i8 = hook::slide(0x1006ac0e0);
+
+    unsafe {
+        let dest = image_names.offset(index * 64);
+        libc::strcpy(dest, path.cast());
+    }
+
+    (index as i32) << 24
+}
+
 pub fn hook() {
     const CD_STREAM_INIT: crate::hook::Target<fn(i32)> = crate::hook::Target::Address(0x100177eb8);
     CD_STREAM_INIT.hook_hard(stream_init);
@@ -222,6 +260,10 @@ pub fn hook() {
     const CD_STREAM_READ: crate::hook::Target<fn(u32, *mut u8, StreamSource, u32) -> bool> =
         crate::hook::Target::Address(0x100178048);
     CD_STREAM_READ.hook_hard(stream_read);
+
+    const CD_STREAM_OPEN: crate::hook::Target<fn(*const c_char, bool) -> i32> =
+        crate::hook::Target::Address(0x1001782b0);
+    CD_STREAM_OPEN.hook_hard(stream_open);
 }
 
 #[repr(C)]
