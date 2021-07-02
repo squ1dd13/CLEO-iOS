@@ -1,9 +1,9 @@
-use std::io::Read;
+use std::io::{Read, Write};
 
 use byteorder::{LittleEndian, ReadBytesExt};
 use libc::c_char;
 
-use crate::hook;
+use crate::{call_original, hook, targets};
 
 fn zero_memory(ptr: *mut u8, bytes: usize) {
     for i in 0..bytes {
@@ -231,6 +231,8 @@ fn stream_read(
             source.sector_offset(),
             image_name
         );
+
+        panic!("fuck");
     }
 
     streaming_queue().add(stream_index);
@@ -311,317 +313,369 @@ fn get_archive_path(path: &str) -> Option<(String, String)> {
     ))
 }
 
-fn load_directory(path: &str, archive_id: i32) {
-    let (path, archive_name) = get_archive_path(path).expect("Unable to resolve path name.");
-    let mut file =
-        std::io::BufReader::new(std::fs::File::open(&path).expect("Failed to open file."));
+// fn load_directory(path: &str, archive_id: i32) {
+//     let (path, archive_name) = get_archive_path(path).expect("Unable to resolve path name.");
+//     let mut file =
+//         std::io::BufReader::new(std::fs::File::open(&path).expect("Failed to open file."));
 
-    // 0x32524556 is VER2 as an unsigned integer.
-    let identifier = file
-        .read_u32::<LittleEndian>()
-        .expect("Failed to read identifier.");
-    if identifier != 0x32524556 {
-        log::error!(
-            "Archive '{}' does not have VER2 identifier! Processing will continue anyway.",
-            archive_name
-        );
-    }
+//     // 0x32524556 is VER2 as an unsigned integer.
+//     let identifier = file
+//         .read_u32::<LittleEndian>()
+//         .expect("Failed to read identifier.");
+//     if identifier != 0x32524556 {
+//         log::error!(
+//             "Archive '{}' does not have VER2 identifier! Processing will continue anyway.",
+//             archive_name
+//         );
+//     }
 
-    let entry_count = file
-        .read_u32::<LittleEndian>()
-        .expect("Failed to read entry count.");
+//     let entry_count = file
+//         .read_u32::<LittleEndian>()
+//         .expect("Failed to read entry count.");
 
-    log::info!("{} has {} entries.", archive_name, entry_count);
+//     log::info!("{} has {} entries.", archive_name, entry_count);
 
-    let mut last_time_check = std::time::Instant::now();
+//     let mut last_time_check = std::time::Instant::now();
 
-    let mut previous_model_id = -1i32;
+//     #[repr(C)]
+//     struct Entry {
+//         offset: u32,
+//         streaming_size: u16,
+//         size_in_archive: u16,
+//         name: [u8; 24],
+//     }
 
-    #[repr(C)]
-    struct Entry {
-        offset: u32,
-        streaming_size: u16,
-        size_in_archive: u16,
-        name: [u8; 24],
-    }
+//     let byte_count = entry_count as usize * std::mem::size_of::<Entry>();
+//     let mut entry_buf = vec![0u8; byte_count];
 
-    for _ in 0..entry_count {
-        let time_since_check = std::time::Instant::now() - last_time_check;
+//     file.read_exact(&mut entry_buf).unwrap();
 
-        if time_since_check.as_millis() >= 34 {
-            // eq: CLoadingScreen::m_bActive
-            if !hook::get_global::<bool>(0x10081f460) {
-                // eq: bLoadingScene
-                if hook::get_global::<bool>(0x10072d530) {
-                    // eq: Pump_SwapBuffers()
-                    hook::slide::<fn()>(0x100243070)();
-                }
-            } else {
-                // eq: CLoadingScreen::DisplayPCScreen()
-                hook::slide::<fn()>(0x1002b54c4)();
-            }
+//     let mut file = &entry_buf[..];
 
-            last_time_check = std::time::Instant::now();
-        }
+//     let mut previous_model_id = -1i32;
 
-        let mut offset = file
-            .read_u32::<LittleEndian>()
-            .expect("Failed to read entry offset.");
-        let mut size_sectors = file
-            .read_u16::<LittleEndian>()
-            .expect("Failed to read entry size.");
-        let archive_size = file
-            .read_u16::<LittleEndian>()
-            .expect("Failed to read entry archive size.");
+//     for _ in 0..entry_count {
+//         let time_since_check = std::time::Instant::now() - last_time_check;
 
-        if archive_size != 0 {
-            log::warn!("Archive size should be zero, but is {}.", archive_size);
-        }
+//         if time_since_check.as_millis() >= 34 {
+//             // eq: CLoadingScreen::m_bActive
+//             if !hook::get_global::<bool>(0x10081f460) {
+//                 // eq: bLoadingScene
+//                 if hook::get_global::<bool>(0x10072d530) {
+//                     // eq: Pump_SwapBuffers()
+//                     hook::slide::<fn()>(0x100243070)();
+//                 }
+//             } else {
+//                 // eq: CLoadingScreen::DisplayPCScreen()
+//                 hook::slide::<fn()>(0x1002b54c4)();
+//             }
 
-        let mut name_bytes = [0u8; 24];
-        file.read_exact(&mut name_bytes)
-            .expect("Failed to read entry name.");
+//             last_time_check = std::time::Instant::now();
+//         }
 
-        name_bytes[23] = 0;
+//         let mut offset = file
+//             .read_u32::<LittleEndian>()
+//             .expect("Failed to read entry offset.");
+//         let mut size_sectors = file
+//             .read_u16::<LittleEndian>()
+//             .expect("Failed to read entry size.");
+//         let archive_size = file
+//             .read_u16::<LittleEndian>()
+//             .expect("Failed to read entry archive size.");
 
-        let entry_name = unsafe { std::ffi::CStr::from_ptr(name_bytes.as_ptr().cast()) }
-            .to_str()
-            .unwrap();
+//         if archive_size != 0 {
+//             log::warn!("Archive size should be zero, but is {}.", archive_size);
+//         }
 
-        let streaming_buffer_size: u32 =
-            hook::get_global::<u32>(0x10072d320).max(size_sectors as u32);
+//         let mut name_bytes = [0u8; 24];
+//         file.read_exact(&mut name_bytes)
+//             .expect("Failed to read entry name.");
 
-        unsafe {
-            *hook::slide::<*mut u32>(0x10072d320) = streaming_buffer_size;
-        }
+//         name_bytes[23] = 0;
 
-        let entry_path = std::path::Path::new(entry_name);
+//         let entry_name = unsafe { std::ffi::CStr::from_ptr(name_bytes.as_ptr().cast()) }
+//             .to_str()
+//             .unwrap();
 
-        let file_extension = entry_path.extension().and_then(|os_str| os_str.to_str());
+//         let streaming_buffer_size: u32 =
+//             hook::get_global::<u32>(0x10072d320).max(size_sectors as u32);
 
-        let file_extension = if let Some(ext) = file_extension {
-            ext.to_lowercase()
-        } else {
-            log::warn!(
-                "Skipping {}/{} because it has no extension.",
-                archive_name,
-                entry_name
-            );
+//         unsafe {
+//             *hook::slide::<*mut u32>(0x10072d320) = streaming_buffer_size;
+//         }
 
-            continue;
-        };
+//         let entry_path = std::path::Path::new(entry_name);
 
-        let file_extension = file_extension.as_str();
+//         let file_extension = entry_path.extension().and_then(|os_str| os_str.to_str());
 
-        let name = entry_path
-            .file_stem()
-            .expect("Need a name!")
-            .to_str()
-            .unwrap();
+//         let file_extension = if let Some(ext) = file_extension {
+//             ext.to_lowercase()
+//         } else {
+//             log::warn!(
+//                 "Skipping {}/{} because it has no extension.",
+//                 archive_name,
+//                 entry_name
+//             );
 
-        let name_c = std::ffi::CString::new(name).unwrap();
-        let name_c = name_c.as_ptr();
+//             continue;
+//         };
 
-        let mut model_id = 0i32;
+//         let file_extension = file_extension.as_str();
 
-        match file_extension {
-            "dff" => {
-                let mut model_info_ptr: *mut u8 = std::ptr::null_mut();
+//         let name = entry_path
+//             .file_stem()
+//             .expect("Need a name!")
+//             .to_str()
+//             .unwrap();
 
-                let get_entry: extern "C" fn(*mut u8, *mut *mut u8, *mut i32, *const i8) =
-                    hook::slide(0x1002d0258);
+//         let name_c = std::ffi::CString::new(name).unwrap();
+//         let name_c = name_c.as_ptr();
 
-                // eq: CModelInfoAccelerator::GetEntry(...)
-                get_entry(
-                    hook::slide(0x1008572e8),
-                    &mut model_info_ptr,
-                    &mut model_id,
-                    name_c,
-                );
+//         let mut model_id = 0i32;
 
-                // eq: CModelInfo::GetModelInfo(...)
-                // let model_info_ptr = hook::slide::<fn(*const i8, *mut i32) -> *mut u8>(0x1002cf864)(
-                // name_c,
-                // &mut model_id,
-                // );
+//         match file_extension {
+//             "dff" => {
+//                 let mut model_info_ptr: *mut u8 = std::ptr::null_mut();
 
-                if model_info_ptr.is_null() {
-                    offset = offset | (archive_id as u32) << 24;
+//                 let get_entry: extern "C" fn(*mut u8, *mut *mut u8, *mut i32, *const i8) =
+//                     hook::slide(0x1002d0258);
 
-                    let extra_objects_dir: *mut u8 = hook::get_global(0x10072d4c0);
+//                 // eq: CModelInfoAccelerator::GetEntry(...)
+//                 get_entry(
+//                     hook::slide(0x1008572e8),
+//                     &mut model_info_ptr,
+//                     &mut model_id,
+//                     name_c,
+//                 );
 
-                    let entry = Entry {
-                        offset,
-                        streaming_size: size_sectors,
-                        size_in_archive: archive_size,
-                        name: name_bytes,
-                    };
+//                 // eq: CModelInfo::GetModelInfo(...)
+//                 // let model_info_ptr = hook::slide::<fn(*const i8, *mut i32) -> *mut u8>(0x1002cf864)(
+//                 // name_c,
+//                 // &mut model_id,
+//                 // );
 
-                    unsafe {
-                        let capacity = extra_objects_dir.offset(0x8).cast::<u32>().read();
-                        let num_entries = extra_objects_dir.offset(0xc).cast::<u32>().read();
+//                 if model_info_ptr.is_null() {
+//                     offset = offset | (archive_id as u32) << 24;
 
-                        // log::trace!("extra objects: {}/{}", num_entries, capacity);
+//                     let extra_objects_dir: *mut u8 = hook::get_global(0x10072d4c0);
 
-                        if num_entries >= capacity {
-                            panic!("too many things");
-                        }
-                    }
+//                     let entry = Entry {
+//                         offset,
+//                         streaming_size: size_sectors,
+//                         size_in_archive: archive_size,
+//                         name: name_bytes,
+//                     };
 
-                    // eq: CDirectory::AddItem(...)
-                    hook::slide::<fn(*mut u8, *const Entry)>(0x10023712c)(
-                        extra_objects_dir,
-                        &entry,
-                    );
+//                     unsafe {
+//                         let capacity = extra_objects_dir.offset(0x8).cast::<u32>().read();
+//                         let num_entries = extra_objects_dir.offset(0xc).cast::<u32>().read();
 
-                    previous_model_id = -1;
-                    continue;
-                } else {
-                    // log::trace!("Not extra");
-                }
-            }
+//                         // log::trace!("extra objects: {}/{}", num_entries, capacity);
 
-            "txd" => {
-                // eq: CTxdStore::FindTxdSlot(...)
-                model_id = hook::slide::<fn(*const i8) -> i32>(0x1003a20d8)(name_c);
+//                         if num_entries >= capacity {
+//                             panic!("too many things");
+//                         }
+//                     }
 
-                if model_id == -1 {
-                    // eq: CTxdStore::AddTxdSlot(...)
-                    model_id = hook::slide::<fn(*const i8) -> i32>(0x1003a1cdc)(name_c);
-                }
+//                     // eq: CDirectory::AddItem(...)
+//                     hook::slide::<fn(*mut u8, *const Entry)>(0x10023712c)(
+//                         extra_objects_dir,
+//                         &entry,
+//                     );
 
-                model_id += 20000;
-            }
+//                     previous_model_id = -1;
+//                     continue;
+//                 } else {
+//                     // log::trace!("Not extra");
+//                 }
+//             }
 
-            "col" => {
-                // fixme: This is always -1, so we don't need it.
-                // eq: CColStore::FindColSlot(...)
-                model_id = hook::slide::<fn(*const i8) -> i32>(0x10018aab4)(name_c);
+//             "txd" => {
+//                 // eq: CTxdStore::FindTxdSlot(...)
+//                 model_id = hook::slide::<fn(*const i8) -> i32>(0x1003a20d8)(name_c);
 
-                if model_id == -1 {
-                    // eq: CColStore::AddColSlot(...)
-                    model_id = hook::slide::<fn(*const i8) -> i32>(0x10018a548)(name_c);
-                }
+//                 if model_id == -1 {
+//                     // eq: CTxdStore::AddTxdSlot(...)
+//                     model_id = hook::slide::<fn(*const i8) -> i32>(0x1003a1cdc)(name_c);
+//                 }
 
-                model_id += 25000;
-            }
+//                 model_id += 20000;
+//             }
 
-            "ipl" => {
-                // eq: CIplStore::FindIplSlot(...)
-                model_id = hook::slide::<fn(*const i8) -> i32>(0x1001762c4)(name_c);
+//             "col" => {
+//                 // fixme: This is always -1, so we don't need it.
+//                 // eq: CColStore::FindColSlot(...)
+//                 model_id = hook::slide::<fn(*const i8) -> i32>(0x10018aab4)(name_c);
 
-                if model_id == -1 {
-                    // eq: CIplStore::AddIplSlot(...)
-                    model_id = hook::slide::<fn(*const i8) -> i32>(0x100175dd8)(name_c);
-                }
+//                 if model_id == -1 {
+//                     // eq: CColStore::AddColSlot(...)
+//                     model_id = hook::slide::<fn(*const i8) -> i32>(0x10018a548)(name_c);
+//                 }
 
-                model_id += 25255;
-            }
+//                 model_id += 25000;
+//             }
 
-            "dat" => {
-                // Should be a nodes*.dat file, so we need to find what the '*' is.
-                if name.len() < 6 {
-                    log::error!("Cannot parse .dat name '{}' because it is too short.", name);
-                    continue;
-                }
+//             "ipl" => {
+//                 // eq: CIplStore::FindIplSlot(...)
+//                 model_id = hook::slide::<fn(*const i8) -> i32>(0x1001762c4)(name_c);
 
-                model_id = i32::from_str_radix(&name[5..], 10)
-                    .expect("Could not parse DAT number.")
-                    + 25511;
-            }
+//                 if model_id == -1 {
+//                     // eq: CIplStore::AddIplSlot(...)
+//                     model_id = hook::slide::<fn(*const i8) -> i32>(0x100175dd8)(name_c);
+//                 }
 
-            "ifp" => {
-                // eq: CAnimManager::RegisterAnimBlock(...)
-                model_id = hook::slide::<fn(*const i8) -> i32>(0x100141034)(name_c) + 25575;
-            }
+//                 model_id += 25255;
+//             }
 
-            "rrr" => {
-                // eq: CVehicleRecording::RegisterRecordingFile(...)
-                model_id = hook::slide::<fn(*const i8) -> i32>(0x1001c9c34)(name_c) + 25755;
-            }
+//             "dat" => {
+//                 // Should be a nodes*.dat file, so we need to find what the '*' is.
+//                 if name.len() < 6 {
+//                     log::error!("Cannot parse .dat name '{}' because it is too short.", name);
+//                     continue;
+//                 }
 
-            "scm" => {
-                let the_scripts: *mut u8 = hook::slide(0x1007a42a0);
+//                 model_id = i32::from_str_radix(&name[5..], 10)
+//                     .expect("Could not parse DAT number.")
+//                     + 25511;
+//             }
 
-                // eq:: CStreamedScripts::RegisterScript(...)
-                model_id =
-                    hook::slide::<fn(*mut u8, *const i8) -> i32>(0x1001fd3b4)(the_scripts, name_c)
-                        + 26230;
-            }
+//             "ifp" => {
+//                 // eq: CAnimManager::RegisterAnimBlock(...)
+//                 model_id = hook::slide::<fn(*const i8) -> i32>(0x100141034)(name_c) + 25575;
+//             }
 
-            _ => {
-                log::warn!(
-                    "{}/{} has unknown extension '{}'.",
-                    name,
-                    entry_name,
-                    file_extension
-                );
+//             "rrr" => {
+//                 // eq: CVehicleRecording::RegisterRecordingFile(...)
+//                 model_id = hook::slide::<fn(*const i8) -> i32>(0x1001c9c34)(name_c) + 25755;
+//             }
 
-                continue;
-            }
-        }
+//             "scm" => {
+//                 let the_scripts: *mut u8 = hook::slide(0x1007a42a0);
 
-        let model_info_arr: *mut StreamingInfo = hook::slide(0x1006ac8f4);
-        let info = unsafe { model_info_arr.offset(model_id as isize).as_mut().unwrap() };
+//                 // eq:: CStreamedScripts::RegisterScript(...)
+//                 model_id =
+//                     hook::slide::<fn(*mut u8, *const i8) -> i32>(0x1001fd3b4)(the_scripts, name_c)
+//                         + 26230;
+//             }
 
-        // Fill in details if we don't already have them.
-        if info.cd_size != 0 {
-            log::trace!("Already have size and position info.");
-            previous_model_id = -1;
-            panic!();
-        } else {
-            info.img_id = archive_id as u8;
+//             _ => {
+//                 log::warn!(
+//                     "{}/{} has unknown extension '{}'.",
+//                     name,
+//                     entry_name,
+//                     file_extension
+//                 );
 
-            if archive_size != 0 {
-                size_sectors = archive_size;
-            }
+//                 continue;
+//             }
+//         }
 
-            info.cd_pos = offset;
-            info.cd_size = size_sectors as u32;
-            info.flags = 0;
+//         let model_info_arr: *mut ModelInfo = hook::slide(0x1006ac8f4);
+//         let info = unsafe { model_info_arr.offset(model_id as isize).as_mut().unwrap() };
 
-            if (offset as u32).overflowing_mul(2048).1 {
-                log::error!("end {}/{}", archive_name, entry_name);
-                panic!();
-            }
+//         let already_have_info = hook::slide::<fn(*mut ModelInfo, )
 
-            if previous_model_id != -1 {
-                unsafe {
-                    let previous = model_info_arr
-                        .offset(previous_model_id as isize)
-                        .as_mut()
-                        .unwrap();
+//         // Fill in details if we don't already have them.
+//         if info.cd_size != 0 {
+//             log::trace!("Already have size and position info.");
+//             previous_model_id = -1;
+//             panic!();
+//         } else {
+//             info.img_id = archive_id as u8;
 
-                    previous.next_index_on_cd = model_id as i16;
-                }
-            }
+//             if archive_size != 0 {
+//                 size_sectors = archive_size;
+//             }
 
-            previous_model_id = model_id;
+//             info.cd_pos = offset;
+//             info.cd_size = size_sectors as u32;
+//             info.flags = 0;
 
-            // log::trace!("{:#?}", info);
-        }
-    }
-}
+//             if (offset as u32).overflowing_mul(2048).1 {
+//                 log::error!("end {}/{}", archive_name, entry_name);
+//                 panic!();
+//             }
+
+//             if previous_model_id != -1 {
+//                 unsafe {
+//                     let previous = model_info_arr
+//                         .offset(previous_model_id as isize)
+//                         .as_mut()
+//                         .unwrap();
+
+//                     previous.next_index_on_cd = model_id as i16;
+//                 }
+//             }
+
+//             previous_model_id = model_id;
+
+//             // log::trace!("{:#?}", info);
+//         }
+//     }
+// }
 
 fn log_all_models() {
-    let model_info_arr: *mut StreamingInfo = hook::slide(0x1006ac8f4);
+    // let mut big_string = String::new();
+
+    let mut file = std::io::BufWriter::new(
+        std::fs::File::create(crate::files::get_data_path("streaming_info.txt")).unwrap(),
+    );
+
+    let model_info_arr: *mut ModelInfo = hook::slide(0x1006ac8f4);
 
     for i in 0..26316 {
         let info = unsafe { model_info_arr.offset(i as isize).as_ref().unwrap() };
-        log::trace!("{:#?}", info);
+        write!(file, "{:?}\n", info).unwrap();
+        // log::trace!("{:#?}", info);
     }
 }
 
-fn load_cd_directory(path: *const i8, archive_id: i32) {
-    let path = unsafe { std::ffi::CStr::from_ptr(path) }
-        .to_str()
-        .expect("Unable to convert path C string to Rust.");
+// const LOAD_ARCHIVE: crate::hook::Target<fn(*const c_char, i32)> =
+//     crate::hook::Target::Address(0x1002f0e18);
+// pub static mut ORIGINAL: Option<fn(*const c_char, i32)> = None;
+// fn load_cd_directory(path: *const i8, archive_id: i32) {
+//     let path = unsafe { std::ffi::CStr::from_ptr(path) }
+//         .to_str()
+//         .expect("Unable to convert path C string to Rust.");
 
-    load_directory(path, archive_id);
-    log_all_models();
+//     // unsafe {
+//     // ORIGINAL.unwrap()(path, archive_id);
+//     // }
+
+//     load_directory(path, archive_id);
+//     // log_all_models();
+// }
+//
+//
+// 0x1008572e8
+fn dir_add_item(a: usize, b: usize) {
+    static mut COUNT: u64 = 0;
+
+    unsafe {
+        COUNT += 1;
+        let slide = hook::get_image_aslr_offset(0);
+        log::trace!(
+            "dir_add_item({:#x}, {:#x})\tcall {}",
+            a - slide,
+            b - slide,
+            COUNT
+        );
+    }
+
+    call_original!(targets::dir_add_item, a, b);
+}
+
+fn accel(a: usize, b: usize, c: usize, d: *const i8) {
+    let slide = hook::get_image_aslr_offset(0);
+    log::trace!("accel({:#x} ...)", a - slide);
+
+    call_original!(targets::accel, a, b, c, d);
 }
 
 pub fn hook() {
+    // targets::dir_add_item::install(dir_add_item);
+    // targets::accel::install(accel);
+
     const CD_STREAM_INIT: crate::hook::Target<fn(i32)> = crate::hook::Target::Address(0x100177eb8);
     CD_STREAM_INIT.hook_hard(stream_init);
 
@@ -633,14 +687,12 @@ pub fn hook() {
         crate::hook::Target::Address(0x1001782b0);
     CD_STREAM_OPEN.hook_hard(stream_open);
 
-    const LOAD_ARCHIVE: crate::hook::Target<fn(*const c_char, i32)> =
-        crate::hook::Target::Address(0x1002f0e18);
-    LOAD_ARCHIVE.hook_hard(load_cd_directory);
+    // LOAD_ARCHIVE.hook_soft(load_cd_directory, unsafe { &mut ORIGINAL });
 }
 
 #[repr(C)]
 #[derive(Debug)]
-struct StreamingInfo {
+struct ModelInfo {
     next_index: i16,
     prev_index: i16,
     next_index_on_cd: i16,
@@ -650,6 +702,20 @@ struct StreamingInfo {
     cd_size: u32,
     load_state: u8,
     _pad: [u8; 3],
+}
+
+#[repr(C)]
+#[derive(Debug)]
+struct ExtendedModelInfo {
+    next_index: i16,
+    prev_index: i16,
+    next_index_on_cd: i16,
+    flags: u8,
+    img_id: u8,
+    cd_pos: u32,
+    cd_size: u32,
+    load_state: u8,
+    // We have three padding bytes to use for our own purposes.
 }
 
 #[repr(C)]

@@ -89,6 +89,10 @@ mod targets {
         fn(*const Object, Sel, *mut Object, bool)
     );
 
+    create_soft_target!(dir_add_item, 0x10023712c, fn(usize, usize));
+
+    create_soft_target!(accel, 0x1002d0258, fn(usize, usize, usize, *const i8));
+
     create_hard_target!(
         loading_messages,
         0x1002b5a78,
