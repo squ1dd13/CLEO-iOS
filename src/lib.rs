@@ -84,14 +84,16 @@ mod targets {
     create_soft_target!(update_pads, 0x100244908, fn());
 
     create_soft_target!(
+        load_cd_directory,
+        0x1002f0e18,
+        fn(*const u8, archive_id: i32)
+    );
+
+    create_soft_target!(
         end_dragging,
         0x1000cbd08,
         fn(*const Object, Sel, *mut Object, bool)
     );
-
-    create_soft_target!(dir_add_item, 0x10023712c, fn(usize, usize));
-
-    create_soft_target!(accel, 0x1002d0258, fn(usize, usize, usize, *const i8));
 
     create_hard_target!(
         loading_messages,
