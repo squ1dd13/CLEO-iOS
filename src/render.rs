@@ -144,7 +144,7 @@ fn set_loading_messages(msg_1: *const c_char, msg_2: *const c_char) {
         let msg_1 = std::ffi::CStr::from_ptr(msg_1).to_str().unwrap_or("???");
         let msg_2 = std::ffi::CStr::from_ptr(msg_2).to_str().unwrap_or("???");
 
-        log::trace!("{}: {}", msg_1, msg_2);
+        log::info!("{}: {}", msg_1, msg_2);
     }
 }
 

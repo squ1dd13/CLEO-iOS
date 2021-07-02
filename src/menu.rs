@@ -657,7 +657,10 @@ Additionally, some – especially those without codes – can crash the game in 
         });
 
         for (i, tab) in self.tabs.iter().enumerate() {
-            let offset = CGPoint { x: 0.0, y: self.state.tabs[i].touch_scroll_offset };
+            let offset = CGPoint {
+                x: 0.0,
+                y: self.state.tabs[i].touch_scroll_offset,
+            };
 
             unsafe {
                 let _: () = msg_send![tab.views[0], setContentOffset: offset animated: false];

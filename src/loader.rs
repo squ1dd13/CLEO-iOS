@@ -10,7 +10,7 @@ lazy_static! {
     static ref LOADER_PATH: Mutex<Option<PathBuf>> = Mutex::new(None);
 }
 
-fn process_path(path_str: &str) -> Option<String> {
+pub fn process_path(path_str: &str) -> Option<String> {
     let path = Path::new(path_str);
 
     if let Some(parent) = path.parent() {

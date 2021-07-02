@@ -7,10 +7,12 @@ _**Note:** This branch (`main`) is for the current version of CLEO iOS, which is
 **[Join the Discord server for support, info and script suggestions.](https://discord.gg/cXwkTUasJU)**
 
 ## Completed Features
-* CSA script loading
-* CSI script loading
-* FXT loading
+* File support
+  * CSA scripts
+  * CSI scripts
+  * FXT language extensions
 * Cheat menu
+* 60 FPS
 
 ## Planned Features
 * IMG editing/hooking for custom models
@@ -64,7 +66,9 @@ be a part of [CLEO](http://cleo.li/).
 * [Alexander Blade](http://www.dev-c.com/) for creating CLEO Android, and for publishing information on 
 his Android-specific opcodes ([here](https://gtaforums.com/topic/663125-android-cleo-android/)).
 * [DK22Pac](https://github.com/DK22Pac) and all the others who have contributed to 
-[plugin-sdk](https://github.com/DK22Pac/plugin-sdk), which was very helpful for creating game structures.
+[plugin-sdk](https://github.com/DK22Pac/plugin-sdk), which has been very helpful for creating game structures.
+* All those who have contributed to the [gtasa-reversed](https://github.com/codenulls/gta-reversed) project, which has been a valuable
+resource for building my understanding of some of the more complex systems which are common between the PC and iOS versions.
 * oliver#1219 for gifting me GTA III and VC (amongst other games) to help research into getting CLEO working in those games too.
 * Members of the CLEO iOS [Discord server](https://discord.gg/cXwkTUasJU) for reporting bugs, helping investigate them and testing fixes.
 * The GTA modding community in general for doing so much of the research which made CLEO iOS possible.

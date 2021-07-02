@@ -89,8 +89,6 @@ mod targets {
         fn(*const Object, Sel, *mut Object, bool)
     );
 
-    create_hard_target!(cd_stream_init, 0x100177eb8, fn(i32));
-
     create_hard_target!(
         loading_messages,
         0x1002b5a78,
