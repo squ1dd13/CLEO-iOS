@@ -682,13 +682,6 @@ impl ArchiveFolder {
         Ok(Box::new(DummyComponent {}))
     }
 
-    fn new_empty() -> ArchiveFolder {
-        ArchiveFolder {
-            name: "".into(),
-            children: HashMap::new(),
-        }
-    }
-
     fn get_child<'a>(&'a mut self, name: &String) -> Option<&'a mut ArchiveFileReplacement> {
         self.children.get_mut(name)
     }
