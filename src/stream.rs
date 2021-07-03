@@ -360,7 +360,6 @@ fn with_disk_models<T>(with: impl Fn(&mut HashMap<StreamSource, DiskModel>) -> T
     with(locked.as_mut().unwrap())
 }
 
-// impl ArchiveIndex {
 fn load_archive_into_database(path: &str, img_id: i32) -> std::io::Result<()> {
     // We use a BufReader because we do many small reads.
     let mut file = std::io::BufReader::new(std::fs::File::open(path)?);
@@ -377,44 +376,38 @@ fn load_archive_into_database(path: &str, img_id: i32) -> std::io::Result<()> {
     log::info!("Archive has {} entries.", entry_count);
 
     for _ in 0..entry_count {
-        struct DirectoryEntry {
-            offset: u32,
-            size: u16,
-            name: String,
-        }
+        let offset = file.read_u32::<LittleEndian>()?;
 
-        let entry = DirectoryEntry {
-            offset: file.read_u32::<LittleEndian>()?,
-            size: {
-                // The game provides two sizes but we can turn this into one.
-                let streaming_size = file.read_u16::<LittleEndian>()?;
-                let archive_size = file.read_u16::<LittleEndian>()?;
+        let size = {
+            // The game provides two sizes but we can turn this into one.
+            let streaming_size = file.read_u16::<LittleEndian>()?;
+            let archive_size = file.read_u16::<LittleEndian>()?;
 
-                if streaming_size == 0 {
-                    archive_size
-                } else {
-                    streaming_size
-                }
-            },
-            name: {
-                let mut name_buf = [0u8; 24];
-                file.read_exact(&mut name_buf)?;
-
-                let name = unsafe { std::ffi::CStr::from_ptr(name_buf.as_ptr().cast()) }
-                    .to_str()
-                    .unwrap();
-
-                name.to_string()
-            },
+            if streaming_size == 0 {
+                archive_size
+            } else {
+                streaming_size
+            }
         };
 
-        let source = StreamSource::new(img_id as u8, entry.offset);
+        let name = {
+            let mut name_buf = [0u8; 24];
+            file.read_exact(&mut name_buf)?;
+
+            let name = unsafe { std::ffi::CStr::from_ptr(name_buf.as_ptr().cast()) }
+                .to_str()
+                .unwrap();
+
+            name.to_string()
+        };
+
+        let source = StreamSource::new(img_id as u8, offset);
 
         with_disk_models(|models| {
             models.insert(
                 source,
                 DiskModel {
-                    name: entry.name.clone(),
+                    name: name.clone(),
                     replacement_path: None,
                 },
             );
@@ -431,14 +424,14 @@ fn load_directory(path_c: *const i8, archive_id: i32) {
 
     let (path, archive_name) = get_archive_path(path).expect("Unable to resolve path name.");
 
-    log::info!("Building ArchiveIndex for '{}'.", archive_name);
+    log::info!("Registering contents of archive '{}'.", archive_name);
 
     if let Err(err) = load_archive_into_database(&path, archive_id) {
         log::error!("Failed to load archive: {}", err);
         call_original!(targets::load_cd_directory, path_c, archive_id);
         return;
     } else {
-        log::info!("Loaded archive successfully.");
+        log::info!("Registered archive contents successfully.");
     }
 
     call_original!(targets::load_cd_directory, path_c, archive_id);
@@ -446,6 +439,7 @@ fn load_directory(path_c: *const i8, archive_id: i32) {
     let model_info_arr: *mut ModelInfo = hook::slide(0x1006ac8f4);
 
     with_disk_models(|disk_models| {
+        // 26316 is the total number of models in the model array.
         for i in 0..26316 {
             let info = unsafe { model_info_arr.offset(i as isize).as_mut().unwrap() };
             let stream_source = StreamSource::new(info.img_id, info.cd_pos);
