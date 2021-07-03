@@ -141,8 +141,12 @@ impl ComponentSystem {
                             }
                         }
 
-                        if let Err(err) = self.load_dir(entry.path(), false) {
-                            error!("Unable to load dir: {}", err);
+                        if let Err(err) = self.load_path(&path) {
+                            error!("Error loading dir {:?}: {}", path, err);
+
+                            if let Err(err) = self.load_dir(entry.path(), false) {
+                                error!("Unable to load dir: {}.", err);
+                            }
                         }
                     } else {
                         if let Err(err) = self.load_path(&path) {
@@ -160,7 +164,7 @@ impl ComponentSystem {
         Ok(())
     }
 
-    fn load_path(&mut self, path: impl AsRef<Path>) -> std::io::Result<()> {
+    fn load_path(&mut self, path: impl AsRef<Path>) -> std::io::Result<bool> {
         let extension = path
             .as_ref()
             .extension()
@@ -188,9 +192,10 @@ impl ComponentSystem {
             }
         } else {
             warn!("No handler set for extension '{}'.", extension);
+            return Ok(false);
         }
 
-        Ok(())
+        Ok(true)
     }
 
     pub fn reset_all(&mut self) {

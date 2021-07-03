@@ -137,6 +137,7 @@ fn load() {
     files::ComponentSystem::register_extension("csa", scripts::ScriptComponent::new);
     files::ComponentSystem::register_extension("csi", scripts::ScriptComponent::new);
     files::ComponentSystem::register_extension("fxt", files::LanguageFile::new);
+    files::ComponentSystem::register_extension("img", stream::ArchiveFolder::new);
 
     let component_system = ComponentSystem::new(files::get_cleo_dir_path());
 

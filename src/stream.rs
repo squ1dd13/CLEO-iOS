@@ -1,6 +1,7 @@
 use std::{
     collections::HashMap,
-    io::{Read, Write},
+    io::{Read, Seek, SeekFrom, Write},
+    path::Path,
     sync::Mutex,
 };
 
@@ -137,44 +138,49 @@ fn stream_thread(_: usize) {
         if stream.status == 0 {
             let stream_source = StreamSource::new(stream_index as u8, stream.sector_offset);
 
-            let replacement_path = with_disk_models(|models| {
-                if let Some(model) = models.get(&stream_source) {
-                    model.replacement_path.clone()
+            // let replacement_path = with_disk_models(|models| {
+            // if let Some(model) = models.get(&stream_source) {
+            // model.replacement_path.clone()
+            // } else {
+            // None
+            // }
+            // });
+
+            let read_custom = with_archive_components(&mut |components| {
+                let image_index = stream_source.image_index() as i32;
+                let folder_index = *components.1.get(&image_index)? as usize;
+                let folder = &mut components.0[folder_index];
+
+                let model_name = with_disk_models(|models| {
+                    models
+                        .get(&stream_source)
+                        .and_then(|model| Some(model.name.clone()))
+                })?;
+
+                let folder_child = folder.get_child(&model_name)?;
+
+                // Reset the file to offset 0 so we are definitely reading from the start.
+                folder_child.reset();
+
+                let file = &mut folder_child.file;
+
+                let mut buffer = vec![0u8; stream.sectors_to_read as usize * 2048];
+
+                if let Err(err) = file.read_exact(&mut buffer) {
+                    log::error!("Failed to read model data: {}", err);
+                    stream.status = 0xfe;
                 } else {
-                    None
+                    unsafe {
+                        std::ptr::copy(buffer.as_ptr(), stream.buffer, buffer.len());
+                    }
+
+                    stream.status = 0;
                 }
+
+                Some(())
             });
 
-            if let Some(path) = replacement_path {
-                log::trace!(
-                    "Need to load {} sectors from '{}'.",
-                    stream.sectors_to_read,
-                    path
-                );
-
-                let file = std::fs::File::open(path);
-
-                match file {
-                    Ok(mut file) => {
-                        let mut buffer = vec![0u8; stream.sectors_to_read as usize * 2048];
-
-                        if let Err(err) = file.read_exact(&mut buffer) {
-                            log::error!("Failed to read model data: {}", err);
-                            stream.status = 0xfe;
-                        } else {
-                            unsafe {
-                                std::ptr::copy(buffer.as_ptr(), stream.buffer, buffer.len());
-                            }
-
-                            stream.status = 0;
-                        }
-                    }
-                    Err(err) => {
-                        log::error!("Unable to open replacement model file: {}", err);
-                        stream.status = 0xfe;
-                    }
-                }
-            } else {
+            if read_custom.is_none() {
                 // Multiply the sector values by 2048 (the sector size) in order to get byte values.
                 let (byte_offset, over) = stream.sector_offset.overflowing_mul(2048);
 
@@ -199,6 +205,38 @@ fn stream_thread(_: usize) {
 
                 stream.status = if read_result != 0 { 0xfe } else { 0 };
             }
+
+            // if let Some(path) = replacement_path {
+            //     log::trace!(
+            //         "Need to load {} sectors from '{}'.",
+            //         stream.sectors_to_read,
+            //         path
+            //     );
+
+            //     let file = std::fs::File::open(path);
+
+            //     match file {
+            //         Ok(mut file) => {
+            //             let mut buffer = vec![0u8; stream.sectors_to_read as usize * 2048];
+
+            //             if let Err(err) = file.read_exact(&mut buffer) {
+            //                 log::error!("Failed to read model data: {}", err);
+            //                 stream.status = 0xfe;
+            //             } else {
+            //                 unsafe {
+            //                     std::ptr::copy(buffer.as_ptr(), stream.buffer, buffer.len());
+            //                 }
+
+            //                 stream.status = 0;
+            //             }
+            //         }
+            //         Err(err) => {
+            //             log::error!("Unable to open replacement model file: {}", err);
+            //             stream.status = 0xfe;
+            //         }
+            //     }
+            // } else {
+            // }
         }
 
         // Remove the queue entry we just processed so the next iteration processes the item after.
@@ -342,7 +380,7 @@ fn get_archive_path(path: &str) -> Option<(String, String)> {
 
     Some((
         crate::loader::process_path(path).unwrap_or(path.to_string()),
-        archive_name.to_string(),
+        archive_name.to_lowercase(),
     ))
 }
 
@@ -357,6 +395,17 @@ fn with_disk_models<T>(with: impl Fn(&mut HashMap<StreamSource, DiskModel>) -> T
     }
 
     let mut locked = DISK_MODELS.lock();
+    with(locked.as_mut().unwrap())
+}
+
+fn with_archive_components<T>(
+    with: &mut impl FnMut(&mut (Vec<ArchiveFolder>, HashMap<i32, i32>)) -> T,
+) -> T {
+    lazy_static::lazy_static! {
+        static ref COMPONENTS: Mutex<(Vec<ArchiveFolder>, HashMap<i32, i32>)> = Mutex::new((vec![], HashMap::new()));
+    }
+
+    let mut locked = COMPONENTS.lock();
     with(locked.as_mut().unwrap())
 }
 
@@ -424,6 +473,25 @@ fn load_directory(path_c: *const i8, archive_id: i32) {
 
     let (path, archive_name) = get_archive_path(path).expect("Unable to resolve path name.");
 
+    let folder_index = with_archive_components(&mut |components| {
+        let mut folder_index = -1;
+
+        // Find the index of the ArchiveFolder for this archive (if there is one).
+        for (i, component) in components.0.iter().enumerate() {
+            if component.name == archive_name {
+                folder_index = i as i32;
+                break;
+            }
+        }
+
+        if folder_index != -1 {
+            // Map the archive ID to the index of the ArchiveFolder.
+            components.1.insert(archive_id, folder_index);
+        }
+
+        folder_index
+    });
+
     log::info!("Registering contents of archive '{}'.", archive_name);
 
     if let Err(err) = load_archive_into_database(&path, archive_id) {
@@ -439,32 +507,49 @@ fn load_directory(path_c: *const i8, archive_id: i32) {
     let model_info_arr: *mut ModelInfo = hook::slide(0x1006ac8f4);
 
     with_disk_models(|disk_models| {
-        // 26316 is the total number of models in the model array.
-        for i in 0..26316 {
-            let info = unsafe { model_info_arr.offset(i as isize).as_mut().unwrap() };
-            let stream_source = StreamSource::new(info.img_id, info.cd_pos);
+        with_archive_components(&mut |components| {
+            let mut folder = if folder_index != -1 {
+                Some(&mut components.0[folder_index as usize])
+            } else {
+                None
+            };
 
-            let streaming_buffer_size: u32 =
-                hook::get_global::<u32>(0x10072d320).max(info.cd_size as u32);
+            // 26316 is the total number of models in the model array.
+            for i in 0..26316 {
+                let info = unsafe { model_info_arr.offset(i as isize).as_mut().unwrap() };
+                let stream_source = StreamSource::new(info.img_id, info.cd_pos);
 
-            unsafe {
-                *hook::slide::<*mut u32>(0x10072d320) = streaming_buffer_size;
-            }
+                if let Some(entry) = disk_models.get_mut(&stream_source) {
+                    let name = entry.name.to_lowercase();
 
-            if let Some(entry) = disk_models.get_mut(&stream_source) {
-                if entry.name.to_lowercase() == "clover.dff" {
-                    log::trace!("Found clover model");
-                    entry.replacement_path = Some(
-                        crate::files::get_data_path("clover.dff")
-                            .to_str()
-                            .unwrap()
-                            .to_string(),
-                    );
+                    if let Some(child) = folder.as_mut().and_then(|f| f.get_child(&name)) {
+                        log::info!("{} will be replaced", entry.name);
 
-                    info.cd_size = 2974;
+                        let size_segments = child.size_in_segments();
+                        info.cd_size = size_segments;
+                    }
+
+                    // if entry.name.to_lowercase() == "clover.dff" {
+                    //     log::trace!("Found clover model");
+                    //     entry.replacement_path = Some(
+                    //         crate::files::get_data_path("clover.dff")
+                    //             .to_str()
+                    //             .unwrap()
+                    //             .to_string(),
+                    //     );
+
+                    //     info.cd_size = 2974;
+                    // }
+                }
+
+                let streaming_buffer_size: u32 =
+                    hook::get_global::<u32>(0x10072d320).max(info.cd_size as u32);
+
+                unsafe {
+                    *hook::slide::<*mut u32>(0x10072d320) = streaming_buffer_size;
                 }
             }
-        }
+        });
     });
 }
 
@@ -483,6 +568,132 @@ pub fn hook() {
     targets::load_cd_directory::install(load_directory);
 }
 
+pub struct ArchiveFileReplacement {
+    size_bytes: u32,
+
+    // We keep the file open so it can't be modified while the game is running, because that could cause
+    //  issues with the buffer size.
+    file: std::fs::File,
+}
+
+impl ArchiveFileReplacement {
+    fn reset(&mut self) {
+        if let Err(err) = self.file.seek(SeekFrom::Start(0)) {
+            log::error!(
+                "Could not seek to start of archive replacement file: {}",
+                err
+            );
+        }
+    }
+
+    fn size_in_segments(&self) -> u32 {
+        (self.size_bytes + 2047) / 2048
+    }
+}
+
+// I am very lazy.
+// https://doc.rust-lang.org/nightly/std/fs/fn.read_dir.html#examples
+fn visit_dirs(dir: &Path, cb: &mut impl FnMut(&std::fs::DirEntry)) -> std::io::Result<()> {
+    if dir.is_dir() {
+        for entry in std::fs::read_dir(dir)? {
+            let entry = entry?;
+            let path = entry.path();
+            if path.is_dir() {
+                visit_dirs(&path, cb)?;
+            } else {
+                cb(&entry);
+            }
+        }
+    }
+    Ok(())
+}
+
+pub struct ArchiveFolder {
+    name: String,
+    children: HashMap<String, ArchiveFileReplacement>,
+}
+
+impl ArchiveFolder {
+    pub fn new(path: &Path) -> std::io::Result<Box<dyn crate::files::Component>> {
+        log::info!("called");
+
+        if !path.is_dir() {
+            log::error!("Replacement .img files must go inside the 'Replace' folder. Only .img **folders** are permitted at top-level.");
+            return Err(std::io::Error::from(std::io::ErrorKind::InvalidInput));
+        }
+
+        let name = if let Some(name) = path.file_name().and_then(|os_str| os_str.to_str()) {
+            name.to_string()
+        } else {
+            log::error!("Unable to get name from .img folder.");
+            return Err(std::io::Error::from(std::io::ErrorKind::InvalidInput));
+        };
+
+        struct DummyComponent {}
+        impl crate::files::Component for DummyComponent {}
+
+        with_archive_components(&mut move |components| {
+            let mut children = HashMap::new();
+
+            let result = visit_dirs(path, &mut |entry: &std::fs::DirEntry| {
+                let metadata = match entry.metadata() {
+                    Ok(metadata) => metadata,
+                    Err(err) => {
+                        log::error!("Unable to get metadata for entry {:?}: {:?}", entry, err);
+                        return;
+                    }
+                };
+
+                let size = metadata.len();
+                let file = std::fs::File::open(entry.path());
+
+                let file = if let Err(err) = file {
+                    log::error!("Unable to open file '{:?}': {:?}", entry.path(), err);
+                    return;
+                } else {
+                    file.unwrap()
+                };
+
+                let file_name = entry.file_name().to_str().unwrap().to_string();
+
+                log::info!("Adding {}", file_name);
+
+                children.insert(
+                    file_name,
+                    ArchiveFileReplacement {
+                        size_bytes: size as u32,
+                        file,
+                    },
+                );
+            });
+
+            if let Err(err) = result {
+                log::error!("Error traversing .img directory: {:?}", err);
+                return;
+            }
+
+            log::info!("Adding new archive folder.");
+            components.0.push(ArchiveFolder {
+                name: name.clone(),
+                children,
+            });
+        });
+
+        Ok(Box::new(DummyComponent {}))
+    }
+
+    fn new_empty() -> ArchiveFolder {
+        ArchiveFolder {
+            name: "".into(),
+            children: HashMap::new(),
+        }
+    }
+
+    fn get_child<'a>(&'a mut self, name: &String) -> Option<&'a mut ArchiveFileReplacement> {
+        self.children.get_mut(name)
+    }
+}
+
 #[repr(C)]
 #[derive(Debug)]
 struct ModelInfo {
@@ -495,14 +706,6 @@ struct ModelInfo {
     cd_size: u32,
     load_state: u8,
     _pad: [u8; 3],
-}
-
-#[repr(C)]
-struct StreamFileInfo {
-    name: [i8; 40],
-    not_player_img: bool,
-    _pad: [u8; 3],
-    stream_handle: i32,
 }
 
 #[repr(C)]
@@ -560,18 +763,6 @@ impl Queue {
             tail: 0,
             capacity,
         }
-    }
-
-    #[allow(dead_code)]
-    fn finalise(&mut self) {
-        unsafe {
-            libc::free(self.data.cast());
-        }
-
-        self.data = std::ptr::null_mut();
-        self.head = 0;
-        self.tail = 0;
-        self.capacity = 0;
     }
 
     fn add(&mut self, value: u32) {
