@@ -86,7 +86,7 @@ mod targets {
     create_soft_target!(
         load_cd_directory,
         0x1002f0e18,
-        fn(*const u8, archive_id: i32)
+        fn(*const i8, archive_id: i32)
     );
 
     create_soft_target!(

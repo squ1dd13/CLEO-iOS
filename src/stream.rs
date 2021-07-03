@@ -1,4 +1,8 @@
-use std::io::{Read, Write};
+use std::{
+    collections::HashMap,
+    io::{Read, Write},
+    sync::Mutex,
+};
 
 use byteorder::{LittleEndian, ReadBytesExt};
 use libc::c_char;
@@ -131,29 +135,70 @@ fn stream_thread(_: usize) {
 
         // A status of 0 means that the last read was successful.
         if stream.status == 0 {
-            // Multiply the sector values by 2048 (the sector size) in order to get byte values.
-            let (byte_offset, over) = stream.sector_offset.overflowing_mul(2048);
+            let stream_source = StreamSource::new(stream_index as u8, stream.sector_offset);
 
-            if over {
-                log::error!("Offset calculation caused overflow.");
-                log::trace!("{:#?}", stream);
-                stream.status = 0xfe;
-                panic!();
+            let replacement_path = with_disk_models(|models| {
+                if let Some(model) = models.get(&stream_source) {
+                    model.replacement_path.clone()
+                } else {
+                    None
+                }
+            });
+
+            if let Some(path) = replacement_path {
+                log::trace!(
+                    "Need to load {} sectors from '{}'.",
+                    stream.sectors_to_read,
+                    path
+                );
+
+                let file = std::fs::File::open(path);
+
+                match file {
+                    Ok(mut file) => {
+                        let mut buffer = vec![0u8; stream.sectors_to_read as usize * 2048];
+
+                        if let Err(err) = file.read_exact(&mut buffer) {
+                            log::error!("Failed to read model data: {}", err);
+                            stream.status = 0xfe;
+                        } else {
+                            unsafe {
+                                std::ptr::copy(buffer.as_ptr(), stream.buffer, buffer.len());
+                            }
+
+                            stream.status = 0;
+                        }
+                    }
+                    Err(err) => {
+                        log::error!("Unable to open replacement model file: {}", err);
+                        stream.status = 0xfe;
+                    }
+                }
+            } else {
+                // Multiply the sector values by 2048 (the sector size) in order to get byte values.
+                let (byte_offset, over) = stream.sector_offset.overflowing_mul(2048);
+
+                if over {
+                    log::error!("Offset calculation caused overflow.");
+                    log::trace!("{:#?}", stream);
+                    stream.status = 0xfe;
+                    panic!();
+                }
+
+                let bytes_to_read = stream.sectors_to_read * 2048;
+
+                // eq: OS_FileSetPosition(...)
+                hook::slide::<fn(*mut u8, u32) -> u32>(0x1004e51dc)(stream.file, byte_offset);
+
+                // eq: OS_FileRead(...)
+                let read_result = hook::slide::<fn(*mut u8, *mut u8, u32) -> u32>(0x1004e5300)(
+                    stream.file,
+                    stream.buffer,
+                    bytes_to_read,
+                );
+
+                stream.status = if read_result != 0 { 0xfe } else { 0 };
             }
-
-            let bytes_to_read = stream.sectors_to_read * 2048;
-
-            // eq: OS_FileSetPosition(...)
-            hook::slide::<fn(*mut u8, u32) -> u32>(0x1004e51dc)(stream.file, byte_offset);
-
-            // eq: OS_FileRead(...)
-            let read_result = hook::slide::<fn(*mut u8, *mut u8, u32) -> u32>(0x1004e5300)(
-                stream.file,
-                stream.buffer,
-                bytes_to_read,
-            );
-
-            stream.status = if read_result != 0 { 0xfe } else { 0 };
         }
 
         // Remove the queue entry we just processed so the next iteration processes the item after.
@@ -175,18 +220,6 @@ fn stream_thread(_: usize) {
         hook::slide::<fn(*mut u8)>(0x1004fbd40)(stream.mutex);
     }
 }
-
-/*
-
-    Plan:
-      - Before archives are loaded for streaming, open them and find information for the models we're overriding.
-      - Let the streaming system load, but before streaming begins, change the model info so our models can be loaded (e.g. increase load size).
-      - When a request is made for an overridden model, load the custom model from the file instead of from the archive.
-         * Keep all custom models files open so we can read straight away.
-      - Custom files go in x.img folders, with ".img" being associated with an archive component which registers the new files with the
-         streaming system.
-
-*/
 
 fn stream_read(
     stream_index: u32,
@@ -313,41 +346,133 @@ fn get_archive_path(path: &str) -> Option<(String, String)> {
     ))
 }
 
-/*
+struct DiskModel {
+    name: String,
+    replacement_path: Option<String>,
+}
 
-    Technical plan
-      - Hook CStreaming::LoadCdDirectory and build an index of the requested archive (separate from the game's).
-      - Once the index is complete, close the file and run the original function as normal.
-      - Hook CStreamingInfo::SetCdPosnAndSize. This gives us a pointer to the model info structure as well as
-         the offset of the model in the archive. We can find the entry in our index with a matching offset in
-         order to find the name. This is required so that we know if we're swapping the model in question.
-      - From within the hook, modify the model info as appropriate.
-         - If we have a replacement model:
-            - Use the size from that (in segments) and set the offset to something inoffensive such as 1.
-              The offset doesn't matter as long as it *looks* valid: we are in control of reading files
-               and we won't use it, but game code needs to think it's valid. The size does matter because
-               we need the game to allocate enough memory to store the custom model.
-            - Combine the model's image ID and offset values into a StreamSource structure and add the structure
-               to a map (as the key), and set the value in the map as the replacement file's path. This way,
-               we know where to read from when loading a custom model but without having to keep the index we
-               built in memory.
-         - If we have no replacement model, just use the size and offset given.
-      - In our CdStreamThread implementation, check the map of replacements for a key matching the image and
-         offset of the requested model before loading from the archive. If no match is found, load from the
-         archive as normal, but if a match is found, load from the replacement file path given in the map.
+fn with_disk_models<T>(with: impl Fn(&mut HashMap<StreamSource, DiskModel>) -> T) -> T {
+    lazy_static::lazy_static! {
+        static ref DISK_MODELS: Mutex<HashMap<StreamSource, DiskModel>> = Mutex::new(HashMap::new());
+    }
 
-      - Considerations:
-         - CStreamingInfo::SetCdPosnAndSize is only called from CStreaming::LoadCdDirectory, so it is safe to
-            assume (in the current version of the game) that we will need to check for replacements on every
-            call. However, there are three padding bytes at the end of the model info structure that could be
-            used as flags to prevent checking should the same function be called in the future for whatever
-            reason.
-!        - CDirectory::AddItem will need to be hooked to check for replacements when the archive given is
-!           CStreaming::ms_pExtraObjectsDir (or regardless?), because extra objects do not trigger a call
-!           to CStreamingInfo::SetCdPosnAndSize. This hook should not be difficult because the directory
-!           entry is given as an argument, so can be modified and then passed on to the original implementation.
+    let mut locked = DISK_MODELS.lock();
+    with(locked.as_mut().unwrap())
+}
 
-*/
+// impl ArchiveIndex {
+fn load_archive_into_database(path: &str, img_id: i32) -> std::io::Result<()> {
+    // We use a BufReader because we do many small reads.
+    let mut file = std::io::BufReader::new(std::fs::File::open(path)?);
+
+    let identifier = file.read_u32::<LittleEndian>()?;
+
+    // 0x32524556 is VER2 as an unsigned integer.
+    if identifier != 0x32524556 {
+        log::error!("Archive does not have a VER2 identifier! Processing will continue anyway.");
+    }
+
+    let entry_count = file.read_u32::<LittleEndian>()?;
+
+    log::info!("Archive has {} entries.", entry_count);
+
+    for _ in 0..entry_count {
+        struct DirectoryEntry {
+            offset: u32,
+            size: u16,
+            name: String,
+        }
+
+        let entry = DirectoryEntry {
+            offset: file.read_u32::<LittleEndian>()?,
+            size: {
+                // The game provides two sizes but we can turn this into one.
+                let streaming_size = file.read_u16::<LittleEndian>()?;
+                let archive_size = file.read_u16::<LittleEndian>()?;
+
+                if streaming_size == 0 {
+                    archive_size
+                } else {
+                    streaming_size
+                }
+            },
+            name: {
+                let mut name_buf = [0u8; 24];
+                file.read_exact(&mut name_buf)?;
+
+                let name = unsafe { std::ffi::CStr::from_ptr(name_buf.as_ptr().cast()) }
+                    .to_str()
+                    .unwrap();
+
+                name.to_string()
+            },
+        };
+
+        let source = StreamSource::new(img_id as u8, entry.offset);
+
+        with_disk_models(|models| {
+            models.insert(
+                source,
+                DiskModel {
+                    name: entry.name.clone(),
+                    replacement_path: None,
+                },
+            );
+        });
+    }
+
+    Ok(())
+}
+
+fn load_directory(path_c: *const i8, archive_id: i32) {
+    let path = unsafe { std::ffi::CStr::from_ptr(path_c) }
+        .to_str()
+        .unwrap();
+
+    let (path, archive_name) = get_archive_path(path).expect("Unable to resolve path name.");
+
+    log::info!("Building ArchiveIndex for '{}'.", archive_name);
+
+    if let Err(err) = load_archive_into_database(&path, archive_id) {
+        log::error!("Failed to load archive: {}", err);
+        call_original!(targets::load_cd_directory, path_c, archive_id);
+        return;
+    } else {
+        log::info!("Loaded archive successfully.");
+    }
+
+    call_original!(targets::load_cd_directory, path_c, archive_id);
+
+    let model_info_arr: *mut ModelInfo = hook::slide(0x1006ac8f4);
+
+    with_disk_models(|disk_models| {
+        for i in 0..26316 {
+            let info = unsafe { model_info_arr.offset(i as isize).as_mut().unwrap() };
+            let stream_source = StreamSource::new(info.img_id, info.cd_pos);
+
+            let streaming_buffer_size: u32 =
+                hook::get_global::<u32>(0x10072d320).max(info.cd_size as u32);
+
+            unsafe {
+                *hook::slide::<*mut u32>(0x10072d320) = streaming_buffer_size;
+            }
+
+            if let Some(entry) = disk_models.get_mut(&stream_source) {
+                if entry.name.to_lowercase() == "clover.dff" {
+                    log::trace!("Found clover model");
+                    entry.replacement_path = Some(
+                        crate::files::get_data_path("clover.dff")
+                            .to_str()
+                            .unwrap()
+                            .to_string(),
+                    );
+
+                    info.cd_size = 2974;
+                }
+            }
+        }
+    });
+}
 
 pub fn hook() {
     const CD_STREAM_INIT: crate::hook::Target<fn(i32)> = crate::hook::Target::Address(0x100177eb8);
@@ -360,6 +485,8 @@ pub fn hook() {
     const CD_STREAM_OPEN: crate::hook::Target<fn(*const c_char, bool) -> i32> =
         crate::hook::Target::Address(0x1001782b0);
     CD_STREAM_OPEN.hook_hard(stream_open);
+
+    targets::load_cd_directory::install(load_directory);
 }
 
 #[repr(C)]
@@ -377,21 +504,6 @@ struct ModelInfo {
 }
 
 #[repr(C)]
-#[derive(Debug)]
-struct ExtendedModelInfo {
-    next_index: i16,
-    prev_index: i16,
-    next_index_on_cd: i16,
-    flags: u8,
-    img_id: u8,
-    cd_pos: u32,
-    cd_size: u32,
-    load_state: u8,
-    // We have three padding bytes to use for our own purposes.
-    extra: [u8; 3],
-}
-
-#[repr(C)]
 struct StreamFileInfo {
     name: [i8; 40],
     not_player_img: bool,
@@ -400,9 +512,14 @@ struct StreamFileInfo {
 }
 
 #[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 struct StreamSource(u32);
 
 impl StreamSource {
+    fn new(image_index: u8, sector_offset: u32) -> StreamSource {
+        StreamSource(((image_index as u32) << 24) | sector_offset)
+    }
+
     fn image_index(&self) -> u8 {
         // The top 8 bits encode the index of the image that the resource is from in the global
         //  image handle array.
