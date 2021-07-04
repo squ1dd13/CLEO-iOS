@@ -1,6 +1,6 @@
 use std::{
     collections::HashMap,
-    io::{Read, Seek, SeekFrom, Write},
+    io::{Read, Seek, SeekFrom},
     path::Path,
     sync::Mutex,
 };
@@ -142,6 +142,7 @@ fn stream_thread(_: usize) {
 
             let stream_index_usize = stream_index as usize;
 
+            // We cache image names because obtaining them is quite expensive.
             let image_name = match &cached_image_names[stream_index_usize] {
                 Some(name) => name,
                 None => {
@@ -173,10 +174,10 @@ fn stream_thread(_: usize) {
             let read_custom = with_replacements(&mut |replacements| {
                 let replacements = replacements.get_mut(image_name)?;
 
-                let model_name = with_disk_models(|models| {
+                let model_name = with_model_names(|models| {
                     models
                         .get(&stream_source)
-                        .and_then(|model| Some(model.name.clone()))
+                        .and_then(|name| Some(name.clone()))
                 })?;
 
                 let folder_child = replacements.get_mut(&model_name)?;
@@ -204,15 +205,7 @@ fn stream_thread(_: usize) {
 
             if read_custom.is_none() {
                 // Multiply the sector values by 2048 (the sector size) in order to get byte values.
-                let (byte_offset, over) = stream.sector_offset.overflowing_mul(2048);
-
-                if over {
-                    log::error!("Offset calculation caused overflow.");
-                    log::trace!("{:#?}", stream);
-                    stream.status = 0xfe;
-                    panic!();
-                }
-
+                let byte_offset = stream.sector_offset * 2048;
                 let bytes_to_read = stream.sectors_to_read * 2048;
 
                 // eq: OS_FileSetPosition(...)
@@ -227,38 +220,6 @@ fn stream_thread(_: usize) {
 
                 stream.status = if read_result != 0 { 0xfe } else { 0 };
             }
-
-            // if let Some(path) = replacement_path {
-            //     log::trace!(
-            //         "Need to load {} sectors from '{}'.",
-            //         stream.sectors_to_read,
-            //         path
-            //     );
-
-            //     let file = std::fs::File::open(path);
-
-            //     match file {
-            //         Ok(mut file) => {
-            //             let mut buffer = vec![0u8; stream.sectors_to_read as usize * 2048];
-
-            //             if let Err(err) = file.read_exact(&mut buffer) {
-            //                 log::error!("Failed to read model data: {}", err);
-            //                 stream.status = 0xfe;
-            //             } else {
-            //                 unsafe {
-            //                     std::ptr::copy(buffer.as_ptr(), stream.buffer, buffer.len());
-            //                 }
-
-            //                 stream.status = 0;
-            //             }
-            //         }
-            //         Err(err) => {
-            //             log::error!("Unable to open replacement model file: {}", err);
-            //             stream.status = 0xfe;
-            //         }
-            //     }
-            // } else {
-            // }
         }
 
         // Remove the queue entry we just processed so the next iteration processes the item after.
@@ -310,23 +271,6 @@ fn stream_read(
     stream.sectors_to_read = sector_count;
     stream.buffer = buffer;
     stream.locked = false;
-
-    if source.sector_offset().overflowing_mul(2048).1 {
-        let image_names: *mut i8 = hook::slide(0x1006ac0e0);
-
-        let image_name = unsafe {
-            let dest = image_names.offset(source.image_index() as isize * 64);
-            std::ffi::CStr::from_ptr(dest).to_str().unwrap()
-        };
-
-        log::error!(
-            "Bad read: {} in image {}.",
-            source.sector_offset(),
-            image_name
-        );
-
-        panic!("fuck");
-    }
 
     streaming_queue().add(stream_index);
 
@@ -391,6 +335,7 @@ fn get_archive_path(path: &str) -> Option<(String, String)> {
         .file_name()?
         .to_str()
         .unwrap();
+
     let mut absolute_path = dir.to_path_buf();
     absolute_path.push(archive_name.to_lowercase());
 
@@ -406,17 +351,12 @@ fn get_archive_path(path: &str) -> Option<(String, String)> {
     ))
 }
 
-struct DiskModel {
-    name: String,
-    replacement_path: Option<String>,
-}
-
-fn with_disk_models<T>(with: impl Fn(&mut HashMap<StreamSource, DiskModel>) -> T) -> T {
+fn with_model_names<T>(with: impl Fn(&mut HashMap<StreamSource, String>) -> T) -> T {
     lazy_static::lazy_static! {
-        static ref DISK_MODELS: Mutex<HashMap<StreamSource, DiskModel>> = Mutex::new(HashMap::new());
+        static ref NAMES: Mutex<HashMap<StreamSource, String>> = Mutex::new(HashMap::new());
     }
 
-    let mut locked = DISK_MODELS.lock();
+    let mut locked = NAMES.lock();
     with(locked.as_mut().unwrap())
 }
 
@@ -430,17 +370,6 @@ fn with_replacements<T>(with: &mut impl FnMut(&mut ArchiveReplacements) -> T) ->
     let mut locked = REPLACEMENTS.lock();
     with(locked.as_mut().unwrap())
 }
-
-// fn with_archive_components<T>(
-//     with: &mut impl FnMut(&mut (Vec<ArchiveFolder>, HashMap<i32, i32>)) -> T,
-// ) -> T {
-//     lazy_static::lazy_static! {
-//         static ref COMPONENTS: Mutex<(Vec<ArchiveFolder>, HashMap<i32, i32>)> = Mutex::new((vec![], HashMap::new()));
-//     }
-
-//     let mut locked = COMPONENTS.lock();
-//     with(locked.as_mut().unwrap())
-// }
 
 fn load_archive_into_database(path: &str, img_id: i32) -> std::io::Result<()> {
     // We use a BufReader because we do many small reads.
@@ -460,17 +389,8 @@ fn load_archive_into_database(path: &str, img_id: i32) -> std::io::Result<()> {
     for _ in 0..entry_count {
         let offset = file.read_u32::<LittleEndian>()?;
 
-        let size = {
-            // The game provides two sizes but we can turn this into one.
-            let streaming_size = file.read_u16::<LittleEndian>()?;
-            let archive_size = file.read_u16::<LittleEndian>()?;
-
-            if streaming_size == 0 {
-                archive_size
-            } else {
-                streaming_size
-            }
-        };
+        // Ignore the two u16 size values.
+        file.seek(SeekFrom::Current(4))?;
 
         let name = {
             let mut name_buf = [0u8; 24];
@@ -485,14 +405,8 @@ fn load_archive_into_database(path: &str, img_id: i32) -> std::io::Result<()> {
 
         let source = StreamSource::new(img_id as u8, offset);
 
-        with_disk_models(|models| {
-            models.insert(
-                source,
-                DiskModel {
-                    name: name.clone(),
-                    replacement_path: None,
-                },
-            );
+        with_model_names(|models| {
+            models.insert(source, name.clone());
         });
     }
 
@@ -505,25 +419,6 @@ fn load_directory(path_c: *const i8, archive_id: i32) {
         .unwrap();
 
     let (path, archive_name) = get_archive_path(path).expect("Unable to resolve path name.");
-
-    // let folder_index = with_archive_components(&mut |components| {
-    //     let mut folder_index = -1;
-
-    //     // Find the index of the ArchiveFolder for this archive (if there is one).
-    //     for (i, component) in components.0.iter().enumerate() {
-    //         if component.name == archive_name {
-    //             folder_index = i as i32;
-    //             break;
-    //         }
-    //     }
-
-    //     if folder_index != -1 {
-    //         // Map the archive ID to the index of the ArchiveFolder.
-    //         components.1.insert(archive_id, folder_index);
-    //     }
-
-    //     folder_index
-    // });
 
     log::info!("Registering contents of archive '{}'.", archive_name);
 
@@ -539,14 +434,7 @@ fn load_directory(path_c: *const i8, archive_id: i32) {
 
     let model_info_arr: *mut ModelInfo = hook::slide(0x1006ac8f4);
 
-    with_disk_models(|disk_models| {
-        // with_archive_components(&mut |components| {
-        //     let mut folder = if folder_index != -1 {
-        //         Some(&mut components.0[folder_index as usize])
-        //     } else {
-        //         None
-        //     };
-
+    with_model_names(|model_names| {
         with_replacements(&mut |replacements| {
             let replacement_map = if let Some(map) = replacements.get(&archive_name) {
                 map
@@ -559,17 +447,19 @@ fn load_directory(path_c: *const i8, archive_id: i32) {
                 let info = unsafe { model_info_arr.offset(i as isize).as_mut().unwrap() };
                 let stream_source = StreamSource::new(info.img_id, info.cd_pos);
 
-                if let Some(entry) = disk_models.get_mut(&stream_source) {
-                    let name = entry.name.to_lowercase();
+                if let Some(name) = model_names.get_mut(&stream_source) {
+                    let name = name.to_lowercase();
 
                     if let Some(child) = replacement_map.get(&name) {
-                        log::info!("{} will be replaced", entry.name);
+                        log::info!("{} will be replaced", name);
 
                         let size_segments = child.size_in_segments();
                         info.cd_size = size_segments;
                     }
                 }
 
+                // Increase the size of the streaming buffer to accommodate the model's data (if it isn't big enough
+                //  already).
                 let streaming_buffer_size: u32 =
                     hook::get_global::<u32>(0x10072d320).max(info.cd_size as u32);
 
@@ -648,102 +538,6 @@ pub fn load_replacement(image_name: &String, path: &impl AsRef<Path>) -> std::io
         Ok(())
     })
 }
-
-// I am very lazy.
-// https://doc.rust-lang.org/nightly/std/fs/fn.read_dir.html#examples
-// fn visit_dirs(dir: &Path, cb: &mut impl FnMut(&std::fs::DirEntry)) -> std::io::Result<()> {
-//     if dir.is_dir() {
-//         for entry in std::fs::read_dir(dir)? {
-//             let entry = entry?;
-//             let path = entry.path();
-//             if path.is_dir() {
-//                 visit_dirs(&path, cb)?;
-//             } else {
-//                 cb(&entry);
-//             }
-//         }
-//     }
-//     Ok(())
-// }
-
-// pub struct ArchiveFolder {
-// name: String,
-// children: HashMap<String, ArchiveFileReplacement>,
-// }
-//
-// impl ArchiveFolder {
-// pub fn new(path: &Path) -> std::io::Result<Box<dyn crate::files::Component>> {
-//     log::info!("called");
-
-//     if !path.is_dir() {
-//         log::error!("Replacement .img files must go inside the 'Replace' folder. Only .img **folders** are permitted at top-level.");
-//         return Err(std::io::Error::from(std::io::ErrorKind::InvalidInput));
-//     }
-
-//     let name = if let Some(name) = path.file_name().and_then(|os_str| os_str.to_str()) {
-//         name.to_string()
-//     } else {
-//         log::error!("Unable to get name from .img folder.");
-//         return Err(std::io::Error::from(std::io::ErrorKind::InvalidInput));
-//     };
-
-//     struct DummyComponent {}
-//     impl crate::files::Component for DummyComponent {}
-
-//     with_archive_components(&mut move |components| {
-//         let mut children = HashMap::new();
-
-//         let result = visit_dirs(path, &mut |entry: &std::fs::DirEntry| {
-//             let metadata = match entry.metadata() {
-//                 Ok(metadata) => metadata,
-//                 Err(err) => {
-//                     log::error!("Unable to get metadata for entry {:?}: {:?}", entry, err);
-//                     return;
-//                 }
-//             };
-
-//             let size = metadata.len();
-//             let file = std::fs::File::open(entry.path());
-
-//             let file = if let Err(err) = file {
-//                 log::error!("Unable to open file '{:?}': {:?}", entry.path(), err);
-//                 return;
-//             } else {
-//                 file.unwrap()
-//             };
-
-//             let file_name = entry.file_name().to_str().unwrap().to_string();
-
-//             log::info!("Adding {}", file_name);
-
-//             children.insert(
-//                 file_name,
-//                 ArchiveFileReplacement {
-//                     size_bytes: size as u32,
-//                     file,
-//                 },
-//             );
-//         });
-
-//         if let Err(err) = result {
-//             log::error!("Error traversing .img directory: {:?}", err);
-//             return;
-//         }
-
-//         log::info!("Adding new archive folder.");
-//         components.0.push(ArchiveFolder {
-//             name: name.clone(),
-//             children,
-//         });
-//     });
-
-//     Ok(Box::new(DummyComponent {}))
-// }
-
-// fn get_child<'a>(&'a mut self, name: &String) -> Option<&'a mut ArchiveFileReplacement> {
-// self.children.get_mut(name)
-// }
-// }
 
 #[repr(C)]
 #[derive(Debug)]
