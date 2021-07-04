@@ -185,7 +185,9 @@ pub fn initialise() {
             ModResource::StartupScript(path) => scripts::load_startup_script(path).err(),
             ModResource::InvokedScript(path) => scripts::load_invoked_script(path).err(),
             ModResource::LanguageFile(path) => text::load_fxt(path).err(),
-            ModResource::StreamReplacement(_, _) => None,
+            ModResource::StreamReplacement(archive_name, path) => {
+                stream::load_replacement(&archive_name, &path).err()
+            }
             ModResource::FileReplacement(_) => None,
         };
 
