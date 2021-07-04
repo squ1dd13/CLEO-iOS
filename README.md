@@ -19,12 +19,15 @@ _**Note:** This branch (`main`) is for the current version of CLEO iOS, which is
 * Sound modding
 * Texture modding
 
-A possible change would be to integrate with the game's button control
-system rather than relying on Android-style swipe gestures for showing menus.
-
 ## Installation
 1. Download the .deb file from the [latest release](https://github.com/squ1dd13/CLEO-iOS/releases/latest).
 2. Install the .deb using a tool like `dpkg` or through an app like Filza.
+
+When the game is opened, if it has been at least five hours since the last check, CLEO will check to see if there is
+a new release available. If there is one, a message will be displayed with the option to go to the [release](https://github.com/squ1dd13/CLEO-iOS/releases/latest).
+
+To update CLEO, simply follow the above steps with the newer .deb. The package manager will handle the update,
+and your mods will remain in place.
 
 ## Mods
 ### Installation
