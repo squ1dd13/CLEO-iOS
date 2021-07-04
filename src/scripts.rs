@@ -60,10 +60,8 @@ pub struct Script {
     /// C structure mirroring standard GTA scripts. Interoperable with game code.
     vanilla_rep: VanillaScript,
 
-    /// Identifies the component which is responsible for loading and unloading this script.
-    /// Component IDs are unique to components, not scripts, so multiple scripts may share
-    /// the same component ID.
-    component_id: u64,
+    /// The bytes loaded from the script file that represent compiled code.
+    bytecode: Vec<u8>,
 
     /// Whether or not this script is an injected (.csi) script. Injected scripts stay loaded
     /// all the time, but are marked as inactive when they are not currently executing.
@@ -76,7 +74,7 @@ pub struct Script {
     pub display_name: String,
 }
 
-// fixme: We should be using a mutex for accessing LOADED_SCRIPTS.
+// fixme: We /really/ need to make scripts thread-safe.
 static mut LOADED_SCRIPTS: Vec<Script> = vec![];
 
 pub fn loaded_scripts() -> &'static mut Vec<Script> {
@@ -84,12 +82,12 @@ pub fn loaded_scripts() -> &'static mut Vec<Script> {
 }
 
 impl Script {
-    pub fn new(bytes: *mut u8, component_id: u64, display_name: String, injected: bool) -> Script {
+    pub fn new(mut bytecode: Vec<u8>, display_name: String, injected: bool) -> Script {
         Script {
             vanilla_rep: VanillaScript {
                 name: *b"a script",
-                base_ip: bytes,
-                ip: bytes,
+                base_ip: bytecode.as_mut_ptr(),
+                ip: bytecode.as_mut_ptr(),
                 call_stack: [std::ptr::null_mut(); 8],
                 stack_pos: 0,
 
@@ -114,7 +112,7 @@ impl Script {
                 is_mission: false,
             },
 
-            component_id,
+            bytecode,
             injected,
             display_name,
         }
@@ -454,12 +452,31 @@ impl Script {
 //     }
 // }
 
-pub fn load_startup_script(path: &impl AsRef<std::path::Path>) -> std::io::Result<()> {
+fn load_script(path: &impl AsRef<std::path::Path>, injected: bool) -> std::io::Result<()> {
+    let script = Script::new(
+        std::fs::read(path)?,
+        path.as_ref()
+            .file_stem()
+            .unwrap()
+            .to_str()
+            .unwrap()
+            .to_string(),
+        injected,
+    );
+
+    unsafe {
+        LOADED_SCRIPTS.push(script);
+    }
+
     Ok(())
 }
 
+pub fn load_startup_script(path: &impl AsRef<std::path::Path>) -> std::io::Result<()> {
+    load_script(path, false)
+}
+
 pub fn load_invoked_script(path: &impl AsRef<std::path::Path>) -> std::io::Result<()> {
-    Ok(())
+    load_script(path, true)
 }
 
 // impl files::Component for ScriptComponent {
@@ -495,6 +512,10 @@ pub fn load_invoked_script(path: &impl AsRef<std::path::Path>) -> std::io::Resul
 fn reset_before_start() {
     trace!("Reset");
     call_original!(crate::targets::reset_before_start);
+
+    for script in unsafe { LOADED_SCRIPTS.iter_mut() } {
+        script.reset();
+    }
     // crate::get_component_system().as_mut().unwrap().reset_all();
 }
 
