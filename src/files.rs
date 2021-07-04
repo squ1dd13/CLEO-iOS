@@ -172,27 +172,24 @@ pub fn get_documents_path(resource_name: &str) -> PathBuf {
 }
 
 pub fn initialise() {
-    log::info!("Finding and loading resources...");
-
     let cleo_path = find_cleo_dir_path();
+
+    log::info!("Finding and loading resources...");
     let all_resources = ModResource::flatten_dir(&cleo_path).unwrap();
 
     for resource in all_resources.iter() {
-        // match resource {
-        // ModResource::StartupScript(_) => log::trace!(""),
-        // ModResource::InvokedScript(_) => todo!(),
-        // ModResource::LanguageFile(_) => todo!(),
-        // ModResource::StreamReplacement(_, _) => todo!(),
-        // ModResource::FileReplacement(_) => todo!(),
-        // }
         log::trace!("{:#?}", resource);
+
+        let load_error = match resource {
+            ModResource::StartupScript(_) => None,
+            ModResource::InvokedScript(_) => None,
+            ModResource::LanguageFile(path) => crate::text::load_fxt(path).err(),
+            ModResource::StreamReplacement(_, _) => None,
+            ModResource::FileReplacement(_) => None,
+        };
+
+        if let Some(err) = load_error {
+            log::warn!("Failed to load resource: {}", err);
+        }
     }
-
-    /*
-
-        Load resources here and also make the calls to initialise the correct systems here.
-        This means that this module is in complete control of how and when resources (NOT files)
-         are loaded, and we also cut out the need for the global component system.
-
-    */
 }

@@ -72,6 +72,40 @@ fn generate_numberplate(chars: *mut u8, length: i32) -> bool {
     }
 }
 
+pub fn load_fxt(path: &impl AsRef<std::path::Path>) -> std::io::Result<()> {
+    // todo: Remove the regex so we don't need the crate anymore.
+    let comment_pattern: regex::Regex = regex::Regex::new(r"//|#").unwrap();
+
+    for line in std::fs::read_to_string(path.as_ref())?.lines() {
+        let line = comment_pattern
+            .split(line)
+            .next()
+            .and_then(|s| Some(s.trim()));
+
+        if let Some(line) = line {
+            if line.is_empty() {
+                continue;
+            }
+
+            // split_once isn't stable yet, so we have to do this.
+            let mut split = line.splitn(2, ' ');
+            let (key, value) = (split.next(), split.next());
+
+            if key.is_none() || value.is_none() {
+                warn!("Unable to find key and value in line '{}'", line);
+                continue;
+            }
+
+            let (key, value) = (key.unwrap(), value.unwrap());
+            log::trace!("FXT line: {:?}", (key, value));
+
+            set_kv(key, value);
+        }
+    }
+
+    Ok(())
+}
+
 pub fn hook() {
     targets::get_gxt_string::install(get_gxt_string);
     targets::gen_plate::install(generate_numberplate);
