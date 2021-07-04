@@ -346,7 +346,9 @@ fn get_archive_path(path: &str) -> Option<(String, String)> {
     }
 
     Some((
-        crate::loader::process_path(path).unwrap_or(path.to_string()),
+        // fixme: We need to be able to handle stream replacements for swapped archives.
+        path.to_string(),
+        //crate::loader::obtain_real_path(path).unwrap_or(path.to_string()),
         archive_name.to_lowercase(),
     ))
 }

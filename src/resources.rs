@@ -188,7 +188,7 @@ pub fn initialise() {
             ModResource::StreamReplacement(archive_name, path) => {
                 stream::load_replacement(&archive_name, &path).err()
             }
-            ModResource::FileReplacement(_) => None,
+            ModResource::FileReplacement(path) => loader::load_replacement(&path).err(),
         };
 
         if let Some(err) = load_error {

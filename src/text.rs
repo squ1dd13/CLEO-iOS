@@ -96,10 +96,7 @@ pub fn load_fxt(path: &impl AsRef<std::path::Path>) -> std::io::Result<()> {
                 continue;
             }
 
-            let (key, value) = (key.unwrap(), value.unwrap());
-            log::trace!("FXT line: {:?}", (key, value));
-
-            set_kv(key, value);
+            set_kv(key.unwrap(), value.unwrap());
         }
     }
 

@@ -70,7 +70,7 @@ mod targets {
     create_soft_target!(
         find_absolute_path,
         0x1004e4c48,
-        fn(i32, *const c_char, i32) -> *const c_char
+        fn(i32, *const u8, i32) -> *const u8
     );
 
     create_soft_target!(init_for_title, 0x100339b44, fn(*mut u8));
