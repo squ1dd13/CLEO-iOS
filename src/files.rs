@@ -1,54 +1,169 @@
-use std::{
-    collections::HashMap,
-    io::{Error, ErrorKind, Result},
-    path::{Path, PathBuf},
-};
+use cached::proc_macro::cached;
+use std::path::{Path, PathBuf};
 
-use lazy_static::lazy_static;
-use log::{error, info, warn};
-use std::sync::Mutex;
+/*
+    Documents       The game's documents directory.
+      CLEO
+        x.csa       A script that is loaded when the game loads and should only exit when the game does.
+        x.csi       A script that is launched by the user from the CLEO menu.
+        x.fxt       A file containing text definitions that are added to the game's localisation system for use by scripts.
 
-pub struct LanguageFile;
+        x.img       A older containing replacements for the files inside the x.img archive in the game's folder.
+          example   A file that replaces the file named 'example' that is normally loaded from inside x.img.
 
-impl LanguageFile {
-    pub fn new(path: &Path) -> Result<Box<dyn Component>> {
-        let comment_pattern: regex::Regex = regex::Regex::new(r"//|#").unwrap();
+        Replace     A folder containing replacements for game files.
+          example   A file that replaces the file named 'example' in the game's folder.
 
-        for line in std::fs::read_to_string(path)?.lines() {
-            let line = comment_pattern
-                .split(line)
-                .next()
-                .and_then(|s| Some(s.trim()));
+    The job of this module is to flatten this structure to make it easier for other modules to find the files they want.
+*/
 
-            if let Some(line) = line {
-                if line.is_empty() {
-                    continue;
+#[derive(Debug)]
+enum ModResource {
+    // CSA script.
+    StartupScript(PathBuf),
+
+    // CSI script.
+    InvokedScript(PathBuf),
+
+    // FXT language file.
+    LanguageFile(PathBuf),
+
+    // Anything inside a top-level folder with the extension "img".
+    // First value is the image name.
+    StreamReplacement(String, PathBuf),
+
+    // A file from the "Replace" folder.
+    FileReplacement(PathBuf),
+}
+
+impl ModResource {
+    fn flatten_dir(path: &impl AsRef<Path>) -> Option<Vec<ModResource>> {
+        let path = path.as_ref();
+        let mut resources = vec![];
+
+        for entry in path.read_dir().ok()? {
+            let entry = if let Err(err) = entry {
+                log::warn!("Error while reading resources from directory: {}", err);
+                continue;
+            } else {
+                entry.unwrap()
+            };
+
+            let entry_path = entry.path();
+
+            if let Some(resource) = Self::from_path(&entry_path) {
+                resources.push(resource);
+            } else {
+                if entry_path.is_dir() {
+                    if let Some(mut found) = Self::flatten_dir(&entry_path) {
+                        resources.append(&mut found);
+                    }
                 }
-
-                // split_once isn't stable yet, so we have to do this.
-                let mut split = line.splitn(2, ' ');
-                let (key, value) = (split.next(), split.next());
-
-                if key.is_none() || value.is_none() {
-                    warn!("Unable to find key and value in line '{}'", line);
-                    continue;
-                }
-
-                crate::text::set_kv(key.unwrap(), value.unwrap());
             }
         }
 
-        Ok(Box::new(LanguageFile {}))
+        Some(resources)
+    }
+
+    fn from_path(path: &impl AsRef<Path>) -> Option<ModResource> {
+        let path = path.as_ref();
+
+        if path.is_dir() {
+            // We don't have any reason to use directories as resources at the moment, although
+            //  this may change in the future.
+            return None;
+        }
+
+        let extension = path.extension();
+
+        if extension.is_none() {
+            if path.is_file() {
+                log::warn!("Only folders may have no extension.");
+                return None;
+            }
+        }
+
+        let extension = extension.unwrap().to_str()?.to_lowercase();
+        let relative_to_cleo = path.strip_prefix(find_cleo_dir_path()).ok()?;
+
+        if relative_to_cleo.starts_with("Replace") || relative_to_cleo.starts_with("replace") {
+            return Some(ModResource::FileReplacement(path.to_path_buf()));
+        }
+
+        let first_component = relative_to_cleo
+            .iter()
+            .next()
+            .and_then(|first| Some(Path::new(first)));
+
+        let is_in_archive = first_component
+            .and_then(std::path::Path::extension)
+            .and_then(std::ffi::OsStr::to_str)
+            .and_then(|ext| Some(ext.to_lowercase() == "img"))
+            .unwrap_or(false);
+
+        if is_in_archive {
+            let archive_name = first_component?.file_name()?.to_str()?.to_lowercase();
+
+            return Some(ModResource::StreamReplacement(
+                archive_name,
+                path.to_path_buf(),
+            ));
+        }
+
+        match extension.as_str() {
+            "csa" => Some(ModResource::StartupScript(path.to_path_buf())),
+            "csi" => Some(ModResource::InvokedScript(path.to_path_buf())),
+            "fxt" => Some(ModResource::LanguageFile(path.to_path_buf())),
+
+            _ => {
+                log::warn!("Unrecognised extension '{}'.", extension);
+                None
+            }
+        }
     }
 }
 
-impl Component for LanguageFile {}
+#[cached]
+fn find_cleo_dir_path() -> PathBuf {
+    // Since iOS 13.5, we haven't been able to access the /var/mobile/Documents folder, so CLEO resources
+    //  moved to the game's data folder. This is harder to find for users, but allows compatibility with
+    //  basically any version of iOS. However, some users still use the /var/mobile/Documents/CS folder
+    //  that was used exclusively in earlier C++ versions, so we still support that folder.
+    let path = get_documents_path("CLEO");
 
-pub fn get_data_path(resource_name: &str) -> PathBuf {
-    // As of iOS 13.5, we need extra entitlements to access /var/mobile/Documents/*, so
-    //  we need to use the app's own data directory instead. env::temp_dir() returns the
-    //  'tmp' subdirectory of that data directory, and then we can just replace the 'tmp'
-    //  with 'Documents/*' to get our own paths.
+    if !path.exists() {
+        // Try the old path.
+        let path = Path::new("/var/mobile/Documents/CS");
+
+        if path.exists() {
+            log::error!(
+                "Using old pre-official path. Please consider switching to the newer path."
+            );
+
+            return path.to_path_buf();
+        } else {
+            log::error!("Unable to find the CLEO folder!");
+        }
+    }
+
+    if !path.exists() {
+        // Create the folder.
+        if let Err(err) = std::fs::create_dir(&path) {
+            log::error!("Unable to create CLEO folder! Error: {}", err);
+        }
+    }
+
+    path
+}
+
+pub fn get_log_path() -> PathBuf {
+    let mut dir_path = find_cleo_dir_path();
+    dir_path.push("cleo.log");
+
+    dir_path
+}
+
+pub fn get_documents_path(resource_name: &str) -> PathBuf {
     let mut path = std::env::temp_dir();
     path.set_file_name("Documents");
     path.push(resource_name);
@@ -56,175 +171,28 @@ pub fn get_data_path(resource_name: &str) -> PathBuf {
     path
 }
 
-pub fn get_cleo_dir_path() -> PathBuf {
-    let path = get_data_path("CLEO");
+pub fn initialise() {
+    log::info!("Finding and loading resources...");
 
-    if !path.exists() {
-        // Try the old path.
-        let path = Path::new("/var/mobile/Documents/CS");
+    let cleo_path = find_cleo_dir_path();
+    let all_resources = ModResource::flatten_dir(&cleo_path).unwrap();
 
-        if path.exists() {
-            info!("Using old pre-official path.");
-            return path.to_path_buf();
-        } else {
-            error!("Unable to find the CLEO folder!");
-
-            // Let the errors flow...
-        }
+    for resource in all_resources.iter() {
+        // match resource {
+        // ModResource::StartupScript(_) => log::trace!(""),
+        // ModResource::InvokedScript(_) => todo!(),
+        // ModResource::LanguageFile(_) => todo!(),
+        // ModResource::StreamReplacement(_, _) => todo!(),
+        // ModResource::FileReplacement(_) => todo!(),
+        // }
+        log::trace!("{:#?}", resource);
     }
 
-    info!("Using new path.");
+    /*
 
-    path
-}
+        Load resources here and also make the calls to initialise the correct systems here.
+        This means that this module is in complete control of how and when resources (NOT files)
+         are loaded, and we also cut out the need for the global component system.
 
-pub fn get_log_path() -> PathBuf {
-    let mut path = get_cleo_dir_path();
-    path.push("cleo.log");
-    path
-}
-
-pub fn setup_cleo_fs() -> Result<()> {
-    let cleo_path = get_cleo_dir_path();
-
-    if !cleo_path.exists() {
-        std::fs::create_dir(&cleo_path)?;
-    }
-
-    Ok(())
-}
-
-pub trait Component {
-    /// Unload the component.
-    fn unload(&mut self) {}
-
-    /// Reset the component when the game is reloaded.
-    fn reset(&mut self) {}
-}
-
-pub type ExtensionHandler = fn(&Path) -> std::io::Result<Box<dyn Component>>;
-
-lazy_static! {
-    static ref EXTENSION_HANDLERS: Mutex<HashMap<String, ExtensionHandler>> =
-        Mutex::new(HashMap::new());
-}
-
-pub struct ComponentSystem {
-    components: Vec<Box<dyn Component>>,
-}
-
-impl ComponentSystem {
-    pub fn new(dir_path: impl AsRef<Path>) -> std::io::Result<ComponentSystem> {
-        info!("Loading component system from {:?}", dir_path.as_ref());
-
-        let mut component_system = ComponentSystem { components: vec![] };
-
-        if let Err(err) = component_system.load_dir(dir_path, true) {
-            error!("Error loading component system directory: {}", err);
-        }
-
-        Ok(component_system)
-    }
-
-    fn load_dir(&mut self, dir_path: impl AsRef<Path>, top_level: bool) -> std::io::Result<()> {
-        let directory = std::fs::read_dir(dir_path)?;
-
-        for item in directory {
-            if let Ok(entry) = item {
-                if let Ok(file_type) = entry.file_type() {
-                    let path = entry.path();
-
-                    if file_type.is_dir() {
-                        if top_level && entry.file_name() == "Replace" {
-                            if crate::loader::set_path(&entry.path()) {
-                                continue;
-                            }
-                        }
-
-                        if let Err(err) = self.load_path(&path) {
-                            error!("Error loading dir {:?}: {}", path, err);
-
-                            if let Err(err) = self.load_dir(entry.path(), false) {
-                                error!("Unable to load dir: {}.", err);
-                            }
-                        }
-                    } else {
-                        if let Err(err) = self.load_path(&path) {
-                            error!("Error loading {:?}: {}", path, err);
-                        }
-                    }
-                } else {
-                    error!("Unable to obtain file type for entry {:?}", entry);
-                }
-            } else {
-                error!("Bad directory entry: {:?}", item);
-            }
-        }
-
-        Ok(())
-    }
-
-    fn load_path(&mut self, path: impl AsRef<Path>) -> std::io::Result<bool> {
-        let extension = path
-            .as_ref()
-            .extension()
-            .and_then(std::ffi::OsStr::to_str)
-            .ok_or(Error::new(ErrorKind::InvalidInput, "Extension required"))?
-            .to_lowercase()
-            .to_string();
-
-        let handlers = EXTENSION_HANDLERS.lock();
-        let handler = handlers.as_ref().ok().and_then(|map| map.get(&extension));
-
-        if let Some(handler) = handler {
-            let result = handler(path.as_ref());
-
-            match result {
-                Ok(component) => {
-                    self.components.push(component);
-                }
-
-                Err(err) => error!(
-                    "Error running component handler for '{:?}': {}",
-                    path.as_ref().to_path_buf(),
-                    err
-                ),
-            }
-        } else {
-            warn!("No handler set for extension '{}'.", extension);
-            return Ok(false);
-        }
-
-        Ok(true)
-    }
-
-    pub fn reset_all(&mut self) {
-        self.components.iter_mut().for_each(|boxed| boxed.reset());
-    }
-
-    pub fn unload_all(&mut self) {
-        self.components.iter_mut().for_each(|boxed| boxed.unload());
-    }
-
-    /// Register a function to handle the construction of components from files with a certain extension.
-    pub fn register_extension(extension: impl ToString, function: ExtensionHandler) {
-        let mut handler_map = EXTENSION_HANDLERS.lock().unwrap();
-
-        let extension: String = extension.to_string().clone();
-
-        if handler_map.contains_key(&extension) {
-            warn!(
-                "Overwriting previous handler for extension '{}'.",
-                extension
-            );
-        }
-
-        handler_map.insert(extension, function);
-    }
-}
-
-impl Drop for ComponentSystem {
-    fn drop(&mut self) {
-        self.unload_all();
-    }
+    */
 }

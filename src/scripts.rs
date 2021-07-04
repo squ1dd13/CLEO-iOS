@@ -402,92 +402,92 @@ impl Script {
     }
 }
 
-pub struct ScriptComponent {
-    /// Shared bytecode storage for all instances of the script.
-    bytes: Vec<u8>,
+// pub struct ScriptComponent {
+//     /// Shared bytecode storage for all instances of the script.
+//     bytes: Vec<u8>,
 
-    /// ID matching scripts which are controlled by this component.
-    component_id: u64,
-}
+//     /// ID matching scripts which are controlled by this component.
+//     component_id: u64,
+// }
 
-impl ScriptComponent {
-    pub fn new(path: &Path) -> io::Result<Box<dyn files::Component>> {
-        let (is_ext_valid, is_csi) = match path.extension().and_then(|ext| ext.to_str()) {
-            Some("csa") => (true, false),
-            Some("csi") => (true, true),
-            _ => (false, false),
-        };
+// impl ScriptComponent {
+//     pub fn new(path: &Path) -> io::Result<Box<dyn files::Component>> {
+//         let (is_ext_valid, is_csi) = match path.extension().and_then(|ext| ext.to_str()) {
+//             Some("csa") => (true, false),
+//             Some("csi") => (true, true),
+//             _ => (false, false),
+//         };
 
-        if !is_ext_valid {
-            return Err(io::Error::from(io::ErrorKind::InvalidInput));
-        }
+//         if !is_ext_valid {
+//             return Err(io::Error::from(io::ErrorKind::InvalidInput));
+//         }
 
-        // A single file may only contain one script, so the hash of the path makes for
-        //  a good component ID.
-        let mut hasher = DefaultHasher::new();
-        path.hash(&mut hasher);
+//         // A single file may only contain one script, so the hash of the path makes for
+//         //  a good component ID.
+//         let mut hasher = DefaultHasher::new();
+//         path.hash(&mut hasher);
 
-        let mut component = ScriptComponent {
-            bytes: fs::read(path)?,
-            component_id: hasher.finish(),
-        };
+//         let mut component = ScriptComponent {
+//             bytes: fs::read(path)?,
+//             component_id: hasher.finish(),
+//         };
 
-        // Load the script.
-        component.init(
-            path.file_name()
-                .and_then(|s| s.to_str())
-                .unwrap_or("untitled")
-                .to_string(),
-            is_csi,
-        );
+//         // Load the script.
+//         component.init(
+//             path.file_name()
+//                 .and_then(|s| s.to_str())
+//                 .unwrap_or("untitled")
+//                 .to_string(),
+//             is_csi,
+//         );
 
-        Ok(Box::new(component))
-    }
+//         Ok(Box::new(component))
+//     }
 
-    fn init(&mut self, name: String, injected: bool) {
-        loaded_scripts().push(Script::new(
-            self.bytes.as_mut_ptr(),
-            self.component_id,
-            name,
-            injected,
-        ));
-    }
-}
+//     fn init(&mut self, name: String, injected: bool) {
+//         loaded_scripts().push(Script::new(
+//             self.bytes.as_mut_ptr(),
+//             self.component_id,
+//             name,
+//             injected,
+//         ));
+//     }
+// }
 
-impl files::Component for ScriptComponent {
-    fn unload(&mut self) {
-        let scripts = loaded_scripts();
+// impl files::Component for ScriptComponent {
+//     fn unload(&mut self) {
+//         let scripts = loaded_scripts();
 
-        let length_before = scripts.len();
-        scripts.retain(|script| script.component_id != self.component_id);
+//         let length_before = scripts.len();
+//         scripts.retain(|script| script.component_id != self.component_id);
 
-        let scripts_removed = length_before - scripts.len();
+//         let scripts_removed = length_before - scripts.len();
 
-        if scripts_removed == 0 {
-            return;
-        }
+//         if scripts_removed == 0 {
+//             return;
+//         }
 
-        info!(
-            "Unloaded {} script{} with component ID {:#x}",
-            scripts_removed,
-            if scripts_removed == 1 { "" } else { "s" },
-            self.component_id
-        );
-    }
+//         info!(
+//             "Unloaded {} script{} with component ID {:#x}",
+//             scripts_removed,
+//             if scripts_removed == 1 { "" } else { "s" },
+//             self.component_id
+//         );
+//     }
 
-    fn reset(&mut self) {
-        for script in loaded_scripts().iter_mut() {
-            if script.component_id == self.component_id {
-                script.reset();
-            }
-        }
-    }
-}
+//     fn reset(&mut self) {
+//         for script in loaded_scripts().iter_mut() {
+//             if script.component_id == self.component_id {
+//                 script.reset();
+//             }
+//         }
+//     }
+// }
 
 fn reset_before_start() {
     trace!("Reset");
     call_original!(crate::targets::reset_before_start);
-    crate::get_component_system().as_mut().unwrap().reset_all();
+    // crate::get_component_system().as_mut().unwrap().reset_all();
 }
 
 pub fn hook() {

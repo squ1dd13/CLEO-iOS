@@ -17,7 +17,7 @@ fn should_request_release() -> Result<bool, Box<dyn std::error::Error>> {
     //  that as the target version. If the version does not match or exceed that target,
     //  we can tell the user that an update is available.
 
-    let check_file_path = files::get_data_path("update_checked");
+    let check_file_path = files::get_documents_path("update_checked");
 
     // If the check file doesn't exist, assume it was never created and that we therefore
     //  have never requested a release.
@@ -40,7 +40,7 @@ fn should_request_release() -> Result<bool, Box<dyn std::error::Error>> {
 }
 
 fn get_target_version() -> Result<VersionNumber, Box<dyn std::error::Error>> {
-    let file_path = files::get_data_path("update_checked");
+    let file_path = files::get_documents_path("update_checked");
     let should_fetch = should_request_release()?;
 
     if !should_fetch {

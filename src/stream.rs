@@ -614,73 +614,73 @@ pub struct ArchiveFolder {
 }
 
 impl ArchiveFolder {
-    pub fn new(path: &Path) -> std::io::Result<Box<dyn crate::files::Component>> {
-        log::info!("called");
+    // pub fn new(path: &Path) -> std::io::Result<Box<dyn crate::files::Component>> {
+    //     log::info!("called");
 
-        if !path.is_dir() {
-            log::error!("Replacement .img files must go inside the 'Replace' folder. Only .img **folders** are permitted at top-level.");
-            return Err(std::io::Error::from(std::io::ErrorKind::InvalidInput));
-        }
+    //     if !path.is_dir() {
+    //         log::error!("Replacement .img files must go inside the 'Replace' folder. Only .img **folders** are permitted at top-level.");
+    //         return Err(std::io::Error::from(std::io::ErrorKind::InvalidInput));
+    //     }
 
-        let name = if let Some(name) = path.file_name().and_then(|os_str| os_str.to_str()) {
-            name.to_string()
-        } else {
-            log::error!("Unable to get name from .img folder.");
-            return Err(std::io::Error::from(std::io::ErrorKind::InvalidInput));
-        };
+    //     let name = if let Some(name) = path.file_name().and_then(|os_str| os_str.to_str()) {
+    //         name.to_string()
+    //     } else {
+    //         log::error!("Unable to get name from .img folder.");
+    //         return Err(std::io::Error::from(std::io::ErrorKind::InvalidInput));
+    //     };
 
-        struct DummyComponent {}
-        impl crate::files::Component for DummyComponent {}
+    //     struct DummyComponent {}
+    //     impl crate::files::Component for DummyComponent {}
 
-        with_archive_components(&mut move |components| {
-            let mut children = HashMap::new();
+    //     with_archive_components(&mut move |components| {
+    //         let mut children = HashMap::new();
 
-            let result = visit_dirs(path, &mut |entry: &std::fs::DirEntry| {
-                let metadata = match entry.metadata() {
-                    Ok(metadata) => metadata,
-                    Err(err) => {
-                        log::error!("Unable to get metadata for entry {:?}: {:?}", entry, err);
-                        return;
-                    }
-                };
+    //         let result = visit_dirs(path, &mut |entry: &std::fs::DirEntry| {
+    //             let metadata = match entry.metadata() {
+    //                 Ok(metadata) => metadata,
+    //                 Err(err) => {
+    //                     log::error!("Unable to get metadata for entry {:?}: {:?}", entry, err);
+    //                     return;
+    //                 }
+    //             };
 
-                let size = metadata.len();
-                let file = std::fs::File::open(entry.path());
+    //             let size = metadata.len();
+    //             let file = std::fs::File::open(entry.path());
 
-                let file = if let Err(err) = file {
-                    log::error!("Unable to open file '{:?}': {:?}", entry.path(), err);
-                    return;
-                } else {
-                    file.unwrap()
-                };
+    //             let file = if let Err(err) = file {
+    //                 log::error!("Unable to open file '{:?}': {:?}", entry.path(), err);
+    //                 return;
+    //             } else {
+    //                 file.unwrap()
+    //             };
 
-                let file_name = entry.file_name().to_str().unwrap().to_string();
+    //             let file_name = entry.file_name().to_str().unwrap().to_string();
 
-                log::info!("Adding {}", file_name);
+    //             log::info!("Adding {}", file_name);
 
-                children.insert(
-                    file_name,
-                    ArchiveFileReplacement {
-                        size_bytes: size as u32,
-                        file,
-                    },
-                );
-            });
+    //             children.insert(
+    //                 file_name,
+    //                 ArchiveFileReplacement {
+    //                     size_bytes: size as u32,
+    //                     file,
+    //                 },
+    //             );
+    //         });
 
-            if let Err(err) = result {
-                log::error!("Error traversing .img directory: {:?}", err);
-                return;
-            }
+    //         if let Err(err) = result {
+    //             log::error!("Error traversing .img directory: {:?}", err);
+    //             return;
+    //         }
 
-            log::info!("Adding new archive folder.");
-            components.0.push(ArchiveFolder {
-                name: name.clone(),
-                children,
-            });
-        });
+    //         log::info!("Adding new archive folder.");
+    //         components.0.push(ArchiveFolder {
+    //             name: name.clone(),
+    //             children,
+    //         });
+    //     });
 
-        Ok(Box::new(DummyComponent {}))
-    }
+    //     Ok(Box::new(DummyComponent {}))
+    // }
 
     fn get_child<'a>(&'a mut self, name: &String) -> Option<&'a mut ArchiveFileReplacement> {
         self.children.get_mut(name)
