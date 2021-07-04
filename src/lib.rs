@@ -1,5 +1,4 @@
 use ctor::ctor;
-// use files::ComponentSystem;
 use log::{error, info};
 use objc::runtime::Object;
 use objc::runtime::Sel;
@@ -102,13 +101,6 @@ mod targets {
     );
 }
 
-// fixme: We need a mutex here.
-// static mut COMPONENT_SYSTEM: Option<ComponentSystem> = None;
-//
-// fn get_component_system() -> &'static mut Option<ComponentSystem> {
-// unsafe { &mut COMPONENT_SYSTEM }
-// }
-
 fn install_hooks() {
     stream::hook();
     update::hook();
@@ -132,28 +124,6 @@ fn load() {
     let logger = udp::Logger::new("cleo");
     logger.connect_udp("192.168.1.183:4568");
     logger.connect_file(resources::get_log_path());
-
-    // if let Err(err) = files::setup_cleo_fs() {
-    //     error!("setup_cleo_fs error: {}", err);
-    // }
-
-    // files::ComponentSystem::register_extension("csa", scripts::ScriptComponent::new);
-    // files::ComponentSystem::register_extension("csi", scripts::ScriptComponent::new);
-    // files::ComponentSystem::register_extension("fxt", files::LanguageFile::new);
-    // files::ComponentSystem::register_extension("img", stream::ArchiveFolder::new);
-
-    // let component_system = ComponentSystem::new(files::get_cleo_dir_path());
-
-    // if let Err(err) = component_system {
-    //     error!("Unable to create component system! {}", err);
-    //     panic!("{}", err);
-    // }
-
-    // unsafe {
-    //     COMPONENT_SYSTEM = Some(component_system.unwrap());
-    // }
-
-    // logger.connect_file(files::get_log_path());
 
     log::set_logger(unsafe { udp::GLOBAL_LOGGER.as_ref().unwrap() })
         .map(|_| log::set_max_level(log::LevelFilter::max()))
