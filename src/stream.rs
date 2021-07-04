@@ -324,32 +324,12 @@ fn stream_open(path: *const c_char, _: bool) -> i32 {
 }
 
 fn get_archive_path(path: &str) -> Option<(String, String)> {
-    let path = path.replace('\\', "/");
-
-    // Up to now, we have the path as it would be relative to the .exe in the PC's game directory.
-    // We aren't using the game's file management, so we need to resolve this ourselves.
-    let current_exe = std::env::current_exe().ok()?;
-    let dir = current_exe.parent()?;
-
-    let archive_name = std::path::Path::new(path.as_str())
-        .file_name()?
-        .to_str()
-        .unwrap();
-
-    let mut absolute_path = dir.to_path_buf();
-    absolute_path.push(archive_name.to_lowercase());
-
-    let path = absolute_path.to_str().unwrap();
-
-    if !absolute_path.exists() {
-        log::warn!("Absolute path '{}' does not exist.", path);
-    }
+    let path = path.to_lowercase();
+    let absolute = std::path::Path::new(&crate::loader::find_absolute_path(&path)?).to_owned();
 
     Some((
-        // fixme: We need to be able to handle stream replacements for swapped archives.
-        path.to_string(),
-        //crate::loader::obtain_real_path(path).unwrap_or(path.to_string()),
-        archive_name.to_lowercase(),
+        absolute.display().to_string(),
+        absolute.file_name()?.to_str()?.to_lowercase(),
     ))
 }
 

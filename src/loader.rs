@@ -14,6 +14,23 @@ fn swap_path(game_path: &str) -> String {
     }
 }
 
+fn path_in_game_dir(path: &impl AsRef<std::path::Path>) -> Option<std::path::PathBuf> {
+    let name = path.as_ref().file_name()?.to_str()?.to_string();
+
+    let mut path = std::env::current_exe().ok()?.parent()?.to_path_buf();
+    path.push(name);
+
+    Some(path)
+}
+
+// Used when we need to open a game file that could potentially have been swapped.
+pub fn find_absolute_path(path: &impl AsRef<str>) -> Option<String> {
+    let path = path.as_ref().replace('\\', "/");
+    Some(swap_path(
+        path_in_game_dir(&path)?.display().to_string().as_str(),
+    ))
+}
+
 fn find_absolute_path_c(p1: i32, p2: *const u8, p3: i32) -> *const u8 {
     let c_path = crate::call_original!(crate::targets::find_absolute_path, p1, p2, p3);
     let resolved_path = unsafe { std::ffi::CStr::from_ptr(c_path.cast()) }
@@ -41,16 +58,7 @@ fn find_absolute_path_c(p1: i32, p2: *const u8, p3: i32) -> *const u8 {
 }
 
 pub fn load_replacement(path: &impl AsRef<std::path::Path>) -> std::io::Result<()> {
-    let name = path
-        .as_ref()
-        .file_name()
-        .unwrap()
-        .to_str()
-        .unwrap()
-        .to_string();
-
-    let mut game_file_path = std::env::current_exe()?.parent().unwrap().to_path_buf();
-    game_file_path.push(name);
+    let game_file_path = path_in_game_dir(path).unwrap();
 
     if !game_file_path.exists() {
         return Err(std::io::Error::new(
