@@ -7,12 +7,12 @@ use std::os::raw::c_char;
 
 mod cheats;
 mod controller;
-mod files;
 mod gui;
 mod hook;
 mod loader;
 mod menu;
 mod render;
+mod resources;
 mod scripts;
 mod settings;
 mod stream;
@@ -123,7 +123,7 @@ fn install_hooks() {
     cheats::hook();
     controller::hook();
 
-    files::initialise();
+    resources::initialise();
 }
 
 #[ctor]
@@ -131,7 +131,7 @@ fn load() {
     // Load the logger before everything else so we can log from constructors.
     let logger = udp::Logger::new("cleo");
     logger.connect_udp("192.168.1.183:4568");
-    logger.connect_file(files::get_log_path());
+    logger.connect_file(resources::get_log_path());
 
     // if let Err(err) = files::setup_cleo_fs() {
     //     error!("setup_cleo_fs error: {}", err);

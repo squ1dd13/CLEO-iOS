@@ -11,7 +11,7 @@ use log::trace;
 use log::{debug, error, info, warn};
 
 use crate::touch;
-use crate::{call_original, files, hook};
+use crate::{call_original, hook, resources};
 
 /// A loaded game script. This struct is compatible with the game's representation of loaded scripts,
 /// but does not use all the fields that it could. As such, not all game functions will work with CLEO scripts.
@@ -411,7 +411,7 @@ impl Script {
 // }
 
 // impl ScriptComponent {
-//     pub fn new(path: &Path) -> io::Result<Box<dyn files::Component>> {
+//     pub fn new(path: &Path) -> io::Result<Box<dyn resources::Component>> {
 //         let (is_ext_valid, is_csi) = match path.extension().and_then(|ext| ext.to_str()) {
 //             Some("csa") => (true, false),
 //             Some("csi") => (true, true),
@@ -453,6 +453,14 @@ impl Script {
 //         ));
 //     }
 // }
+
+pub fn load_startup_script(path: &impl AsRef<std::path::Path>) -> std::io::Result<()> {
+    Ok(())
+}
+
+pub fn load_invoked_script(path: &impl AsRef<std::path::Path>) -> std::io::Result<()> {
+    Ok(())
+}
 
 // impl files::Component for ScriptComponent {
 //     fn unload(&mut self) {

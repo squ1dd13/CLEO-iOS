@@ -1,3 +1,4 @@
+use crate::*;
 use cached::proc_macro::cached;
 use std::path::{Path, PathBuf};
 
@@ -181,9 +182,9 @@ pub fn initialise() {
         log::trace!("{:#?}", resource);
 
         let load_error = match resource {
-            ModResource::StartupScript(_) => None,
-            ModResource::InvokedScript(_) => None,
-            ModResource::LanguageFile(path) => crate::text::load_fxt(path).err(),
+            ModResource::StartupScript(path) => scripts::load_startup_script(path).err(),
+            ModResource::InvokedScript(path) => scripts::load_invoked_script(path).err(),
+            ModResource::LanguageFile(path) => text::load_fxt(path).err(),
             ModResource::StreamReplacement(_, _) => None,
             ModResource::FileReplacement(_) => None,
         };

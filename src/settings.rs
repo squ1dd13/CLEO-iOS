@@ -35,7 +35,7 @@ impl Settings {
     }
 
     pub fn save(&self) {
-        let path = crate::files::get_documents_path("cleo.settings");
+        let path = crate::resources::get_documents_path("cleo.settings");
 
         if let Ok(mut opened) = std::fs::File::create(path) {
             let bytes: Vec<u8> = self.0.iter().map(|opt| opt.value as u8).collect();
@@ -49,7 +49,7 @@ impl Settings {
     }
 
     pub fn load(&mut self) {
-        let path = crate::files::get_documents_path("cleo.settings");
+        let path = crate::resources::get_documents_path("cleo.settings");
 
         if let Ok(mut opened) = std::fs::File::open(path) {
             let mut bytes = vec![0u8; self.0.len()];
