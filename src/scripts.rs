@@ -1,17 +1,10 @@
-use std::fs;
 use std::iter::FromIterator;
-use std::path::Path;
-use std::{
-    collections::hash_map::DefaultHasher,
-    hash::{Hash, Hasher},
-    io,
-};
 
 use log::trace;
 use log::{debug, error, info, warn};
 
 use crate::touch;
-use crate::{call_original, hook, resources};
+use crate::{call_original, hook};
 
 /// A loaded game script. This struct is compatible with the game's representation of loaded scripts,
 /// but does not use all the fields that it could. As such, not all game functions will work with CLEO scripts.
@@ -22,8 +15,8 @@ use crate::{call_original, hook, resources};
 #[derive(Debug)]
 struct VanillaScript {
     // Do not use these: scripts should never be linked.
-    next: usize,     //Option<Box<VanillaScript>>,
-    previous: usize, //Option<Box<VanillaScript>>,
+    next: usize,
+    previous: usize,
 
     name: [u8; 8],
     base_ip: *mut u8,
@@ -400,58 +393,6 @@ impl Script {
     }
 }
 
-// pub struct ScriptComponent {
-//     /// Shared bytecode storage for all instances of the script.
-//     bytes: Vec<u8>,
-
-//     /// ID matching scripts which are controlled by this component.
-//     component_id: u64,
-// }
-
-// impl ScriptComponent {
-//     pub fn new(path: &Path) -> io::Result<Box<dyn resources::Component>> {
-//         let (is_ext_valid, is_csi) = match path.extension().and_then(|ext| ext.to_str()) {
-//             Some("csa") => (true, false),
-//             Some("csi") => (true, true),
-//             _ => (false, false),
-//         };
-
-//         if !is_ext_valid {
-//             return Err(io::Error::from(io::ErrorKind::InvalidInput));
-//         }
-
-//         // A single file may only contain one script, so the hash of the path makes for
-//         //  a good component ID.
-//         let mut hasher = DefaultHasher::new();
-//         path.hash(&mut hasher);
-
-//         let mut component = ScriptComponent {
-//             bytes: fs::read(path)?,
-//             component_id: hasher.finish(),
-//         };
-
-//         // Load the script.
-//         component.init(
-//             path.file_name()
-//                 .and_then(|s| s.to_str())
-//                 .unwrap_or("untitled")
-//                 .to_string(),
-//             is_csi,
-//         );
-
-//         Ok(Box::new(component))
-//     }
-
-//     fn init(&mut self, name: String, injected: bool) {
-//         loaded_scripts().push(Script::new(
-//             self.bytes.as_mut_ptr(),
-//             self.component_id,
-//             name,
-//             injected,
-//         ));
-//     }
-// }
-
 fn load_script(path: &impl AsRef<std::path::Path>, injected: bool) -> std::io::Result<()> {
     let script = Script::new(
         std::fs::read(path)?,
@@ -479,36 +420,6 @@ pub fn load_invoked_script(path: &impl AsRef<std::path::Path>) -> std::io::Resul
     load_script(path, true)
 }
 
-// impl files::Component for ScriptComponent {
-//     fn unload(&mut self) {
-//         let scripts = loaded_scripts();
-
-//         let length_before = scripts.len();
-//         scripts.retain(|script| script.component_id != self.component_id);
-
-//         let scripts_removed = length_before - scripts.len();
-
-//         if scripts_removed == 0 {
-//             return;
-//         }
-
-//         info!(
-//             "Unloaded {} script{} with component ID {:#x}",
-//             scripts_removed,
-//             if scripts_removed == 1 { "" } else { "s" },
-//             self.component_id
-//         );
-//     }
-
-//     fn reset(&mut self) {
-//         for script in loaded_scripts().iter_mut() {
-//             if script.component_id == self.component_id {
-//                 script.reset();
-//             }
-//         }
-//     }
-// }
-
 fn reset_before_start() {
     trace!("Reset");
     call_original!(crate::targets::reset_before_start);
@@ -516,7 +427,6 @@ fn reset_before_start() {
     for script in unsafe { LOADED_SCRIPTS.iter_mut() } {
         script.reset();
     }
-    // crate::get_component_system().as_mut().unwrap().reset_all();
 }
 
 pub fn hook() {
