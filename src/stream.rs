@@ -196,6 +196,7 @@ fn stream_thread(_: usize) {
                     stream.status = 0xfe;
                 } else {
                     unsafe {
+                        // todo: Read directly into streaming buffer rather than reading and copying.
                         std::ptr::copy(buffer.as_ptr(), stream.buffer, buffer.len());
                     }
 
