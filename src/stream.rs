@@ -171,13 +171,6 @@ fn stream_thread(_: usize) {
                 }
             };
 
-            log::trace!(
-                "({} / {}, {})",
-                image_name,
-                stream_index,
-                stream.sector_offset
-            );
-
             let read_custom = with_replacements(&mut |replacements| {
                 let replacements = replacements.get_mut(image_name)?;
 
@@ -187,16 +180,7 @@ fn stream_thread(_: usize) {
                         .and_then(|name| Some(name.clone()))
                 })?;
 
-                log::trace!(
-                    "{} at ({}, {})",
-                    model_name,
-                    stream_index,
-                    stream.sector_offset
-                );
-
                 let folder_child = replacements.get_mut(&model_name)?;
-
-                log::trace!("Found replacement for '{}'.", model_name);
 
                 // Reset the file to offset 0 so we are definitely reading from the start.
                 folder_child.reset();
@@ -204,13 +188,6 @@ fn stream_thread(_: usize) {
                 let file = &mut folder_child.file;
 
                 let mut buffer = vec![0u8; stream.sectors_to_read as usize * 2048];
-
-                log::info!(
-                    "Loading replaced model '{}' for stream source ({}, {})",
-                    model_name,
-                    stream_index,
-                    stream.sector_offset
-                );
 
                 // read_exact here would cause a crash for models that don't have aligned sizes, since
                 //  we can't read enough to fill the whole buffer.
@@ -274,12 +251,6 @@ fn stream_read(
     source: StreamSource,
     sector_count: u32,
 ) -> bool {
-    log::trace!(
-        "Request ({}, {})",
-        source.image_index(),
-        source.sector_offset()
-    );
-
     unsafe {
         hook::slide::<*mut u32>(0x100939240).write(source.0 + sector_count);
     }
@@ -637,8 +608,6 @@ impl Queue {
         unsafe {
             self.data.offset(self.tail as isize).write(value);
         }
-
-        log::trace!("Added {} to queue", value);
 
         self.tail = (self.tail + 1) % self.capacity;
     }
