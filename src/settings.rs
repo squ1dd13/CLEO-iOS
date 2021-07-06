@@ -5,6 +5,8 @@ use std::{
 
 use crate::call_original;
 
+// todo: Use JSON for storing settings instead of the crap we have going on here.
+
 pub struct OptionInfo {
     pub title: &'static str,
     pub description: &'static str,
