@@ -189,7 +189,9 @@ fn stream_thread(_: usize) {
 
                 let mut buffer = vec![0u8; stream.sectors_to_read as usize * 2048];
 
-                if let Err(err) = file.read_exact(&mut buffer) {
+                // read_exact here would cause a crash for models that don't have aligned sizes, since
+                //  we can't read enough to fill the whole buffer.
+                if let Err(err) = file.read(&mut buffer) {
                     log::error!("Failed to read model data: {}", err);
                     stream.status = 0xfe;
                 } else {
