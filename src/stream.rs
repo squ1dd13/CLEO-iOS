@@ -118,7 +118,7 @@ fn stream_init(stream_count: i32) {
 fn stream_thread(_: usize) {
     log::trace!("Streaming thread started!");
 
-    let mut cached_image_names: Vec<Option<String>> = std::iter::repeat(None).take(32).collect();
+    let mut image_names: Vec<Option<String>> = std::iter::repeat(None).take(32).collect();
 
     loop {
         let stream_semaphore = hook::get_global(0x1006ac8e0);
@@ -138,17 +138,17 @@ fn stream_thread(_: usize) {
 
         // A status of 0 means that the last read was successful.
         if stream.status == 0 {
-            let stream_source = StreamSource::new(stream_index as u8, stream.sector_offset);
+            let stream_source = StreamSource::new(stream.img_index, stream.sector_offset);
 
-            let stream_index_usize = stream_index as usize;
+            let stream_index_usize = stream.img_index as usize;
 
             // We cache image names because obtaining them is quite expensive.
-            let image_name = match &cached_image_names[stream_index_usize] {
+            let image_name = match &image_names[stream_index_usize] {
                 Some(name) => name,
                 None => {
                     let image_name = unsafe {
-                        let name_ptr =
-                            hook::slide::<*mut i8>(0x1006ac0e0).offset(stream_index as isize * 64);
+                        let name_ptr = hook::slide::<*mut i8>(0x1006ac0e0)
+                            .offset(stream.img_index as isize * 64);
 
                         let path_string = std::ffi::CStr::from_ptr(name_ptr)
                             .to_str()
@@ -165,11 +165,18 @@ fn stream_thread(_: usize) {
                             .to_string()
                     };
 
-                    let slot = &mut cached_image_names[stream_index_usize];
+                    let slot = &mut image_names[stream_index_usize];
                     *slot = Some(image_name);
                     slot.as_ref().unwrap()
                 }
             };
+
+            log::trace!(
+                "({} / {}, {})",
+                image_name,
+                stream_index,
+                stream.sector_offset
+            );
 
             let read_custom = with_replacements(&mut |replacements| {
                 let replacements = replacements.get_mut(image_name)?;
@@ -180,7 +187,16 @@ fn stream_thread(_: usize) {
                         .and_then(|name| Some(name.clone()))
                 })?;
 
+                log::trace!(
+                    "{} at ({}, {})",
+                    model_name,
+                    stream_index,
+                    stream.sector_offset
+                );
+
                 let folder_child = replacements.get_mut(&model_name)?;
+
+                log::trace!("Found replacement for '{}'.", model_name);
 
                 // Reset the file to offset 0 so we are definitely reading from the start.
                 folder_child.reset();
@@ -188,6 +204,13 @@ fn stream_thread(_: usize) {
                 let file = &mut folder_child.file;
 
                 let mut buffer = vec![0u8; stream.sectors_to_read as usize * 2048];
+
+                log::info!(
+                    "Loading replaced model '{}' for stream source ({}, {})",
+                    model_name,
+                    stream_index,
+                    stream.sector_offset
+                );
 
                 // read_exact here would cause a crash for models that don't have aligned sizes, since
                 //  we can't read enough to fill the whole buffer.
@@ -251,6 +274,12 @@ fn stream_read(
     source: StreamSource,
     sector_count: u32,
 ) -> bool {
+    log::trace!(
+        "Request ({}, {})",
+        source.image_index(),
+        source.sector_offset()
+    );
+
     unsafe {
         hook::slide::<*mut u32>(0x100939240).write(source.0 + sector_count);
     }
@@ -268,14 +297,15 @@ fn stream_read(
         return false;
     }
 
-    // Set up the stream for getting the resource we want
+    // Set up the stream for getting the resource we want.
     stream.status = 0;
     stream.sector_offset = source.sector_offset();
     stream.sectors_to_read = sector_count;
     stream.buffer = buffer;
     stream.locked = false;
+    stream.img_index = source.image_index();
 
-    streaming_queue().add(stream_index);
+    streaming_queue().add(stream_index as i32);
 
     let stream_semaphore = hook::get_global(0x1006ac8e0);
 
@@ -436,7 +466,12 @@ fn load_directory(path_c: *const i8, archive_id: i32) {
                     let name = name.to_lowercase();
 
                     if let Some(child) = replacement_map.get(&name) {
-                        log::info!("{} will be replaced", name);
+                        log::info!(
+                            "{} at ({}, {}) will be replaced",
+                            name,
+                            info.img_id,
+                            info.cd_pos
+                        );
 
                         let size_segments = child.size_in_segments();
                         info.cd_size = size_segments;
@@ -566,10 +601,13 @@ struct Stream {
     sector_offset: u32,
     sectors_to_read: u32,
     buffer: *mut u8,
-    _pad: u8,
+
+    // CLEO addition.
+    img_index: u8,
+
     locked: bool,
     processing: bool,
-    _pad0: u8,
+    _pad: u8,
     status: u32,
     semaphore: *mut u8,
     mutex: *mut u8,
@@ -579,7 +617,7 @@ struct Stream {
 #[repr(C)]
 #[derive(Debug)]
 struct Queue {
-    data: *mut u32,
+    data: *mut i32,
     head: u32,
     tail: u32,
     capacity: u32,
@@ -595,10 +633,12 @@ impl Queue {
         }
     }
 
-    fn add(&mut self, value: u32) {
+    fn add(&mut self, value: i32) {
         unsafe {
             self.data.offset(self.tail as isize).write(value);
         }
+
+        log::trace!("Added {} to queue", value);
 
         self.tail = (self.tail + 1) % self.capacity;
     }
@@ -607,7 +647,7 @@ impl Queue {
         if self.head == self.tail {
             -1
         } else {
-            unsafe { self.data.offset(self.head as isize).cast::<i32>().read() }
+            unsafe { self.data.offset(self.head as isize).read() }
         }
     }
 
