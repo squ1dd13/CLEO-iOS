@@ -72,11 +72,6 @@ impl Settings {
 
             // Apply the settings values to the options we have.
             for (i, value) in bytes.iter().enumerate() {
-                if i > self.0.len() {
-                    log::warn!("More bytes in settings file than there are options!");
-                    break;
-                }
-
                 self.0[i].value = *value != 0;
             }
         }
