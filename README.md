@@ -71,7 +71,7 @@ his Android-specific opcodes ([here](https://gtaforums.com/topic/663125-android-
 * [DK22Pac](https://github.com/DK22Pac) and all the others who have contributed to 
 [plugin-sdk](https://github.com/DK22Pac/plugin-sdk), which has been very helpful for creating game structures.
 * All those who have contributed to the [gtasa-reversed](https://github.com/codenulls/gta-reversed) project, which has been a valuable
-resource for building my understanding of some of the more complex systems which are common between the PC and iOS versions.
+resource for building my understanding of some of the more complex systems that are in both the PC and iOS versions.
 * oliver#1219 for gifting me the other GTA games to help with getting CLEO working on those too.
 * Members of the CLEO iOS [Discord server](https://discord.gg/cXwkTUasJU) for reporting bugs, helping investigate them and testing fixes.
 * The GTA modding community in general for doing so much of the research which made CLEO iOS possible.
