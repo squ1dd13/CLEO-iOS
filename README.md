@@ -106,6 +106,19 @@ To reverse the changes, just delete the files from the `.img` folder
 you made (or delete the entire `.img` folder if you want to remove
 all replacements for that archive).
 
+### Combined
+With both of the examples from above, your CLEO directory would look like this:
+```
+CLEO
+  ...
+  Replace
+    handling.cfg
+  ...
+  gta3.img
+    clover.dff
+  ...
+```
+
 ## Cheats
 * A list of cheats can be found in the CLEO menu. It can be accessed by selecting the "Cheats" tab
 at the top of the menu, to the right of the "Scripts" tab.
