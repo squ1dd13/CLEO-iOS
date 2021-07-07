@@ -100,7 +100,7 @@ that replaces the `clover.dff` file inside `gta3.img` would need a layout like t
 4. Launch the game. The replacement files will take effect.
 
 _Please note that you do **not** need a folder named "Replace" for replacing files **inside** the archive._
-_The "Replace" folder is only for replacing files that you see inside `gta3sa.app`._
+_The "Replace" folder is only for replacing entire files that you see inside `gta3sa.app`._
 
 To reverse the changes, just delete the files from the `.img` folder
 you made (or delete the entire `.img` folder if you want to remove
