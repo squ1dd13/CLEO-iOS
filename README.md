@@ -11,11 +11,13 @@ _**Note:** This branch (`main`) is for the current version of CLEO iOS, which is
   * CSA scripts
   * CSI scripts
   * FXT language extensions
+* Mod loading
+  * Archive (`.img`) file modding
+  * Automatic file replacement
 * Cheat menu
 * 60 FPS
 
 ## Planned Features
-* IMG editing/hooking for custom models
 * Sound modding
 * Texture modding
 
@@ -29,7 +31,7 @@ a new release available. If there is one, a message will be displayed with the o
 To update CLEO, simply follow the above steps with the newer .deb. The package manager will handle the update,
 and your mods will remain in place.
 
-## Mods
+## Scripts
 ### Installation
 1. Find a script that you want to use.
 2. Navigate to the GTA app's data folder.
@@ -52,6 +54,53 @@ game does. **You should read any "readme" files which come with the script to fi
 * Some scripts require certain touch combinations in "touch zones". These are nine 
 areas on the screen which a script can check to see if you are touching. A numbered
 diagram of these zones can be found [here](https://3.bp.blogspot.com/--yB8v3cBRyg/U9iO-NyyXPI/AAAAAAAAAJQ/FeGJI47KbYA/s1600/EC3B.jpg).
+
+## File Modding
+On top of script modding, CLEO is also capable of various mod loading tasks.
+
+### File Swapping
+While it is possible to modify game files (inside `gta3sa.app`) directly, this is not the best
+way to change files. This is because you have to keep track of what you have changed and make 
+sure you have backups to avoid having to reinstall the game due to broken files. CLEO allows
+different files to be loaded while leaving the game's files unchanged.
+
+1. If you do not have it already, make a folder named "Replace" inside your CLEO directory.
+2. Find a mod which replaces game files (such as `handling.cfg`, `gta3.img`, or any other files
+that are found inside `gta3sa.app`).
+3. Put the replacement files inside the "Replace" folder. To replace `handling.cfg`, the files 
+would look like this:
+    ```
+    CLEO
+      ...
+      Replace
+        handling.cfg
+      ...
+    ```
+4. Launch the game. Whenever the game tries to load the files from `gta3sa.app`, it will instead
+load from the "Replace" folder.
+
+If you want to remove a file swap mod, just delete the files inside "Replace". The game will load
+from `gta3sa.app` instead.
+
+### IMG Archives
+To replace files inside an IMG archive:
+1. Make a folder in your CLEO directory with the same name as the archive (for example, `gta3.img`).
+2. Find a mod with replacement files that need to go into the archive (often, these are `.dff` files,
+but there are others too).
+3. Get the files from the mod and put them inside the folder you made in step 1. For example, a mod
+that replaces the `clover.dff` file inside `gta3.img` would need a layout like this:
+    ```
+    CLEO
+      ...
+      gta3.img
+        clover.dff
+      ...
+    ```
+4. Launch the game. The replacement files will take effect.
+
+To reverse the changes, just delete the files from the `.img` folder
+you made (or delete the entire `.img` folder if you want to remove
+all replacements for that archive).
 
 ## Cheats
 * A list of cheats can be found in the CLEO menu. It can be accessed by selecting the "Cheats" tab
