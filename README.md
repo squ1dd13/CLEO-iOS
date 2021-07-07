@@ -66,7 +66,7 @@ sure you have backups to avoid having to reinstall the game due to broken files.
 different files to be loaded while leaving the game's files unchanged.
 
 1. If you do not have it already, make a folder named "Replace" inside your CLEO directory.
-2. Find a mod which replaces game files (such as `handling.cfg`, `gta3.img`, or any other files
+2. Find a mod which replaces game files (such as `handling.cfg`, `carcols.dat`, or any other files
 that are found inside `gta3sa.app`).
 3. Put the replacement files inside the "Replace" folder. To replace `handling.cfg`, the files 
 would look like this:
