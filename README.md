@@ -117,7 +117,7 @@ CLEO
 ```
 
 Please note that you do _**not**_ need a folder named "Replace" for replacing files _**inside**_ the archive.
-The "Replace" folder is only for replacing entire files that you see inside `gta3sa.app`.
+The "Replace" folder is only for replacing entire files that you see inside `gta3sa.app`, and has nothing do with the contents of `.img` files.
 
 ## Cheats
 * A list of cheats can be found in the CLEO menu. It can be accessed by selecting the "Cheats" tab
