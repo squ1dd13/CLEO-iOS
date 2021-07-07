@@ -20,6 +20,7 @@ _**Note:** This branch (`main`) is for the current version of CLEO iOS, which is
 ## Planned Features
 * Sound modding
 * Texture modding
+* Support for other iOS games (III and VC)
 
 ## Installation
 1. Download the .deb file from the [latest release](https://github.com/squ1dd13/CLEO-iOS/releases/latest).
@@ -112,15 +113,28 @@ before using cheats.
 others are single events (such as giving the player money). Both types of cheat can be activated by
 tapping on them in the menu.
 
+## What do I do if I need help/found a bug/have a suggestion?
+Please don't keep quiet about it! 
+
+If you have a suggestion or you think you've found a bug, either 
+create an issue on GitHub or join the [Discord server](https://discord.gg/cXwkTUasJU) to
+discuss it there. The more bugs that get fixed, the better CLEO will
+become for you and everybody else!
+
+If you need help with something, please join the Discord server so
+we can assist you there. Also, don't forget that you can read
+through the step-by-step instructions on this page if you can't
+remember how to do something.
+
 ## Thanks to...
 * [Seemann](https://github.com/x87) for offering support and info, and for letting this project officially 
 be a part of [CLEO](http://cleo.li/).
 * [Alexander Blade](http://www.dev-c.com/) for creating CLEO Android, and for publishing information on 
-his Android-specific opcodes ([here](https://gtaforums.com/topic/663125-android-cleo-android/)).
+his Android-specific opcodes [here](https://gtaforums.com/topic/663125-android-cleo-android/).
 * [DK22Pac](https://github.com/DK22Pac) and all the others who have contributed to 
 [plugin-sdk](https://github.com/DK22Pac/plugin-sdk), which has been very helpful for creating game structures.
 * All those who have contributed to the [gtasa-reversed](https://github.com/codenulls/gta-reversed) project, which has been a valuable
 resource for building my understanding of some of the more complex systems that are in both the PC and iOS versions.
 * oliver#1219 for gifting me the other GTA games to help with getting CLEO working on those too.
 * Members of the CLEO iOS [Discord server](https://discord.gg/cXwkTUasJU) for reporting bugs, helping investigate them and testing fixes.
-* The GTA modding community in general for doing so much of the research which made CLEO iOS possible.
+* The GTA modding community in general for doing so much of the research which made CLEO iOS possible!
