@@ -139,12 +139,14 @@ fn write_fragment_shader(mask: u32) {
     }
 }
 
-fn set_loading_messages(msg_1: *const c_char, msg_2: *const c_char) {
-    unsafe {
-        let msg_1 = std::ffi::CStr::from_ptr(msg_1).to_str().unwrap_or("???");
-        let msg_2 = std::ffi::CStr::from_ptr(msg_2).to_str().unwrap_or("???");
+crate::hooks! {
+    fn set_loading_messages(msg_1: *const c_char, msg_2: *const c_char) as 0x1002b5a78 {
+        unsafe {
+            let msg_1 = std::ffi::CStr::from_ptr(msg_1).to_str().unwrap_or("???");
+            let msg_2 = std::ffi::CStr::from_ptr(msg_2).to_str().unwrap_or("???");
 
-        log::info!("{}: {}", msg_1, msg_2);
+            log::info!("{}: {}", msg_1, msg_2);
+        }
     }
 }
 
@@ -153,5 +155,5 @@ pub fn hook() {
     targets::cycles_per_millisecond::install(cycles_per_millisecond);
     targets::write_fragment_shader::install(write_fragment_shader);
     targets::display_fps::install(display_fps);
-    targets::loading_messages::install(set_loading_messages);
+    // targets::loading_messages::install(set_loading_messages);
 }

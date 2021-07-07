@@ -93,12 +93,6 @@ mod targets {
         0x1000cbd08,
         fn(*const Object, Sel, *mut Object, bool)
     );
-
-    create_hard_target!(
-        loading_messages,
-        0x1002b5a78,
-        fn(*const c_char, *const c_char)
-    );
 }
 
 fn install_hooks() {
