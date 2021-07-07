@@ -116,8 +116,10 @@ fn display_fps() {
     crate::hook::slide::<fn(f32, f32, *const u16)>(0x1003809c8)(x, y, bytes.as_ptr());
 }
 
-fn write_fragment_shader(mask: u32) {
-    call_original!(crate::targets::write_fragment_shader, mask);
+crate::hooks! (
+
+fn write_fragment_shader(mask: u32) -> () as 0x100137528 {
+    crate::original!(mask);
 
     let real_address = crate::hook::slide::<*mut u8>(0x100934e68);
 
@@ -127,8 +129,7 @@ fn write_fragment_shader(mask: u32) {
             .unwrap_or("unable to get value")
             .to_string();
 
-        // Shader changes can be made here by replacing lines. (If CLEO ever does include
-        //  any real ability for shader modding, it will be more refined than this.)
+        log::trace!("shader: {}", shader);
 
         let c_string = std::ffi::CString::new(shader).expect("CString::new failed");
         let bytes = c_string.as_bytes_with_nul();
@@ -139,21 +140,25 @@ fn write_fragment_shader(mask: u32) {
     }
 }
 
-crate::hooks! {
-    fn set_loading_messages(msg_1: *const c_char, msg_2: *const c_char) as 0x1002b5a78 {
-        unsafe {
-            let msg_1 = std::ffi::CStr::from_ptr(msg_1).to_str().unwrap_or("???");
-            let msg_2 = std::ffi::CStr::from_ptr(msg_2).to_str().unwrap_or("???");
+);
 
-            log::info!("{}: {}", msg_1, msg_2);
-        }
+crate::hooks! (
+
+fn set_loading_messages(msg_1: *const c_char, msg_2: *const c_char) -> () as 0x1002b5a78 {
+    unsafe {
+        let msg_1 = std::ffi::CStr::from_ptr(msg_1).to_str().unwrap_or("???");
+        let msg_2 = std::ffi::CStr::from_ptr(msg_2).to_str().unwrap_or("???");
+
+        log::info!("{}: {}", msg_1, msg_2);
     }
 }
+
+);
 
 pub fn hook() {
     targets::idle::install(idle);
     targets::cycles_per_millisecond::install(cycles_per_millisecond);
-    targets::write_fragment_shader::install(write_fragment_shader);
+    // targets::write_fragment_shader::install(write_fragment_shader);
     targets::display_fps::install(display_fps);
     // targets::loading_messages::install(set_loading_messages);
 }

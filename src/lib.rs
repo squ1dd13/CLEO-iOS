@@ -74,8 +74,6 @@ mod targets {
 
     create_soft_target!(init_for_title, 0x100339b44, fn(*mut u8));
 
-    create_soft_target!(write_fragment_shader, 0x100137528, fn(u32));
-
     create_soft_target!(load_settings, 0x1002ce8e4, fn(u64));
 
     create_hard_target!(display_fps, 0x100241cd8, fn());

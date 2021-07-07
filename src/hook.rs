@@ -194,7 +194,7 @@ macro_rules! original {
 
 #[macro_export]
 macro_rules! __hooks_internal {
-    (fn $name:ident $args:tt -> $ret:ty as $address:literal $implementation:tt $($t:tt)*) => {
+    (fn $name:ident $args:tt -> $ret:ty as $address:literal $implementation:tt /*$($t:tt)**/) => {
         mod $name {
             #[allow(unused_imports)]
             use super::*;
@@ -214,25 +214,29 @@ macro_rules! __hooks_internal {
 
         #[allow(unused_imports)]
         use $name::$name;
+
+        // crate::hooks! {
+            // $($t)*
+        // }
     };
 }
 
 #[macro_export]
 macro_rules! hooks {
-    (fn $name:ident $args:tt -> $ret:ty as $address:literal $implementation:tt $($t:tt)*) => {
+    (fn $name:ident $args:tt -> $ret:ty as $address:literal $implementation:tt /*$($t:tt)**/) => {
         crate::__hooks_internal! {
             fn $name $args -> $ret as $address $implementation
 
-            $($t)*
+            // $($t)*
         }
     };
 
-    (fn $name:ident $args:tt as $address:literal $implementation:tt $($t:tt)*) => {
+    (fn $name:ident $args:tt as $address:literal $implementation:tt /*$($t:tt)**/) => {
         // Just add the "-> ()" and defer to the above.
         crate::hooks! {
             fn $name $args -> () as $address $implementation
 
-            $($t)*
+            // $($t)*
         }
     };
 }
