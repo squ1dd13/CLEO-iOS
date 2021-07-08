@@ -184,63 +184,6 @@ macro_rules! call_original {
     }}
 }
 
-#[macro_export]
-macro_rules! original {
-    ($($args:expr),*) => {{
-        #[allow(unused_unsafe)]
-        unsafe { __HOOK_ORIGINAL }.unwrap()($($args),*)
-    }}
-}
-
-#[macro_export]
-macro_rules! __hooks_internal {
-    (fn $name:ident $args:tt -> $ret:ty as $address:literal $implementation:tt /*$($t:tt)**/) => {
-        mod $name {
-            #[allow(unused_imports)]
-            use super::*;
-
-            const __HOOK_TARGET: crate::hook::Target<fn $args -> $ret> = crate::hook::Target::Address($address);
-            static mut __HOOK_ORIGINAL: Option<fn $args -> $ret> = None;
-
-            #[ctor::ctor]
-            fn install() {
-                unsafe {
-                    __HOOK_TARGET.hook_soft($name, &mut __HOOK_ORIGINAL);
-                }
-            }
-
-            pub fn $name $args -> $ret $implementation
-        }
-
-        #[allow(unused_imports)]
-        use $name::$name;
-
-        // crate::hooks! {
-            // $($t)*
-        // }
-    };
-}
-
-#[macro_export]
-macro_rules! hooks {
-    (fn $name:ident $args:tt -> $ret:ty as $address:literal $implementation:tt /*$($t:tt)**/) => {
-        crate::__hooks_internal! {
-            fn $name $args -> $ret as $address $implementation
-
-            // $($t)*
-        }
-    };
-
-    (fn $name:ident $args:tt as $address:literal $implementation:tt /*$($t:tt)**/) => {
-        // Just add the "-> ()" and defer to the above.
-        crate::hooks! {
-            fn $name $args -> () as $address $implementation
-
-            // $($t)*
-        }
-    };
-}
-
 pub fn slide<T: Copy>(address: usize) -> T {
     unsafe {
         let addr_ptr: *const usize = &(address + crate::hook::get_image_aslr_offset(0));
