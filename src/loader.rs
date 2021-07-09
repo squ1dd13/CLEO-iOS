@@ -14,10 +14,14 @@ fn swap_path(game_path: &str) -> String {
     }
 }
 
+pub fn get_game_path() -> Option<std::path::PathBuf> {
+    Some(std::env::current_exe().ok()?.parent()?.to_path_buf())
+}
+
 fn path_in_game_dir(path: &impl AsRef<std::path::Path>) -> Option<std::path::PathBuf> {
     let name = path.as_ref().file_name()?.to_str()?.to_string();
 
-    let mut path = std::env::current_exe().ok()?.parent()?.to_path_buf();
+    let mut path = get_game_path()?;
     path.push(name);
 
     Some(path)

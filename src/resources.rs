@@ -157,6 +157,68 @@ fn find_cleo_dir_path() -> PathBuf {
     path
 }
 
+fn create_archive_dirs() {
+    // The layout of file replacements can be difficult to explain, especially with the added
+    //  complication of replacing files within IMG archives being a different process. In order
+    //  to make things easier, we create all the folders for replacement IMG contents for the user.
+    let game_dir = loader::get_game_path().expect("Unable to get game path.");
+
+    for entry in game_dir.read_dir().expect("Unable to read game directory.") {
+        let entry = if let Err(err) = entry {
+            log::error!("Error reading entry from game directory: {}", err);
+            continue;
+        } else {
+            entry.unwrap()
+        };
+
+        let entry_path = entry.path();
+
+        let extension = if let Some(ext) = entry_path.extension().and_then(|os| os.to_str()) {
+            ext
+        } else {
+            continue;
+        };
+
+        if extension == "img" {
+            let name_path = entry_path.strip_prefix(&game_dir).unwrap();
+            let mut new_folder_path = find_cleo_dir_path();
+            new_folder_path.push(name_path);
+
+            let create_instruction_file = |mut path: PathBuf| {
+                path.push(format!(
+                    "put files to go inside {} here",
+                    name_path.display()
+                ));
+
+                if path.exists() {
+                    return;
+                }
+
+                if let Err(err) = std::fs::File::create(&path) {
+                    log::error!("Failed to create instruction file {:?}: {}", path, err);
+                }
+            };
+
+            if new_folder_path.exists() {
+                if !new_folder_path.is_dir() {
+                    log::error!("Top-level items with an 'img' extension must be directories!");
+                    continue;
+                }
+
+                create_instruction_file(new_folder_path);
+
+                continue;
+            }
+
+            if let Err(err) = std::fs::create_dir(&new_folder_path) {
+                log::error!("Error creating dir {:?}: {}", new_folder_path, err);
+            }
+
+            create_instruction_file(new_folder_path);
+        }
+    }
+}
+
 pub fn get_log_path() -> PathBuf {
     let mut dir_path = find_cleo_dir_path();
     dir_path.push("cleo.log");
@@ -174,6 +236,9 @@ pub fn get_documents_path(resource_name: &str) -> PathBuf {
 
 pub fn initialise() {
     let cleo_path = find_cleo_dir_path();
+
+    log::info!("Creating archive folders...");
+    create_archive_dirs();
 
     log::info!("Finding and loading resources...");
     let all_resources = ModResource::flatten_dir(&cleo_path).unwrap();
