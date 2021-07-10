@@ -1,4 +1,4 @@
-use std::iter::FromIterator;
+// fixme: This code is much older and lower-quality than the rest of the project.
 
 use log::trace;
 use log::{debug, error, info, warn};
@@ -115,7 +115,7 @@ impl Script {
         let name_iter = self.vanilla_rep.name.iter();
         let name_chars = name_iter.take_while(|c| c != &&0u8).map(|c| *c as char);
 
-        String::from_iter(name_chars)
+        name_chars.collect()
     }
 
     fn collect_value_args(&mut self, count: u32) {

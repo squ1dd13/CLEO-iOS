@@ -62,7 +62,7 @@ fn generate_numberplate(chars: *mut u8, length: i32) -> bool {
 
         for (i, c) in custom.iter().enumerate() {
             unsafe {
-                chars.offset(i as isize).write(*c);
+                chars.add(i).write(*c);
             }
         }
 
@@ -77,10 +77,7 @@ pub fn load_fxt(path: &impl AsRef<std::path::Path>) -> std::io::Result<()> {
     let comment_pattern: regex::Regex = regex::Regex::new(r"//|#").unwrap();
 
     for line in std::fs::read_to_string(path.as_ref())?.lines() {
-        let line = comment_pattern
-            .split(line)
-            .next()
-            .and_then(|s| Some(s.trim()));
+        let line = comment_pattern.split(line).next().map(|s| s.trim());
 
         if let Some(line) = line {
             if line.is_empty() {

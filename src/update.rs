@@ -132,7 +132,7 @@ impl VersionNumber {
         let mut number = VersionNumber(vec![]);
 
         for part in parts {
-            number.0.push(u8::from_str_radix(part, 10)?);
+            number.0.push(part.parse::<u8>()?);
         }
 
         Ok(number)

@@ -48,11 +48,11 @@ fn find_absolute_path_c(p1: i32, p2: *const u8, p3: i32) -> *const u8 {
             let buf = libc::malloc(final_path.len() + 1) as *mut u8;
 
             for (i, c) in final_path.chars().enumerate() {
-                buf.offset(i as isize).write(c as u8);
+                buf.add(i).write(c as u8);
             }
 
             // Null terminator.
-            buf.offset(final_path.len() as isize).write(0);
+            buf.add(final_path.len()).write(0);
 
             return buf;
         }

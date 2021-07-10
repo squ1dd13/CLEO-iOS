@@ -124,7 +124,7 @@ impl Logger {
         };
 
         if level < Level::Debug {
-            if let Some(mut file) = self.file.lock().ok() {
+            if let Ok(mut file) = self.file.lock() {
                 message.write_to_file(file.as_mut().unwrap());
             }
         }

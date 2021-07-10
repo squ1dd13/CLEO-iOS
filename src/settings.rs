@@ -32,7 +32,7 @@ pub enum Key {
 pub struct Settings(pub Vec<OptionInfo>);
 
 impl Settings {
-    pub fn get<'a>(&'a mut self, key: Key) -> &'a mut OptionInfo {
+    pub fn get(&mut self, key: Key) -> &mut OptionInfo {
         &mut self.0[key as usize]
     }
 

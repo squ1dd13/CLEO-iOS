@@ -54,11 +54,9 @@ impl ModResource {
 
             if let Some(resource) = Self::from_path(&entry_path) {
                 resources.push(resource);
-            } else {
-                if entry_path.is_dir() {
-                    if let Some(mut found) = Self::flatten_dir(&entry_path) {
-                        resources.append(&mut found);
-                    }
+            } else if entry_path.is_dir() {
+                if let Some(mut found) = Self::flatten_dir(&entry_path) {
+                    resources.append(&mut found);
                 }
             }
         }
@@ -77,11 +75,9 @@ impl ModResource {
 
         let extension = path.extension();
 
-        if extension.is_none() {
-            if path.is_file() {
-                log::warn!("Only folders may have no extension.");
-                return None;
-            }
+        if extension.is_none() && path.is_file() {
+            log::warn!("Only folders may have no extension.");
+            return None;
         }
 
         let extension = extension.unwrap().to_str()?.to_lowercase();
@@ -91,15 +87,12 @@ impl ModResource {
             return Some(ModResource::FileReplacement(path.to_path_buf()));
         }
 
-        let first_component = relative_to_cleo
-            .iter()
-            .next()
-            .and_then(|first| Some(Path::new(first)));
+        let first_component = relative_to_cleo.iter().next().map(|first| Path::new(first));
 
         let is_in_archive = first_component
             .and_then(std::path::Path::extension)
             .and_then(std::ffi::OsStr::to_str)
-            .and_then(|ext| Some(ext.to_lowercase() == "img"))
+            .map(|ext| ext.to_lowercase() == "img")
             .unwrap_or(false);
 
         if is_in_archive {

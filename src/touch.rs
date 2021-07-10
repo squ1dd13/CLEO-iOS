@@ -43,7 +43,7 @@ fn get_zone(x: f32, y: f32) -> Option<i8> {
     let zone = coordinate_zone(y) + coordinate_zone(x) * 3 - 3;
 
     // Sometimes -2 pops up. Other invalid values are probably possible.
-    if zone >= 1 && zone <= 9 {
+    if (1..=9).contains(&zone) {
         Some(zone as i8)
     } else {
         warn!("Bad touch zone {}", zone);

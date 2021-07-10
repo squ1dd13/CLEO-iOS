@@ -29,7 +29,7 @@ fn idle(p1: u64, p2: u64) {
 }
 
 #[repr(C)]
-struct RGBA {
+struct Rgba {
     red: u8,
     green: u8,
     blue: u8,
@@ -57,7 +57,7 @@ fn display_fps() {
     crate::hook::slide::<fn(u8, u8)>(0x100381b94)(1, 0);
 
     // eq: CFont::SetBackgroundColor(...)
-    crate::hook::slide::<fn(*const RGBA)>(0x100381ba8)(&RGBA {
+    crate::hook::slide::<fn(*const Rgba)>(0x100381ba8)(&Rgba {
         red: 0,
         green: 0,
         blue: 0,
@@ -86,7 +86,7 @@ fn display_fps() {
     crate::hook::slide::<fn(u8)>(0x100381b58)(0);
 
     // eq: CFont::SetColor(...)
-    crate::hook::slide::<fn(*const RGBA)>(0x100381824)(&RGBA {
+    crate::hook::slide::<fn(*const Rgba)>(0x100381824)(&Rgba {
         red: 9,
         green: 243,
         blue: 11,
@@ -133,8 +133,8 @@ fn write_fragment_shader(mask: u32) {
         let c_string = std::ffi::CString::new(shader).expect("CString::new failed");
         let bytes = c_string.as_bytes_with_nul();
 
-        for i in 0..bytes.len() {
-            real_address.offset(i as isize).write(bytes[i]);
+        for (i, byte) in bytes.iter().enumerate() {
+            real_address.add(i).write(*byte);
         }
     }
 }

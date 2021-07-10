@@ -261,7 +261,7 @@ impl Menu {
                 1,
             );
 
-            let background_colour: *const Object = msg_send![class!(UIColor), colorWithRed: 255.0 / 255.0 green: 40.0 / 255.0 blue: 46.0 / 255.0 alpha: 0.3];
+            let background_colour: *const Object = msg_send![class!(UIColor), colorWithRed: 1.0 green: 40.0 / 255.0 blue: 46.0 / 255.0 alpha: 0.3];
             let _: () = msg_send![close, setBackgroundColor: background_colour];
 
             // If we disable user interaction, touches can pass through to the game view and the menu will close.
@@ -1021,7 +1021,7 @@ impl MenuAction {
             MENU.lock()
                 .unwrap()
                 .as_mut()
-                .and_then(|menu| Some(dispatch::Queue::main().exec_sync(|| with(menu))))
+                .map(|menu| dispatch::Queue::main().exec_sync(|| with(menu)))
         }
 
         match self {

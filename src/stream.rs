@@ -13,7 +13,7 @@ use crate::{call_original, hook, targets};
 fn zero_memory(ptr: *mut u8, bytes: usize) {
     for i in 0..bytes {
         unsafe {
-            ptr.offset(i as isize).write(0);
+            ptr.add(i).write(0);
         }
     }
 }
@@ -65,7 +65,7 @@ fn stream_init(stream_count: i32) {
     }
 
     for i in 0..stream_count as usize {
-        let stream: &mut Stream = unsafe { &mut *streams.offset(i as isize) };
+        let stream: &mut Stream = unsafe { &mut *streams.add(i) };
 
         // eq: OS_SemaphoreCreate()
         stream.semaphore = hook::slide::<fn() -> *mut u8>(0x1004e8b18)();
@@ -174,11 +174,7 @@ fn stream_thread(_: usize) {
             let read_custom = with_replacements(&mut |replacements| {
                 let replacements = replacements.get_mut(image_name)?;
 
-                let model_name = with_model_names(|models| {
-                    models
-                        .get(&stream_source)
-                        .and_then(|name| Some(name.clone()))
-                })?;
+                let model_name = with_model_names(|models| models.get(&stream_source).cloned())?;
 
                 let folder_child = replacements.get_mut(&model_name)?;
 
@@ -500,7 +496,7 @@ impl ArchiveFileReplacement {
     }
 }
 
-pub fn load_replacement(image_name: &String, path: &impl AsRef<Path>) -> std::io::Result<()> {
+pub fn load_replacement(image_name: &str, path: &impl AsRef<Path>) -> std::io::Result<()> {
     with_replacements(&mut |replacements| {
         let size = path.as_ref().metadata()?.len();
 
@@ -523,7 +519,7 @@ pub fn load_replacement(image_name: &String, path: &impl AsRef<Path>) -> std::io
             let mut map = HashMap::new();
             map.insert(name, replacement);
 
-            replacements.insert(image_name.clone(), map);
+            replacements.insert(image_name.into(), map);
         }
 
         Ok(())
