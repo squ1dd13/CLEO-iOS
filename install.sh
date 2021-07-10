@@ -9,7 +9,7 @@ if [[ $* == *--release* ]]; then
     cargo lipo --targets aarch64-apple-ios --release --allow-run-on-non-macos || exit 1
 else
     printf "=> Compiling Rust code (debug)...\n"
-    cargo lipo --targets aarch64-apple-ios --allow-run-on-non-macos || exit 1
+    cargo lipo --targets aarch64-apple-ios --features debug --allow-run-on-non-macos || exit 1
 fi
 
 printf "=> Finished compiling Rust code.\n"

@@ -122,7 +122,12 @@ fn install_hooks() {
 fn load() {
     // Load the logger before everything else so we can log from constructors.
     let logger = udp::Logger::new("cleo");
-    logger.connect_udp("192.168.1.183:4568");
+
+    // Only attempt to connect over UDP if we're in debug mode.
+    if cfg!(feature = "debug") {
+        logger.connect_udp("192.168.1.183:4568");
+    }
+
     logger.connect_file(resources::get_log_path());
 
     log::set_logger(unsafe { udp::GLOBAL_LOGGER.as_ref().unwrap() })
