@@ -570,6 +570,7 @@ struct Stream {
     buffer: *mut u8,
 
     // CLEO addition.
+    // hack: We shouldn't really need to add another field to Stream.
     img_index: u8,
 
     locked: bool,

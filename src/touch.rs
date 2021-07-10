@@ -51,9 +51,20 @@ fn get_zone(x: f32, y: f32) -> Option<i8> {
     }
 }
 
+struct Pos {
+    x: f32,
+    y: f32,
+}
+
+struct Touch {
+    start_time: f64,
+    start_pos: Pos,
+    current_pos: Pos,
+}
+
 lazy_static! {
     static ref TOUCH_ZONES: Mutex<[bool; 9]> = Mutex::new([false; 9]);
-    static ref CURRENT_TOUCHES: Mutex<Vec<((f32, f32, f64), (f32, f32))>> = Mutex::new(Vec::new());
+    static ref CURRENT_TOUCHES: Mutex<Vec<Touch>> = Mutex::new(Vec::new());
 }
 
 pub fn query_zone(zone: usize) -> Option<bool> {
@@ -74,17 +85,18 @@ pub fn query_zone(zone: usize) -> Option<bool> {
     }
 }
 
-fn is_menu_swipe(x1: f32, y1: f32, time1: f64, x2: f32, y2: f32, time2: f64) -> bool {
+fn is_menu_swipe(touch: &Touch, current_time: f64) -> bool {
+    // todo: Present user with combined "swipe sensitivity" option to configure speed and distance together.
     const MIN_SPEED: f32 = 800.0;
     const MIN_DISTANCE: f32 = 35.0;
 
-    if time1 <= 0.0 {
+    if touch.start_time <= 0.0 {
         return false;
     }
 
-    let delta_x = x2 - x1;
-    let delta_y = y2 - y1;
-    let delta_t = time2 - time1;
+    let delta_x = touch.current_pos.x - touch.start_pos.x;
+    let delta_y = touch.current_pos.y - touch.start_pos.y;
+    let delta_time = current_time - touch.start_time;
 
     let distance = (delta_x * delta_x + delta_y * delta_y).sqrt();
 
@@ -92,7 +104,7 @@ fn is_menu_swipe(x1: f32, y1: f32, time1: f64, x2: f32, y2: f32, time2: f64) -> 
         return false;
     }
 
-    let speed = distance / delta_t as f32;
+    let speed = distance / delta_time as f32;
 
     if speed < MIN_SPEED {
         return false;
@@ -109,21 +121,14 @@ fn is_menu_swipe(x1: f32, y1: f32, time1: f64, x2: f32, y2: f32, time2: f64) -> 
 // todo: Don't pick up touches that have been handled by a non-joypad control.
 fn process_touch(x: f32, y: f32, timestamp: f64, force: f32, touch_type: TouchType) {
     // Find the closest touch to the given position that we know about.
-    fn find_closest_index(
-        touches: &[((f32, f32, f64), (f32, f32))],
-        x: f32,
-        y: f32,
-    ) -> Option<usize> {
+    fn find_closest_index(touches: &[Touch], x: f32, y: f32) -> Option<usize> {
         touches
             .iter()
             .enumerate()
             .min_by(|(_, a), (_, b)| {
-                let a = a.1;
-                let b = b.1;
-
                 // Compare taxicab distance (in order to avoid square rooting).
-                let distance_a = (a.0 - x).abs() + (a.1 - y).abs();
-                let distance_b = (b.0 - x).abs() + (b.1 - y).abs();
+                let distance_a = (a.current_pos.x - x).abs() + (a.current_pos.y - y).abs();
+                let distance_b = (b.current_pos.x - x).abs() + (b.current_pos.y - y).abs();
 
                 distance_a
                     .partial_cmp(&distance_b)
@@ -157,9 +162,7 @@ fn process_touch(x: f32, y: f32, timestamp: f64, force: f32, touch_type: TouchTy
             match touch_type {
                 TouchType::Up => {
                     if let Some(close_index) = find_closest_index(&touches[..], x, y) {
-                        let (x1, y1, initial_timestamp) = touches[close_index].0;
-
-                        let is_menu = is_menu_swipe(x1, y1, initial_timestamp, x, y, timestamp);
+                        let is_menu = is_menu_swipe(&touches[close_index], timestamp);
                         touches.remove(close_index);
 
                         if is_menu {
@@ -167,12 +170,7 @@ fn process_touch(x: f32, y: f32, timestamp: f64, force: f32, touch_type: TouchTy
                                 log::info!("Ignoring menu swipe because there are other touches.");
                             } else {
                                 log::info!("Detected valid menu swipe.");
-
                                 MenuAction::queue(MenuAction::Show(false));
-
-                                // Show the menu from a second thread because the touch handlers are typically called
-                                //  from the main thread (and we don't want a deadlock).
-                                // std::thread::spawn(|| crate::menu::show(false));
                             }
                         }
                     } else {
@@ -181,12 +179,18 @@ fn process_touch(x: f32, y: f32, timestamp: f64, force: f32, touch_type: TouchTy
                 }
 
                 TouchType::Down => {
-                    touches.push(((x, y, timestamp), (x, y)));
+                    touches.push(Touch {
+                        start_time: timestamp,
+
+                        // We only have a single touch event, so the starting position is the same as the current position.
+                        start_pos: Pos { x, y },
+                        current_pos: Pos { x, y },
+                    });
                 }
 
                 TouchType::Move => {
                     if let Some(close_index) = find_closest_index(&touches[..], x, y) {
-                        touches[close_index].1 = (x, y);
+                        touches[close_index].current_pos = Pos { x, y };
                     } else {
                         error!("Unable to find touch to move!");
                     }
@@ -203,7 +207,7 @@ fn process_touch(x: f32, y: f32, timestamp: f64, force: f32, touch_type: TouchTy
 
                     // Trigger the zone for each touch we find.
                     for touch in touches.iter() {
-                        if let Some(zone) = get_zone(touch.1 .0, touch.1 .1) {
+                        if let Some(zone) = get_zone(touch.current_pos.x, touch.current_pos.y) {
                             touch_zones[zone as usize - 1] = true;
                         }
                     }
