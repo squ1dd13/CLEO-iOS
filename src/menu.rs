@@ -424,7 +424,7 @@ impl Menu {
     fn create_single_script_button(
         &self,
         index: usize,
-        script: &scripts::Script,
+        script: &scripts::CleoScript,
         height: f64,
     ) -> *mut Object {
         let tag = ButtonTag {
@@ -603,7 +603,7 @@ Additionally, some – especially those without codes – can crash the game in 
     }
 
     fn populate_scroll_views(&mut self) {
-        let injected_scripts: Vec<&'static mut scripts::Script> = scripts::loaded_scripts()
+        let injected_scripts: Vec<&'static mut scripts::CleoScript> = scripts::loaded_scripts()
             .iter_mut()
             .filter(|s| s.injected)
             .collect();

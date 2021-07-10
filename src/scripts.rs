@@ -13,7 +13,7 @@ use crate::{call_original, hook};
 /// to avoid situations where the owner of a script is unknown.
 #[repr(C, align(8))]
 #[derive(Debug)]
-struct VanillaScript {
+struct GameScript {
     // Do not use these: scripts should never be linked.
     next: usize,
     previous: usize,
@@ -49,9 +49,9 @@ struct VanillaScript {
 }
 
 #[derive(Debug)]
-pub struct Script {
+pub struct CleoScript {
     /// C structure mirroring standard GTA scripts. Interoperable with game code.
-    vanilla_rep: VanillaScript,
+    vanilla_rep: GameScript,
 
     /// The bytes loaded from the script file that represent compiled code.
     bytecode: Vec<u8>,
@@ -68,16 +68,16 @@ pub struct Script {
 }
 
 // fixme: We /really/ need to make scripts thread-safe.
-static mut LOADED_SCRIPTS: Vec<Script> = vec![];
+static mut LOADED_SCRIPTS: Vec<CleoScript> = vec![];
 
-pub fn loaded_scripts() -> &'static mut Vec<Script> {
+pub fn loaded_scripts() -> &'static mut Vec<CleoScript> {
     unsafe { &mut LOADED_SCRIPTS }
 }
 
-impl Script {
-    pub fn new(mut bytecode: Vec<u8>, display_name: String, injected: bool) -> Script {
-        Script {
-            vanilla_rep: VanillaScript {
+impl CleoScript {
+    pub fn new(mut bytecode: Vec<u8>, display_name: String, injected: bool) -> CleoScript {
+        CleoScript {
+            vanilla_rep: GameScript {
                 name: *b"a script",
                 base_ip: bytecode.as_mut_ptr(),
                 ip: bytecode.as_mut_ptr(),
@@ -119,15 +119,15 @@ impl Script {
     }
 
     fn collect_value_args(&mut self, count: u32) {
-        hook::slide::<fn(*mut Script, u32)>(0x1001cf474)(&mut *self, count)
+        hook::slide::<fn(*mut CleoScript, u32)>(0x1001cf474)(&mut *self, count)
     }
 
     fn read_variable_arg<T: Copy>(&mut self) -> T {
-        hook::slide::<fn(*mut Script) -> T>(0x1001cfb04)(&mut *self)
+        hook::slide::<fn(*mut CleoScript) -> T>(0x1001cfb04)(&mut *self)
     }
 
     fn update_bool_flag(&mut self, value: bool) {
-        hook::slide::<fn(*mut Script, bool)>(0x1001df890)(&mut *self, value)
+        hook::slide::<fn(*mut CleoScript, bool)>(0x1001df890)(&mut *self, value)
     }
 
     fn run_override(&mut self, opcode: u16) -> bool {
@@ -237,7 +237,7 @@ impl Script {
             return 1;
         }
 
-        type Handler = extern "C" fn(*mut VanillaScript, u16) -> u8;
+        type Handler = extern "C" fn(*mut GameScript, u16) -> u8;
 
         // Find the correct handler and call it.
         if opcode >= 0xa8c {
@@ -259,10 +259,10 @@ impl Script {
         let receiver = unsafe {
             ((next_ptr) as usize
                 + ((*hook::slide::<*const usize>(0x1005c11d8 + offset + 8)) >> 1usize))
-                as *mut VanillaScript
+                as *mut GameScript
         };
 
-        let self_ptr = &mut self.vanilla_rep as *mut VanillaScript;
+        let self_ptr = &mut self.vanilla_rep as *mut GameScript;
 
         if receiver != self_ptr {
             warn!(
@@ -309,9 +309,9 @@ impl Script {
     }
 
     fn script_tick() {
-        Script::unload_inactive();
+        CleoScript::unload_inactive();
 
-        let game_time = Script::get_game_time();
+        let game_time = CleoScript::get_game_time();
 
         for script in loaded_scripts() {
             // Only run scripts if their activation time is not in the future.
@@ -332,7 +332,7 @@ impl Script {
     }
 
     pub fn activate(&mut self) {
-        self.vanilla_rep = VanillaScript {
+        self.vanilla_rep = GameScript {
             ip: self.vanilla_rep.base_ip,
             next: 0,
             previous: 0,
@@ -362,7 +362,7 @@ impl Script {
 
     pub fn reset(&mut self) {
         // Reset everything other than the script bytes.
-        self.vanilla_rep = VanillaScript {
+        self.vanilla_rep = GameScript {
             ip: self.vanilla_rep.base_ip,
             next: 0,
             previous: 0,
@@ -394,7 +394,7 @@ impl Script {
 }
 
 fn load_script(path: &impl AsRef<std::path::Path>, injected: bool) -> std::io::Result<()> {
-    let script = Script::new(
+    let script = CleoScript::new(
         std::fs::read(path)?,
         path.as_ref()
             .file_stem()
@@ -431,6 +431,6 @@ fn reset_before_start() {
 
 pub fn hook() {
     debug!("Installing script hooks");
-    crate::targets::script_tick::install(Script::script_tick);
+    crate::targets::script_tick::install(CleoScript::script_tick);
     crate::targets::reset_before_start::install(reset_before_start);
 }
