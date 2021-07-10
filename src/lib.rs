@@ -101,7 +101,7 @@ mod targets {
     );
 }
 
-fn install_hooks() {
+fn initialise() {
     stream::hook();
     update::hook();
     loader::hook();
@@ -157,6 +157,6 @@ fn load() {
 "#
     );
 
-    crate::update::start_update_checking();
-    install_hooks();
+    update::start_update_check();
+    initialise();
 }

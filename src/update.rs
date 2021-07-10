@@ -110,7 +110,7 @@ fn is_update_available() -> Result<bool, Box<dyn std::error::Error>> {
     Ok(newest.is_newer_than(&current)?)
 }
 
-pub fn start_update_checking() {
+pub fn start_update_check() {
     std::thread::spawn(|| {
         let available = is_update_available();
 
