@@ -255,6 +255,8 @@ impl CleoScript {
 
         let next_ptr: *const usize = &self.vanilla_rep.next;
 
+        log::trace!("Next = {:?}", next_ptr);
+
         // todo: Clean up this mess.
         let receiver = unsafe {
             ((next_ptr) as usize
@@ -324,7 +326,7 @@ impl CleoScript {
             script.run_block();
         }
 
-        call_original!(crate::targets::script_tick);
+        // call_original!(crate::targets::script_tick);
     }
 
     pub fn is_active(&self) -> bool {
@@ -430,7 +432,7 @@ fn reset_before_start() {
 }
 
 pub fn hook() {
-    debug!("Installing script hooks");
-    crate::targets::script_tick::install(CleoScript::script_tick);
-    crate::targets::reset_before_start::install(reset_before_start);
+    // debug!("Installing script hooks");
+    // crate::targets::script_tick::install(CleoScript::script_tick);
+    // crate::targets::reset_before_start::install(reset_before_start);
 }

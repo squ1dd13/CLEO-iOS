@@ -1,5 +1,5 @@
 use crate::gui::*;
-use crate::{call_original, cheats, scripts, targets};
+use crate::{call_original, cheats, new_scripts, targets};
 use log::{error, trace};
 use objc::runtime::Sel;
 use objc::{runtime::Object, *};
@@ -50,9 +50,7 @@ impl ButtonTag {
             MenuAction::queue(MenuAction::SaveSettings);
             MenuAction::queue(MenuAction::Reload);
         } else {
-            if let Some(script) = scripts::loaded_scripts()
-                .iter_mut()
-                .filter(|s| s.injected)
+            if let Some(script) = new_scripts::MenuInfo::all().iter_mut()
                 .nth(self.index as usize)
             {
                 script.activate();
@@ -424,7 +422,7 @@ impl Menu {
     fn create_single_script_button(
         &self,
         index: usize,
-        script: &scripts::CleoScript,
+        script: &new_scripts::MenuInfo,
         height: f64,
     ) -> *mut Object {
         let tag = ButtonTag {
@@ -438,15 +436,15 @@ impl Menu {
         let button = self.create_basic_button(
             index,
             height,
-            script.is_active(),
+            script.running,
             "Running",
             "Not running",
-            script.display_name.as_str(),
+            script.name.as_str(),
             tag,
             height,
         );
 
-        if script.is_active() {
+        if script.running {
             unsafe {
                 // Show the button as disabled so the user can't fuck up the script by starting it when
                 //  it's already active.
@@ -603,10 +601,12 @@ Additionally, some – especially those without codes – can crash the game in 
     }
 
     fn populate_scroll_views(&mut self) {
-        let injected_scripts: Vec<&'static mut scripts::CleoScript> = scripts::loaded_scripts()
-            .iter_mut()
-            .filter(|s| s.injected)
-            .collect();
+        // let injected_scripts: Vec<&'static mut scripts::CleoScript> = scripts::loaded_scripts()
+        //     .iter_mut()
+        //     .filter(|s| s.injected)
+        //     .collect();
+
+        let injected_scripts = new_scripts::MenuInfo::all();
 
         unsafe {
             let _: () = msg_send![self.tabs[0].views[0], setContentSize: CGSize {
