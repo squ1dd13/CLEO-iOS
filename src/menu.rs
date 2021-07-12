@@ -1,5 +1,5 @@
-use crate::{gui::*, settings};
 use crate::{call_original, cheats, scripts, targets};
+use crate::{gui::*, settings};
 use log::{error, trace};
 use objc::runtime::Sel;
 use objc::{runtime::Object, *};
@@ -50,10 +50,7 @@ impl ButtonTag {
             MenuAction::queue(MenuAction::SaveSettings);
             MenuAction::queue(MenuAction::Reload);
         } else {
-            if let Some(script) = scripts::MenuInfo::all()
-                .iter_mut()
-                .nth(self.index as usize)
-            {
+            if let Some(script) = scripts::MenuInfo::all().iter_mut().nth(self.index as usize) {
                 script.activate();
             } else {
                 error!("Requested script seems to have disappeared.");

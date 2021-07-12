@@ -1,5 +1,5 @@
 use crate::{call_original, hook, targets, touch};
-use std::sync::{atomic::AtomicU32, Mutex};
+use std::sync::Mutex;
 
 #[repr(C, align(8))]
 struct GameScript {
@@ -78,7 +78,7 @@ struct CleoScript {
 }
 
 impl CleoScript {
-    fn new(mut bytes: Vec<u8>) -> CleoScript {
+    fn new(bytes: Vec<u8>) -> CleoScript {
         // fixme: Script contents are not checked for Android-only commands.
 
         CleoScript {
