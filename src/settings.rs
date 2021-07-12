@@ -36,7 +36,7 @@ impl Settings {
         &mut self.0[key as usize]
     }
 
-    pub fn save(&self) {
+    fn save(&self) {
         let path = crate::resources::get_documents_path("cleo.settings");
 
         if let Ok(mut opened) = std::fs::File::create(path) {
@@ -83,6 +83,14 @@ impl Settings {
 pub fn with_shared<T>(with: &mut impl FnMut(&mut Settings) -> T) -> T {
     let mut locked = SETTINGS.lock();
     with(locked.as_mut().unwrap())
+}
+
+pub fn save() {
+    std::thread::spawn(|| {
+        with_shared(&mut |options| {
+            options.save();
+        });
+    });
 }
 
 fn load_settings(menu_manager: u64) {

@@ -1,4 +1,4 @@
-use crate::gui::*;
+use crate::{gui::*, settings};
 use crate::{call_original, cheats, new_scripts, targets};
 use log::{error, trace};
 use objc::runtime::Sel;
@@ -43,7 +43,7 @@ impl ButtonTag {
         } else if self.is_setting_button {
             trace!("Setting button pressed.");
 
-            crate::settings::with_shared(&mut |options| {
+            settings::with_shared(&mut |options| {
                 options.0[self.index as usize].value = !options.0[self.index as usize].value;
             });
 
@@ -536,7 +536,7 @@ impl Menu {
     fn create_single_setting_button(
         &self,
         index: usize,
-        option: &crate::settings::OptionInfo,
+        option: &settings::OptionInfo,
         height: f64,
     ) -> *mut Object {
         self.create_bigger_button(
@@ -639,7 +639,7 @@ Additionally, some – especially those without codes – can crash the game in 
             }
         }
 
-        crate::settings::with_shared(&mut |options| {
+        settings::with_shared(&mut |options| {
             unsafe {
                 let _: () = msg_send![self.tabs[2].views[0], setContentSize: CGSize {
                     width: self.width,
@@ -808,9 +808,7 @@ Additionally, some – especially those without codes – can crash the game in 
 
     fn save_settings_if_needed(&mut self) {
         if self.settings_changed {
-            crate::settings::with_shared(&mut |options| {
-                options.save();
-            });
+            settings::save();
 
             self.settings_changed = false;
         }
