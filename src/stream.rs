@@ -459,15 +459,15 @@ fn load_directory(path_c: *const i8, archive_id: i32) {
 }
 
 pub fn hook() {
-    const CD_STREAM_INIT: crate::hook::Target<fn(i32)> = crate::hook::Target::Address(0x100177eb8);
+    const CD_STREAM_INIT: hook::Target<fn(i32)> = hook::Target::Address(0x100177eb8);
     CD_STREAM_INIT.hook_hard(stream_init);
 
-    const CD_STREAM_READ: crate::hook::Target<fn(u32, *mut u8, StreamSource, u32) -> bool> =
-        crate::hook::Target::Address(0x100178048);
+    const CD_STREAM_READ: hook::Target<fn(u32, *mut u8, StreamSource, u32) -> bool> =
+        hook::Target::Address(0x100178048);
     CD_STREAM_READ.hook_hard(stream_read);
 
-    const CD_STREAM_OPEN: crate::hook::Target<fn(*const c_char, bool) -> i32> =
-        crate::hook::Target::Address(0x1001782b0);
+    const CD_STREAM_OPEN: hook::Target<fn(*const c_char, bool) -> i32> =
+        hook::Target::Address(0x1001782b0);
     CD_STREAM_OPEN.hook_hard(stream_open);
 
     targets::load_cd_directory::install(load_directory);
