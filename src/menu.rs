@@ -50,7 +50,8 @@ impl ButtonTag {
             MenuAction::queue(MenuAction::SaveSettings);
             MenuAction::queue(MenuAction::Reload);
         } else {
-            if let Some(script) = new_scripts::MenuInfo::all().iter_mut()
+            if let Some(script) = new_scripts::MenuInfo::all()
+                .iter_mut()
                 .nth(self.index as usize)
             {
                 script.activate();

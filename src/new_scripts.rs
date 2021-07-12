@@ -1,5 +1,5 @@
-use crate::{call_original, hook, targets};
-use std::sync::Mutex;
+use crate::{call_original, hook, targets, touch};
+use std::sync::{atomic::AtomicU32, Mutex};
 
 #[repr(C, align(8))]
 struct GameScript {
@@ -106,7 +106,7 @@ impl CleoScript {
             return;
         }
 
-        while self.update_once() {}
+        while !self.update_once() {}
     }
 
     fn update_once(&mut self) -> bool {
@@ -150,11 +150,108 @@ impl CleoScript {
         handler(&mut self.game_script, opcode) != 0
     }
 
+    fn collect_value_args(&mut self, count: u32) {
+        hook::slide::<fn(*mut CleoScript, u32)>(0x1001cf474)(&mut *self, count);
+    }
+
+    fn read_variable_arg<T: Copy>(&mut self) -> T {
+        hook::slide::<fn(*mut CleoScript) -> T>(0x1001cfb04)(&mut *self)
+    }
+
+    fn update_bool_flag(&mut self, value: bool) {
+        hook::slide::<fn(*mut CleoScript, bool)>(0x1001df890)(&mut *self, value)
+    }
+
     /// Runs any extra code associated with the opcode. Returns true if the extra code
     /// should replace the original code completely, or false if the original code should
     /// run as well.
     fn update_override(&mut self, opcode: u16) -> bool {
-        false
+        // 32 should be enough. I've only ever seen index 0 used, but since there
+        //  are no details on the true number of "mutex vars" there should be, it's
+        //  safest to go higher and hope we waste some memory.
+        lazy_static::lazy_static! {
+            static ref MUTEX_VARS: Mutex<[u32; 32]> = Mutex::new([0; 32]);
+        }
+
+        match opcode {
+            // Intercept 'terminate' calls because the game's implementation will try to
+            //  free our script data (which we don't want).
+            0x004e => {
+                // Simply deactivate the script.
+                self.game_script.active = false;
+                true
+            }
+
+            0xdd0..=0xdd4 | 0xdde | 0xdd8..=0xdda | 0xdd7 => {
+                log::error!("opcode {:#x} unsupported on iOS", opcode);
+                true
+            }
+
+            0x0ddc => {
+                self.collect_value_args(2);
+
+                let (index, value) = {
+                    let args: *const u32 = hook::slide(0x1007ad690);
+                    (unsafe { args.read() }, unsafe { args.add(1).read() })
+                };
+
+                MUTEX_VARS.lock().unwrap()[index as usize] = value;
+                true
+            }
+
+            0xddd => {
+                let dest = self.read_variable_arg::<*mut u32>();
+                self.collect_value_args(1);
+
+                let index = {
+                    let args: *const u32 = hook::slide(0x1007ad690);
+                    unsafe { args.read() }
+                };
+
+                unsafe {
+                    dest.write(MUTEX_VARS.lock().unwrap()[index as usize]);
+                    true
+                }
+            }
+
+            0x00e1 => {
+                self.collect_value_args(2);
+
+                let zone = unsafe { *hook::slide::<*const u32>(0x1007ad690).add(1) } as usize;
+
+                let state = if let Some(state) = touch::query_zone(zone) {
+                    state
+                } else {
+                    log::warn!("returning invalid touch state for zone {}", zone);
+                    false
+                };
+
+                self.update_bool_flag(state);
+                true
+            }
+
+            0x0de0 => {
+                let destination: *mut i32 = self.read_variable_arg();
+                self.collect_value_args(2);
+
+                let zone = unsafe { *hook::slide::<*const u32>(0x1007ad690) as usize };
+
+                let out = if let Some(state) = touch::query_zone(zone) {
+                    state as i32
+                } else {
+                    log::warn!("returning invalid touch state for zone {}", zone);
+                    0
+                };
+
+                unsafe {
+                    *destination = out;
+                }
+
+                true
+            }
+
+            _ => false,
+        }
     }
 }
 
