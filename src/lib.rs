@@ -10,9 +10,9 @@ mod gui;
 mod hook;
 mod loader;
 mod menu;
-mod new_scripts;
 mod render;
 mod resources;
+mod scripts;
 // mod scripts;
 mod settings;
 mod stream;
@@ -112,7 +112,7 @@ fn initialise() {
     touch::hook();
     text::hook();
     render::hook();
-    new_scripts::hook();
+    scripts::hook();
     cheats::hook();
     controller::hook();
 

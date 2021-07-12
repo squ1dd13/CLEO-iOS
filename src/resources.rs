@@ -240,8 +240,8 @@ pub fn initialise() {
         log::trace!("{:#?}", resource);
 
         let load_error = match resource {
-            ModResource::StartupScript(path) => new_scripts::load_running_script(path).err(),
-            ModResource::InvokedScript(path) => new_scripts::load_invoked_script(path).err(),
+            ModResource::StartupScript(path) => scripts::load_running_script(path).err(),
+            ModResource::InvokedScript(path) => scripts::load_invoked_script(path).err(),
             ModResource::LanguageFile(path) => text::load_fxt(path).err(),
             ModResource::StreamReplacement(archive_name, path) => {
                 stream::load_replacement(&archive_name, &path).err()

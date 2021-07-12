@@ -1,5 +1,5 @@
 use crate::{gui::*, settings};
-use crate::{call_original, cheats, new_scripts, targets};
+use crate::{call_original, cheats, scripts, targets};
 use log::{error, trace};
 use objc::runtime::Sel;
 use objc::{runtime::Object, *};
@@ -50,7 +50,7 @@ impl ButtonTag {
             MenuAction::queue(MenuAction::SaveSettings);
             MenuAction::queue(MenuAction::Reload);
         } else {
-            if let Some(script) = new_scripts::MenuInfo::all()
+            if let Some(script) = scripts::MenuInfo::all()
                 .iter_mut()
                 .nth(self.index as usize)
             {
@@ -423,7 +423,7 @@ impl Menu {
     fn create_single_script_button(
         &self,
         index: usize,
-        script: &new_scripts::MenuInfo,
+        script: &scripts::MenuInfo,
         height: f64,
     ) -> *mut Object {
         let tag = ButtonTag {
@@ -607,7 +607,7 @@ Additionally, some – especially those without codes – can crash the game in 
         //     .filter(|s| s.injected)
         //     .collect();
 
-        let injected_scripts = new_scripts::MenuInfo::all();
+        let injected_scripts = scripts::MenuInfo::all();
 
         unsafe {
             let _: () = msg_send![self.tabs[0].views[0], setContentSize: CGSize {
