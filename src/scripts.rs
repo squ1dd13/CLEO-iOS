@@ -82,8 +82,6 @@ struct CleoScript {
 
 impl CleoScript {
     fn new(bytes: Vec<u8>) -> CleoScript {
-        // fixme: Script contents are not checked for Android-only commands.
-
         log::info!(
             "verify::check() returned {:#?}",
             crate::check::check_bytecode(&bytes)

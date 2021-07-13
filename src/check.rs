@@ -415,7 +415,17 @@ fn get_commands() -> &'static HashMap<u16, Command> {
     })
 }
 
-pub fn check_bytecode(bytes: &[u8]) -> Result<Option<String>, String> {
+/// Defines reasons why a script should be marked as potentially incompatible.
+#[derive(Debug)]
+pub enum CompatIssue {
+    /// The script relies on Android-specific stuff such as hardcoded memory addresses or symbol names.
+    AndroidSpecific,
+
+    /// CLEO does not yet implement a particular command that the script uses.
+    NotImpl,
+}
+
+pub fn check_bytecode(bytes: &[u8]) -> Result<Option<CompatIssue>, String> {
     // Even though we don't particularly care about the offsets, we need a HashMap so that `disassemble` can
     //  easily check if it's visited an offset before (to avoid infinite loops).
     let mut instruction_map = HashMap::new();
@@ -430,6 +440,15 @@ pub fn check_bytecode(bytes: &[u8]) -> Result<Option<String>, String> {
         log::warn!("error at end of disassembly: {}", err);
     } else {
         log::info!("finished disassembly");
+    }
+
+    for (_, instr) in instruction_map.iter() {
+        match instr.opcode {
+            0x0dd5 | 0x0dd6 | 0x0de1..=0x0df6 => return Ok(Some(CompatIssue::NotImpl)),
+            0x0dd0..=0x0ddb | 0x0dde => return Ok(Some(CompatIssue::AndroidSpecific)),
+
+            _ => (),
+        }
     }
 
     Ok(None)
