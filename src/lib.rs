@@ -1,3 +1,5 @@
+//! Sets up CLEO when the library is loaded.
+
 use ctor::ctor;
 use log::{error, info};
 use objc::runtime::Object;

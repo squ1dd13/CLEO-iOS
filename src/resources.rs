@@ -1,3 +1,6 @@
+//! Creates a flattened version of the CLEO directory and delegates to other modules for
+//! handling specific types of resources.
+
 use crate::*;
 use cached::proc_macro::cached;
 use std::path::{Path, PathBuf};

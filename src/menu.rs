@@ -1,3 +1,6 @@
+//! Provides the CLEO menu, which is the primary way users can interact with the library.
+// fixme: This file is too long.
+
 use crate::{call_original, cheats, scripts, targets};
 use crate::{gui::*, settings};
 use log::{error, trace};

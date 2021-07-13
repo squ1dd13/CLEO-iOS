@@ -1,3 +1,6 @@
+//! Exposes a primitive Rust API for the game's text system, and manages the loading
+//! of FXT language files.
+
 use crate::{call_original, targets};
 use lazy_static::lazy_static;
 use log::warn;

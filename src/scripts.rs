@@ -1,3 +1,6 @@
+//! Modifies the game's script system to run CLEO scripts alongside vanilla scripts, and provides
+//! an API for interfacing with the script system.
+
 use crate::{call_original, hook, targets, touch};
 use std::sync::Mutex;
 

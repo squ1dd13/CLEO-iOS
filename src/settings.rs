@@ -1,3 +1,6 @@
+//! Provides the backend for the settings displayed in the menu, along with interfaces for fetching
+//! option values and saving/loading.
+
 use std::{
     io::{Read, Write},
     sync::Mutex,

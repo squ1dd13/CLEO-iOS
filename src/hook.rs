@@ -1,4 +1,6 @@
-#![allow(dead_code)]
+//! Handles finding a hooking library, and provides types and macros for using the library
+//! to hook game code.
+
 use cached::proc_macro::cached;
 use dlopen::symbor::Library;
 use log::error;

@@ -1,3 +1,5 @@
+//! Modifies rendering behaviour (60 FPS, FPS counter) and hooks systems related to rendering.
+
 use libc::c_char;
 
 use crate::{call_original, hook, settings, targets};

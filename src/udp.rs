@@ -1,3 +1,5 @@
+//! Logging backend which logs over UDP and to a file.
+
 use cached::proc_macro::cached;
 use chrono::Local;
 use log::{Level, Metadata, Record};

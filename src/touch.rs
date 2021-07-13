@@ -1,3 +1,6 @@
+//! Provides touch information to other modules, and directly controls the showing/hiding
+//! of the menu when related to touch events.
+
 use crate::gui::CGRect;
 use crate::menu::MenuAction;
 use crate::{call_original, targets};

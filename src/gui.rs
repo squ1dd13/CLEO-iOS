@@ -1,4 +1,5 @@
-// fixme: This file is too long.
+//! Hooks the splash screen to display our "CLEO" numberplate, and also provides a Rust interface for some
+//! common UIKit code.
 
 use crate::{call_original, targets};
 use log::trace;

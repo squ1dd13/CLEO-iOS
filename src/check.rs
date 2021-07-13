@@ -1,3 +1,5 @@
+//! Provides facilities for examining scripts to determine their compatibility with iOS.
+
 use byteorder::{LittleEndian, ReadBytesExt};
 use once_cell::sync::OnceCell;
 use serde::{Deserialize, Serialize};

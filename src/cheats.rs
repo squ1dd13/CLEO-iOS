@@ -1,3 +1,6 @@
+//! Replaces the game's broken cheats system with our own, and provides utilities for interfacing
+//! with that system.
+
 use crate::hook;
 use lazy_static::lazy_static;
 use log::error;

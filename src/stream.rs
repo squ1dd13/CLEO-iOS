@@ -1,3 +1,6 @@
+//! Replaces parts of the game's streaming system to allow the loading of replacement files inside IMGs,
+//! and also manages the loaded replacements.
+
 use std::{
     collections::HashMap,
     io::{Read, Seek, SeekFrom},

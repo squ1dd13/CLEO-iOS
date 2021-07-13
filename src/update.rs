@@ -1,3 +1,6 @@
+//! Interfaces with the GitHub API to determine if a CLEO update is available, and manages
+//! the version cache.
+
 use crate::{call_original, hook, resources, text};
 use objc::{runtime::Object, *};
 use std::{
