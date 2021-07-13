@@ -266,10 +266,10 @@ pub struct Instr {
 
 impl Instr {
     pub fn read(
-        commands: &HashMap<u16, Command>,
-        reader: &mut (impl Read + Seek),
+        commands: &[Option<&Command>],
+        reader: &mut std::io::Cursor<&[u8]>,
     ) -> std::io::Result<Instr> {
-        let offset = reader.stream_position()?;
+        let offset = reader.position();
 
         let (opcode, bool_inverted) = {
             let opcode_in_file = reader.read_u16::<LittleEndian>()?;
@@ -279,7 +279,7 @@ impl Instr {
             (opcode_in_file & 0x7fff, opcode_in_file & 0x8000 != 0)
         };
 
-        let cmd = match commands.get(&opcode) {
+        let cmd = match commands.get(opcode as usize).and_then(|v| *v) {
             Some(command) => command,
             None => {
                 // If we don't know the opcode, then we can't get the parameter list,
@@ -351,7 +351,7 @@ impl Display for Instr {
 }
 
 pub fn disassemble(
-    commands: &HashMap<u16, Command>,
+    commands: &[Option<&Command>],
     reader: &mut std::io::Cursor<&[u8]>,
     instrs: &mut HashMap<u64, Instr>,
 ) -> std::io::Result<()> {
@@ -398,17 +398,23 @@ pub fn disassemble(
     Ok(())
 }
 
-// fixme: The command list is fucked. New one needs to be generated (and kept in textual format so it can be edited easily). We don't care about type info.
-
 pub fn check(bytes: &[u8]) -> Result<Option<String>, String> {
-    log::info!("OzoneSC v0.1");
-
     let commands = load_all_commands().map_err(|err| err.to_string())?;
+
+    let mut command_vec: Vec<Option<&Command>> = Vec::with_capacity(commands.len());
+
+    for (opcode, cmd) in commands.iter() {
+        while command_vec.len() <= (*opcode as usize) {
+            command_vec.push(None);
+        }
+
+        command_vec[*opcode as usize] = Some(cmd);
+    }
 
     let mut instruction_map = HashMap::new();
 
     if let Err(err) = disassemble(
-        &commands,
+        &command_vec,
         &mut std::io::Cursor::new(bytes),
         &mut instruction_map,
     ) {
