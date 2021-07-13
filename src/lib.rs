@@ -13,13 +13,13 @@ mod menu;
 mod render;
 mod resources;
 mod scripts;
-// mod scripts;
 mod settings;
 mod stream;
 mod text;
 mod touch;
 mod udp;
 mod update;
+mod verify;
 
 mod targets {
     use super::*;

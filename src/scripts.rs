@@ -81,6 +81,11 @@ impl CleoScript {
     fn new(bytes: Vec<u8>) -> CleoScript {
         // fixme: Script contents are not checked for Android-only commands.
 
+        log::info!(
+            "verify::check() returned {:#?}",
+            crate::verify::check(&bytes)
+        );
+
         CleoScript {
             game_script: GameScript::new(bytes.as_ptr().cast(), false),
             bytes,
