@@ -5,6 +5,7 @@ use objc::runtime::Sel;
 use std::os::raw::c_char;
 
 mod cheats;
+mod check;
 mod controller;
 mod gui;
 mod hook;
@@ -19,7 +20,6 @@ mod text;
 mod touch;
 mod udp;
 mod update;
-mod verify;
 
 mod targets {
     use super::*;

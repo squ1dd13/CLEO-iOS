@@ -6,7 +6,7 @@ use std::fmt::Display;
 use std::io::{self, Cursor, Error, ErrorKind, Seek};
 
 #[derive(Debug, Clone)]
-pub struct Variable {
+struct Variable {
     value: i64,
     location: Location,
 }
@@ -24,21 +24,21 @@ impl std::fmt::Display for Variable {
 }
 
 #[derive(Debug, Clone)]
-pub struct Array;
+struct Array;
 
 #[derive(Debug, Clone)]
-pub struct Pointer(i64);
+struct Pointer(i64);
 
 impl Pointer {
-    pub fn from_i64(i: i64) -> Pointer {
+    fn from_i64(i: i64) -> Pointer {
         Pointer(i)
     }
 
-    pub fn is_local(&self) -> bool {
+    fn is_local(&self) -> bool {
         self.0 < 0
     }
 
-    pub fn absolute(&self) -> u64 {
+    fn absolute(&self) -> u64 {
         self.0.abs() as u64
     }
 }
@@ -56,7 +56,7 @@ impl std::fmt::Display for Pointer {
 
 #[allow(dead_code)]
 #[derive(Debug, Clone)]
-pub enum Value {
+enum Value {
     Integer(i64),
     Real(f32),
     String(String),
@@ -83,7 +83,7 @@ impl std::fmt::Display for Value {
 }
 
 impl Value {
-    pub fn read(reader: &mut impl io::Read) -> io::Result<Value> {
+    fn read(reader: &mut impl io::Read) -> io::Result<Value> {
         let id = reader.read_u8()?;
 
         Ok(match id {
@@ -182,7 +182,7 @@ impl Value {
 }
 
 #[derive(Debug, Deserialize, Serialize)]
-pub enum ParamType {
+enum ParamType {
     /// An integral value.
     Integer,
 
@@ -209,7 +209,7 @@ pub enum ParamType {
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone, Copy)]
-pub enum Location {
+enum Location {
     /// A value directly written in the instruction bytecode.
     Immediate,
 
@@ -221,7 +221,7 @@ pub enum Location {
 }
 
 #[derive(Debug, Deserialize, Serialize)]
-pub struct Param {
+struct Param {
     param_type: ParamType,
     location: Location,
     is_variadic: bool,
@@ -229,7 +229,7 @@ pub struct Param {
 }
 
 impl Param {
-    pub fn read(&self, reader: &mut impl io::Read) -> io::Result<Value> {
+    fn read(&self, reader: &mut impl io::Read) -> io::Result<Value> {
         let value = Value::read(reader)?;
 
         if let ParamType::Pointer = self.param_type {
@@ -243,11 +243,11 @@ impl Param {
 }
 
 #[derive(Debug, Deserialize, Serialize)]
-pub struct Command {
-    pub opcode: u16,
-    pub name: String,
-    pub returns: bool,
-    pub params: Vec<Param>,
+struct Command {
+    opcode: u16,
+    name: String,
+    returns: bool,
+    params: Vec<Param>,
 }
 
 fn load_all_commands() -> std::result::Result<HashMap<u16, Command>, Box<bincode::ErrorKind>> {
@@ -255,7 +255,7 @@ fn load_all_commands() -> std::result::Result<HashMap<u16, Command>, Box<bincode
     bincode::deserialize(commands_bin)
 }
 
-pub struct Instr {
+struct Instr {
     opcode: u16,
     name: String,
 
@@ -266,7 +266,7 @@ pub struct Instr {
 }
 
 impl Instr {
-    pub fn read(commands: &HashMap<u16, Command>, reader: &mut Cursor<&[u8]>) -> io::Result<Instr> {
+    fn read(commands: &HashMap<u16, Command>, reader: &mut Cursor<&[u8]>) -> io::Result<Instr> {
         let offset = reader.position();
 
         let (opcode, bool_inverted) = {
@@ -304,7 +304,7 @@ impl Instr {
         })
     }
 
-    pub fn next_offsets(&self, current: u64, offsets: &mut Vec<u64>) {
+    fn next_offsets(&self, current: u64, offsets: &mut Vec<u64>) {
         // The 'return' command should go to the return address on the call stack,
         //  but we already handle that case when we branch at 'gosub'.
         if self.opcode == 0x0051 {
@@ -348,7 +348,7 @@ impl Display for Instr {
     }
 }
 
-pub fn disassemble(
+fn disassemble(
     commands: &HashMap<u16, Command>,
     reader: &mut Cursor<&[u8]>,
     instrs: &mut HashMap<u64, Instr>,
@@ -414,7 +414,7 @@ fn get_commands() -> &'static HashMap<u16, Command> {
     })
 }
 
-pub fn check(bytes: &[u8]) -> Result<Option<String>, String> {
+pub fn check_bytecode(bytes: &[u8]) -> Result<Option<String>, String> {
     // Even though we don't particularly care about the offsets, we need a HashMap so that `disassemble` can
     //  easily check if it's visited an offset before (to avoid infinite loops).
     let mut instruction_map = HashMap::new();

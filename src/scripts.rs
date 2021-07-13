@@ -83,7 +83,7 @@ impl CleoScript {
 
         log::info!(
             "verify::check() returned {:#?}",
-            crate::verify::check(&bytes)
+            crate::check::check_bytecode(&bytes)
         );
 
         CleoScript {
