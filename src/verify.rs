@@ -360,6 +360,8 @@ pub fn disassemble(
     reader: &mut std::io::Cursor<&[u8]>,
     instrs: &mut HashMap<u64, Instr>,
 ) -> std::io::Result<()> {
+    let start = std::time::Instant::now();
+
     let mut cur_offsets: BTreeSet<u64> = BTreeSet::new();
     let mut new_offsets: BTreeSet<u64> = BTreeSet::new();
 
@@ -392,6 +394,11 @@ pub fn disassemble(
         cur_offsets.clear();
         cur_offsets.append(&mut new_offsets);
     }
+
+    let end = std::time::Instant::now();
+    let time_taken = end - start;
+
+    log::info!("Disassembly took {:#?}", time_taken);
 
     Ok(())
 }
