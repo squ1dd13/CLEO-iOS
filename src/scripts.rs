@@ -387,10 +387,13 @@ fn gen_compat_warning(invoked_disabled: usize, running_disabled: usize) -> Optio
     }
 
     output += if invoked_disabled + running_disabled == 1 {
-        " is potentially incompatible.\nSee \"cleo.log\" for further details."
+        " is"
     } else {
-        " are potentially incompatible.\nSee \"cleo.log\" for further details."
+        " are"
     };
+
+    output +=
+        " potentially incompatible.\nSee \"cleo.log\" in the CLEO folder for further details.";
 
     // Make the first character uppercase.
     let mut characters = output.chars();
