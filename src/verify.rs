@@ -306,14 +306,16 @@ impl Instr {
         })
     }
 
-    pub fn next_offsets(&self, current: u64) -> BTreeSet<u64> {
-        // We use a BTreeSet so that the offsets are in ascending order.
-        let mut offsets = BTreeSet::new();
-
+    pub fn next_offsets(&self, current: u64, offsets: &mut Vec<u64>) {
         // The 'return' command should go to the return address on the call stack,
         //  but we already handle that case when we branch at 'gosub'.
         if self.opcode == 0x0051 {
-            return offsets;
+            return;
+        }
+
+        // goto always branches. Everything else is assumed to also go onto the next instruction.
+        if self.opcode != 0x0002 {
+            offsets.push(current);
         }
 
         // goto, goto_if_true, goto_if_false, gosub, switch_start and switch_continue can all
@@ -322,18 +324,11 @@ impl Instr {
             for arg in &self.args {
                 if let Value::Pointer(ptr) = arg {
                     if ptr.is_local() {
-                        offsets.insert(ptr.absolute());
+                        offsets.push(ptr.absolute());
                     }
                 }
             }
         }
-
-        // goto always branches. Everything else is assumed to also go onto the next instruction.
-        if self.opcode != 0x0002 {
-            offsets.insert(current);
-        }
-
-        offsets
     }
 }
 
@@ -362,10 +357,10 @@ pub fn disassemble(
 ) -> std::io::Result<()> {
     let start = std::time::Instant::now();
 
-    let mut cur_offsets: BTreeSet<u64> = BTreeSet::new();
-    let mut new_offsets: BTreeSet<u64> = BTreeSet::new();
+    let mut cur_offsets: Vec<u64> = Vec::new();
+    let mut new_offsets: Vec<u64> = Vec::new();
 
-    cur_offsets.insert(0);
+    cur_offsets.push(0);
 
     while !cur_offsets.is_empty() {
         for offset in cur_offsets.iter() {
@@ -387,7 +382,7 @@ pub fn disassemble(
                 }
             };
 
-            new_offsets.append(&mut instr.next_offsets(reader.position()));
+            instr.next_offsets(reader.position(), &mut new_offsets);
             instrs.insert(*offset, instr);
         }
 
