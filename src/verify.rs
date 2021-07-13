@@ -1,9 +1,9 @@
 use byteorder::{LittleEndian, ReadBytesExt};
 use once_cell::sync::OnceCell;
 use serde::{Deserialize, Serialize};
-use std::collections::{BTreeSet, HashMap};
+use std::collections::HashMap;
 use std::fmt::Display;
-use std::io::{self, Cursor, Error, ErrorKind, Read, Seek};
+use std::io::{self, Cursor, Error, ErrorKind, Seek};
 
 #[derive(Debug, Clone)]
 pub struct Variable {
@@ -355,10 +355,12 @@ pub fn disassemble(
 ) -> io::Result<()> {
     let start = std::time::Instant::now();
 
-    let mut cur_offsets: Vec<u64> = Vec::new();
-    let mut new_offsets: Vec<u64> = Vec::new();
+    // Start with offset 0 (the beginning of the script).
+    let mut cur_offsets: Vec<u64> = vec![0];
 
-    cur_offsets.push(0);
+    // We only use this vector inside the `while` loop, but we create it here so fewer
+    //  allocations take place (since it keeps its buffer in between iterations).
+    let mut new_offsets: Vec<u64> = Vec::new();
 
     while !cur_offsets.is_empty() {
         for offset in cur_offsets.iter() {
@@ -396,10 +398,10 @@ pub fn disassemble(
     Ok(())
 }
 
-pub fn check(bytes: &[u8]) -> Result<Option<String>, String> {
+fn get_commands() -> &'static HashMap<u16, Command> {
     static COMMANDS_CELL: OnceCell<HashMap<u16, Command>> = OnceCell::new();
 
-    let commands = COMMANDS_CELL.get_or_init(|| {
+    COMMANDS_CELL.get_or_init(|| {
         let loaded = match load_all_commands() {
             Ok(l) => l,
             Err(err) => {
@@ -409,11 +411,21 @@ pub fn check(bytes: &[u8]) -> Result<Option<String>, String> {
         };
 
         loaded
-    });
+    })
+}
 
+pub fn check(bytes: &[u8]) -> Result<Option<String>, String> {
+    // Even though we don't particularly care about the offsets, we need a HashMap so that `disassemble` can
+    //  easily check if it's visited an offset before (to avoid infinite loops).
     let mut instruction_map = HashMap::new();
 
-    if let Err(err) = disassemble(commands, &mut Cursor::new(bytes), &mut instruction_map) {
+    let disasm_result = disassemble(
+        get_commands(),
+        &mut Cursor::new(bytes),
+        &mut instruction_map,
+    );
+
+    if let Err(err) = disasm_result {
         log::warn!("error at end of disassembly: {}", err);
     } else {
         log::info!("finished disassembly");
