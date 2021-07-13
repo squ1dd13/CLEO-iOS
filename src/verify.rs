@@ -1,8 +1,9 @@
 use byteorder::{LittleEndian, ReadBytesExt};
+use once_cell::sync::OnceCell;
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeSet, HashMap};
 use std::fmt::Display;
-use std::io::{Error, ErrorKind, Read, Seek};
+use std::io::{self, Cursor, Error, ErrorKind, Read, Seek};
 
 #[derive(Debug, Clone)]
 pub struct Variable {
@@ -82,7 +83,7 @@ impl std::fmt::Display for Value {
 }
 
 impl Value {
-    pub fn read(reader: &mut impl std::io::Read) -> std::io::Result<Value> {
+    pub fn read(reader: &mut impl io::Read) -> io::Result<Value> {
         let id = reader.read_u8()?;
 
         Ok(match id {
@@ -171,8 +172,8 @@ impl Value {
             }
 
             _ => {
-                return Err(std::io::Error::new(
-                    std::io::ErrorKind::InvalidData,
+                return Err(io::Error::new(
+                    io::ErrorKind::InvalidData,
                     format!("Unknown type ID '{}'", id),
                 ));
             }
@@ -228,7 +229,7 @@ pub struct Param {
 }
 
 impl Param {
-    pub fn read(&self, reader: &mut impl std::io::Read) -> std::io::Result<Value> {
+    pub fn read(&self, reader: &mut impl io::Read) -> io::Result<Value> {
         let value = Value::read(reader)?;
 
         if let ParamType::Pointer = self.param_type {
@@ -265,10 +266,7 @@ pub struct Instr {
 }
 
 impl Instr {
-    pub fn read(
-        commands: &[Option<&Command>],
-        reader: &mut std::io::Cursor<&[u8]>,
-    ) -> std::io::Result<Instr> {
+    pub fn read(commands: &HashMap<u16, Command>, reader: &mut Cursor<&[u8]>) -> io::Result<Instr> {
         let offset = reader.position();
 
         let (opcode, bool_inverted) = {
@@ -279,7 +277,7 @@ impl Instr {
             (opcode_in_file & 0x7fff, opcode_in_file & 0x8000 != 0)
         };
 
-        let cmd = match commands.get(opcode as usize).and_then(|v| *v) {
+        let cmd = match commands.get(&opcode) {
             Some(command) => command,
             None => {
                 // If we don't know the opcode, then we can't get the parameter list,
@@ -351,10 +349,10 @@ impl Display for Instr {
 }
 
 pub fn disassemble(
-    commands: &[Option<&Command>],
-    reader: &mut std::io::Cursor<&[u8]>,
+    commands: &HashMap<u16, Command>,
+    reader: &mut Cursor<&[u8]>,
     instrs: &mut HashMap<u64, Instr>,
-) -> std::io::Result<()> {
+) -> io::Result<()> {
     let start = std::time::Instant::now();
 
     let mut cur_offsets: Vec<u64> = Vec::new();
@@ -368,7 +366,7 @@ pub fn disassemble(
                 continue;
             }
 
-            reader.seek(std::io::SeekFrom::Start(*offset))?;
+            reader.seek(io::SeekFrom::Start(*offset))?;
 
             let instr = match Instr::read(commands, reader) {
                 Ok(instr) => instr,
@@ -376,7 +374,7 @@ pub fn disassemble(
                     // Log the error and continue - we can't guarantee that the game would go down
                     //  this invalid path, so the script could still run fine (this is the basis
                     //  of many script obfuscation methods).
-                    // log::error!("encountered error at {:#x}: {}", *offset, err);
+                    log::warn!("encountered error at {:#x}: {}", *offset, err);
 
                     continue;
                 }
@@ -393,43 +391,33 @@ pub fn disassemble(
     let end = std::time::Instant::now();
     let time_taken = end - start;
 
-    log::info!("Disassembly took {:#?}", time_taken);
+    log::info!("disassembly took {:#?}", time_taken);
 
     Ok(())
 }
 
 pub fn check(bytes: &[u8]) -> Result<Option<String>, String> {
-    let commands = load_all_commands().map_err(|err| err.to_string())?;
+    static COMMANDS_CELL: OnceCell<HashMap<u16, Command>> = OnceCell::new();
 
-    let mut command_vec: Vec<Option<&Command>> = Vec::with_capacity(commands.len());
+    let commands = COMMANDS_CELL.get_or_init(|| {
+        let loaded = match load_all_commands() {
+            Ok(l) => l,
+            Err(err) => {
+                log::error!("error loading commands: {}", err);
+                return HashMap::new();
+            }
+        };
 
-    for (opcode, cmd) in commands.iter() {
-        while command_vec.len() <= (*opcode as usize) {
-            command_vec.push(None);
-        }
-
-        command_vec[*opcode as usize] = Some(cmd);
-    }
+        loaded
+    });
 
     let mut instruction_map = HashMap::new();
 
-    if let Err(err) = disassemble(
-        &command_vec,
-        &mut std::io::Cursor::new(bytes),
-        &mut instruction_map,
-    ) {
-        log::error!("error at end of disassembly: {}", err);
+    if let Err(err) = disassemble(commands, &mut Cursor::new(bytes), &mut instruction_map) {
+        log::warn!("error at end of disassembly: {}", err);
     } else {
         log::info!("finished disassembly");
     }
-
-    // Create an ordered script from the instructions we found by sorting using offsets.
-    // let mut instructions: Vec<(&u64, &Instr)> = instruction_map.iter().collect();
-    // instructions.sort_unstable_by_key(|pair| pair.0);
-
-    // for instruction in instructions {
-    // log::trace!("{}", instruction.1);
-    // }
 
     Ok(None)
 }
