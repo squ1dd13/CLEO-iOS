@@ -342,6 +342,67 @@ fn script_reset() {
     }
 }
 
+fn gen_compat_warning(invoked_disabled: usize, running_disabled: usize) -> Option<String> {
+    /*
+        "one CSI script has been disabled"
+        "two CSA scripts have been disabled"
+        "14 CSA scripts have been disabled"
+    */
+    fn gen_message(count: usize, extension: &str) -> String {
+        const NUMBERS: &[&str] = &[
+            "one", "two", "three", "four", "five", "six", "seven", "eight", "nine",
+        ];
+
+        if count == 0 {
+            return "".to_string();
+        }
+
+        format!(
+            "{} {} script{}",
+            NUMBERS
+                .get(count - 1)
+                .map(|s| s.to_string())
+                .unwrap_or_else(|| count.to_string()),
+            extension,
+            if count == 1 { "" } else { "s" }
+        )
+    }
+
+    let mut output = String::new();
+
+    if invoked_disabled == 0 && running_disabled == 0 {
+        return None;
+    }
+
+    if invoked_disabled != 0 {
+        output += &gen_message(invoked_disabled, "CSI");
+
+        if running_disabled != 0 {
+            output += " and ";
+        }
+    }
+
+    if running_disabled != 0 {
+        output += &gen_message(running_disabled, "CSA");
+    }
+
+    output += if invoked_disabled + running_disabled == 1 {
+        " is potentially incompatible.\nSee \"cleo.log\" for further details."
+    } else {
+        " are potentially incompatible.\nSee \"cleo.log\" for further details."
+    };
+
+    // Make the first character uppercase.
+    let mut characters = output.chars();
+    let upper_first = characters
+        .next()
+        .unwrap()
+        .to_uppercase()
+        .collect::<String>();
+
+    Some(upper_first + characters.as_str())
+}
+
 /// Information to be displayed in the script menu for a given script.
 pub struct MenuInfo {
     pub name: String,
