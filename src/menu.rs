@@ -53,7 +53,7 @@ impl ButtonTag {
             MenuAction::queue(MenuAction::SaveSettings);
             MenuAction::queue(MenuAction::Reload);
         } else {
-            if let Some(script) = scripts::MenuInfo::all().iter_mut().nth(self.index as usize) {
+            if let Some(script) = scripts::MenuInfo::all().get_mut(self.index as usize) {
                 script.activate();
             } else {
                 error!("Requested script seems to have disappeared.");

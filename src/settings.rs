@@ -1,5 +1,6 @@
 //! Provides the backend for the settings displayed in the menu, along with interfaces for fetching
 //! option values and saving/loading.
+// todo: Use JSON for storing settings instead of the crap we have going on here.
 
 use std::{
     io::{Read, Write},
@@ -7,8 +8,6 @@ use std::{
 };
 
 use crate::call_original;
-
-// todo: Use JSON for storing settings instead of the crap we have going on here.
 
 pub struct OptionInfo {
     pub title: &'static str,

@@ -49,7 +49,6 @@ impl std::fmt::Display for Pointer {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         if self.is_local() {
             write!(f, "{:#x}", self.absolute())
-            // f.write_fmt(format_args!("{:#x}", self.absolute()))
         } else {
             f.write_fmt(format_args!("Global({:#x})", self.absolute()))
         }

@@ -122,6 +122,7 @@ fn is_menu_swipe(touch: &Touch, current_time: f64) -> bool {
 
 // Hook the touch handler so we can use touch zones like CLEO Android does.
 // todo: Don't pick up touches that have been handled by a non-joypad control.
+// fixme: `process_touch` nests too deeply and needs to be broken up into smaller functions.
 fn process_touch(x: f32, y: f32, timestamp: f64, force: f32, touch_type: TouchType) {
     // Find the closest touch to the given position that we know about.
     fn find_closest_index(touches: &[Touch], x: f32, y: f32) -> Option<usize> {
