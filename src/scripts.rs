@@ -302,6 +302,7 @@ impl Script {
 }
 
 lazy_static::lazy_static! {
+    // fixme: Should we be using Arc<Mutex<...>> for the script vector?
     static ref SCRIPTS: Mutex<Vec<Script>> = Mutex::new(vec![]);
 }
 
