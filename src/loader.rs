@@ -64,12 +64,16 @@ fn find_absolute_path_c(p1: i32, p2: *const u8, p3: i32) -> *const u8 {
 }
 
 pub fn load_replacement(path: &impl AsRef<std::path::Path>) -> std::io::Result<()> {
+    // fixme: File replacements should not be case-sensitive.
     let game_file_path = path_in_game_dir(path).unwrap();
 
     if !game_file_path.exists() {
         return Err(std::io::Error::new(
             std::io::ErrorKind::NotFound,
-            format!("target file '{}' does not exist", game_file_path.display()),
+            format!(
+                "target file '{}' does not exist (you may need to change the capitalisation)",
+                game_file_path.display()
+            ),
         ));
     }
 
