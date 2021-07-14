@@ -1034,7 +1034,7 @@ impl MenuAction {
                         log::info!("Using existing menu state.");
                         state
                     } else {
-                        log::info!("No menu state saved. Default wil be used.");
+                        log::info!("No menu state saved. Default will be used.");
                         MenuState::default()
                     };
 
