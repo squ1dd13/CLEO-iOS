@@ -8,7 +8,6 @@ use log::{error, trace};
 use objc::runtime::Sel;
 use objc::{runtime::Object, *};
 use std::os::raw::c_long;
-use std::sync::Arc;
 use std::sync::Mutex;
 
 fn get_scroll_view_delegate() -> *const Object {
@@ -1009,7 +1008,7 @@ impl MenuAction {
 
     fn perform(&self) {
         lazy_static::lazy_static! {
-           static ref MENU: Arc<Mutex<Option<Menu>>> = Arc::new(Mutex::new(None));
+           static ref MENU: Mutex<Option<Menu>> = Mutex::new(None);
         }
 
         static mut STATE: Option<MenuState> = None;
