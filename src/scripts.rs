@@ -1,7 +1,11 @@
 //! Modifies the game's script system to run CLEO scripts alongside vanilla scripts, and provides
 //! an API for interfacing with the script system.
 
-use crate::{call_original, hook, targets, touch};
+use crate::{
+    call_original,
+    check::{self, CompatIssue},
+    hook, targets, touch,
+};
 use std::sync::Mutex;
 
 #[repr(C, align(8))]
@@ -78,18 +82,28 @@ struct CleoScript {
     /// game script are to positions within this vector, so the vector can only be safely dropped once
     /// those pointers are not needed anymore.
     bytes: Vec<u8>,
+
+    /// A potential incompatibility that the script has. There may be several of these, but the `check`
+    /// module only returns the first that is found.
+    compat_issue: Option<check::CompatIssue>,
 }
 
 impl CleoScript {
     fn new(bytes: Vec<u8>) -> CleoScript {
-        log::info!(
-            "verify::check() returned {:#?}",
-            crate::check::check_bytecode(&bytes)
-        );
+        let compat_issue = match check::check_bytecode(&bytes) {
+            Ok(v) => v,
+            Err(err) => {
+                log::error!("check_bytecode failed: {}", err);
+
+                // It wouldn't be safe to assume that the script is valid because the check failed.
+                Some(CompatIssue::CheckFailed)
+            }
+        };
 
         CleoScript {
             game_script: GameScript::new(bytes.as_ptr().cast(), false),
             bytes,
+            compat_issue,
         }
     }
 
@@ -407,10 +421,11 @@ fn gen_compat_warning(invoked_disabled: usize, running_disabled: usize) -> Optio
 }
 
 /// Information to be displayed in the script menu for a given script.
+#[derive(Debug)]
 pub struct MenuInfo {
     pub name: String,
     pub running: bool,
-    // todo: Introduce 'warning' field for MenuInfo (Option<String>).
+    pub warning: Option<String>,
 }
 
 impl MenuInfo {
@@ -429,6 +444,7 @@ impl MenuInfo {
             Script::Invoked(script, name) => Some(MenuInfo {
                 name: name.clone(),
                 running: script.game_script.active,
+                warning: script.compat_issue.as_ref().map(|issue| issue.to_string()),
             }),
             _ => None,
         }

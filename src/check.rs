@@ -423,6 +423,19 @@ pub enum CompatIssue {
 
     /// CLEO does not yet implement a particular command that the script uses.
     NotImpl,
+
+    /// We can't say either way if the script is compatible, because the check failed for some reason.
+    CheckFailed,
+}
+
+impl Display for CompatIssue {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::AndroidSpecific => f.write_str("Script uses Android-specific code."),
+            Self::NotImpl => f.write_str("Script uses features not yet present on iOS."),
+            Self::CheckFailed => f.write_str("Unable to complete script check on this script."),
+        }
+    }
 }
 
 pub fn check_bytecode(bytes: &[u8]) -> Result<Option<CompatIssue>, String> {

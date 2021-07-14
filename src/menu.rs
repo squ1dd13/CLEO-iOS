@@ -1,5 +1,6 @@
 //! Provides the CLEO menu, which is the primary way users can interact with the library.
 // fixme: This file is too long.
+// todo: Clean up menu module after script system changes.
 
 use crate::{call_original, cheats, scripts, targets};
 use crate::{gui::*, settings};
@@ -602,11 +603,6 @@ Additionally, some – especially those without codes – can crash the game in 
     }
 
     fn populate_scroll_views(&mut self) {
-        // let injected_scripts: Vec<&'static mut scripts::CleoScript> = scripts::loaded_scripts()
-        //     .iter_mut()
-        //     .filter(|s| s.injected)
-        //     .collect();
-
         let injected_scripts = scripts::MenuInfo::all();
 
         unsafe {
@@ -622,6 +618,8 @@ Additionally, some – especially those without codes – can crash the game in 
         }
 
         for (index, item) in injected_scripts.iter().enumerate() {
+            log::trace!("item = {:?}", item);
+
             let button = self.create_single_script_button(index, item, self.height * 0.15);
 
             unsafe {
