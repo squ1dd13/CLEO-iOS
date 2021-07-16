@@ -43,7 +43,7 @@ this folder so you can find it again later easily.
 5. Put any `.csi`, `.csa` or `.fxt` files from the script into the
 `CLEO` folder. Any other files will be ignored, so you can add those
 if you don't want to lose them. If you want, you can create more
- folders inside the `CLEO` folder to organise your mods: CLEO will
+ folders inside the `CLEO` folder to organise your mods; CLEO will
  look inside these too.
 
 ### Use

@@ -100,6 +100,8 @@ impl CleoScript {
             }
         };
 
+        log::info!("compatibility: {:?}", compat_issue);
+
         CleoScript {
             game_script: GameScript::new(bytes.as_ptr().cast(), false),
             bytes,
