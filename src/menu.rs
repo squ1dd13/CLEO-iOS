@@ -2,7 +2,7 @@
 
 use std::sync::{
     mpsc::{self, Sender},
-    Mutex,
+    Arc, Mutex,
 };
 
 use objc::{class, msg_send, runtime::Object, sel, sel_impl};
@@ -185,7 +185,13 @@ impl TabButton {
 }
 
 impl Menu {
-    fn new(tab_data: Vec<TabData>, frame: CGRect) -> Menu {
+    fn new(tab_data: Vec<TabData>) -> Menu {
+        let frame: CGRect = unsafe {
+            let application: *mut Object = msg_send![class!(UIApplication), sharedApplication];
+            let key_window: *mut Object = msg_send![application, keyWindow];
+            msg_send![key_window, frame]
+        };
+
         let tab_btn_width = frame.size.width / tab_data.len() as f64;
 
         let tab_buttons = tab_data
@@ -257,18 +263,65 @@ impl Menu {
         }
     }
 
+    fn remove(self) {
+        unsafe {
+            for tab_button in self.tab_buttons.iter() {
+                let _: () = msg_send![tab_button.view, removeFromSuperview];
+            }
+
+            for tab in self.tabs.iter() {
+                let _: () = msg_send![tab.scroll_view, removeFromSuperview];
+            }
+
+            let _: () = msg_send![self.close_button, removeFromSuperview];
+        }
+    }
+
     fn start_channel_polling() -> Sender<MenuMessage> {
         let (sender, receiver) = mpsc::channel();
 
-        std::thread::spawn(move || loop {
-            // Static Option<Menu> should live here.
+        std::thread::spawn(move || {
+            type MenuMutex = Mutex<Option<Menu>>;
+            let menu: Arc<MenuMutex> = Arc::new(Mutex::new(None));
+            unsafe impl Send for Menu {}
 
-            match receiver.recv().expect("recv() for menu channel failed") {
-                MenuMessage::Show => {
-                    log::trace!("Show menu");
-                }
-                MenuMessage::Hide => {
-                    log::trace!("Hide menu");
+            fn do_on_ui_thread<F, T>(f: F) -> T
+            where
+                F: FnOnce() -> T,
+                F: Send + 'static,
+                T: Send + 'static,
+            {
+                dispatch::Queue::main().exec_sync(f)
+            }
+
+            loop {
+                match receiver.recv().expect("recv() for menu channel failed") {
+                    MenuMessage::Show => {
+                        log::trace!("Show menu");
+
+                        let menu = Arc::clone(&menu);
+
+                        do_on_ui_thread(move || {
+                            let mut menu = menu.lock().unwrap();
+
+                            if menu.is_none() {
+                                *menu = Some(Menu::new(vec![]));
+                                menu.as_ref().unwrap().add_to_window();
+                                log::trace!("menu added to window");
+                            } else {
+                                log::warn!("menu already exists, but was activated again (which should be impossible)");
+                            }
+                        });
+                    }
+                    MenuMessage::Hide => {
+                        if menu.lock().unwrap().is_some() {
+                            let menu = Arc::clone(&menu);
+
+                            do_on_ui_thread(move || {
+                                menu.lock().unwrap().take().unwrap().remove();
+                            });
+                        }
+                    }
                 }
             }
         });
