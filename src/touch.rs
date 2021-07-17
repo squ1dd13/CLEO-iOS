@@ -146,7 +146,7 @@ fn process_touch(x: f32, y: f32, timestamp: f64, force: f32, touch_type: TouchTy
     // crate::menu::hide_on_main_thread();
     // MenuAction::queue(MenuAction::Hide);
 
-    crate::menu::MenuMessage::Hide.send();
+    //crate::menu::MenuMessage::Hide.send();
 
     /*
         Problem:  We don't know how each touch event is connected to ones we already know about.

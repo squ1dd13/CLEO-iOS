@@ -50,9 +50,10 @@ struct TabButton {
 }
 
 #[repr(C)]
+#[derive(Debug)]
 struct ButtonTag {
-    tab: Option<u8>,
-    row: Option<u32>,
+    row: i32,
+    tab: i8,
     is_close: bool,
     _pad: [u8; 2],
 }
@@ -60,8 +61,8 @@ struct ButtonTag {
 impl ButtonTag {
     fn new_tab(index: usize) -> ButtonTag {
         ButtonTag {
-            tab: Some(index as u8),
-            row: None,
+            tab: index as i8,
+            row: -1,
             is_close: false,
             _pad: [0u8; 2],
         }
@@ -69,8 +70,8 @@ impl ButtonTag {
 
     fn new_row(tab: usize, row: usize) -> ButtonTag {
         ButtonTag {
-            tab: Some(tab as u8),
-            row: Some(row as u32),
+            tab: tab as i8,
+            row: row as i32,
             is_close: false,
             _pad: [0u8; 2],
         }
@@ -78,8 +79,8 @@ impl ButtonTag {
 
     fn new_close() -> ButtonTag {
         ButtonTag {
-            tab: None,
-            row: None,
+            tab: -1,
+            row: -1,
             is_close: true,
             _pad: [0u8; 2],
         }
@@ -98,6 +99,9 @@ static MESSAGE_SENDER: OnceCell<Mutex<Sender<MenuMessage>>> = OnceCell::new();
 pub enum MenuMessage {
     Show,
     Hide,
+
+    SelectTab(usize),
+    HitRow(usize, usize),
 }
 
 impl MenuMessage {
@@ -143,6 +147,10 @@ impl Row {
                 button,
             }
         }
+    }
+
+    fn hit(&mut self) {
+        self.data.handle_tap();
     }
 }
 
@@ -201,6 +209,12 @@ impl Tab {
             }
         }
     }
+
+    fn set_selected(&mut self, selected: bool) {
+        unsafe {
+            let _: () = msg_send![self.scroll_view, setHidden: !selected];
+        }
+    }
 }
 
 impl TabButton {
@@ -212,12 +226,20 @@ impl TabButton {
             let btn: *mut Object = msg_send![btn, initWithFrame: frame];
 
             let _: () = msg_send![btn, setTitle: create_ns_string(title) forState: 0u64];
-            let _: () = msg_send![btn, setTag: ButtonTag::new_tab(index)];
+            add_button_handler(btn, ButtonTag::new_tab(index));
 
             btn
         };
 
         TabButton { view }
+    }
+
+    fn set_selected(&mut self, selected: bool) {
+        let alpha = if selected { 1. } else { 0.5 };
+
+        unsafe {
+            let _: () = msg_send![self.view, setAlpha: alpha];
+        }
     }
 }
 
@@ -257,10 +279,7 @@ impl Menu {
             );
 
             for (row_index, row) in tab.rows.iter().enumerate() {
-                unsafe {
-                    let _: () =
-                        msg_send![row.button, setTag: ButtonTag::new_row(tab_index, row_index)];
-                }
+                add_button_handler(row.button, ButtonTag::new_row(tab_index, row_index));
             }
 
             tab
@@ -281,7 +300,7 @@ impl Menu {
 
             let btn: *mut Object = msg_send![btn, initWithFrame: btn_frame];
             let _: () = msg_send![btn, setTitle: create_ns_string("Close") forState: 0u64];
-            let _: () = msg_send![btn, setTag: ButtonTag::new_close()];
+            add_button_handler(btn, ButtonTag::new_close());
 
             btn
         };
@@ -377,6 +396,42 @@ impl Menu {
                             });
                         }
                     }
+
+                    MenuMessage::SelectTab(tab_index) => {
+                        if menu.lock().unwrap().is_some() {
+                            let menu = Arc::clone(&menu);
+
+                            do_on_ui_thread(move || {
+                                let mut menu = menu.lock().unwrap();
+                                let menu = menu.as_mut().unwrap();
+
+                                for (index, tab) in menu.tabs.iter_mut().enumerate() {
+                                    tab.set_selected(index == tab_index);
+                                }
+
+                                for (index, tab_button) in menu.tab_buttons.iter_mut().enumerate() {
+                                    tab_button.set_selected(index == tab_index);
+                                }
+                            });
+                        } else {
+                            log::warn!("tab select message delivered, but menu does not exist!");
+                        }
+                    }
+
+                    MenuMessage::HitRow(tab_index, row_index) => {
+                        if menu.lock().unwrap().is_some() {
+                            let menu = Arc::clone(&menu);
+
+                            do_on_ui_thread(move || {
+                                let mut menu = menu.lock().unwrap();
+                                let menu = menu.as_mut().unwrap();
+                                let row = &mut menu.tabs[tab_index].rows[row_index];
+                                row.hit();
+                            });
+                        } else {
+                            log::warn!("tab select message delivered, but menu does not exist!");
+                        }
+                    }
                 }
             }
         });
@@ -385,12 +440,59 @@ impl Menu {
     }
 }
 
+fn reachability_with_hostname(
+    this_class: *const Object,
+    sel: objc::runtime::Sel,
+    hostname: *mut Object,
+) -> *mut Object {
+    unsafe {
+        let is_button: bool = msg_send![hostname, isKindOfClass: class!(UIButton)];
+
+        if is_button {
+            let tag: ButtonTag = msg_send![hostname, tag];
+
+            log::trace!("tag = {:?}", tag);
+            log::trace!("size = {}", std::mem::size_of_val(&tag));
+            log::trace!("size = {}", std::mem::size_of::<ButtonTag>());
+
+            if tag.is_close {
+                log::trace!("close button pressed");
+                MenuMessage::Hide.send();
+                return std::ptr::null_mut();
+            }
+
+            if tag.tab == -1 {
+                log::error!("if tag.is_close is false, tag.tab cannot be -1");
+            } else if tag.row == -1 {
+                MenuMessage::SelectTab(tag.tab as usize).send();
+            } else {
+                MenuMessage::HitRow(tag.tab as usize, tag.row as usize).send();
+            }
+
+            std::ptr::null_mut()
+        } else {
+            crate::call_original!(crate::targets::button_hack, this_class, sel, hostname)
+        }
+    }
+}
+
+fn add_button_handler(button: *mut Object, tag: ButtonTag) {
+    let reachability = class!(IOSReachability);
+    let selector = sel!(reachabilityWithHostName:);
+    let touch_up_inside = (1 << 6) as u64;
+
+    unsafe {
+        let _: () = msg_send![button, setTag: tag];
+        let _: () = msg_send![button, addTarget: reachability action: selector forControlEvents: touch_up_inside];
+    }
+}
+
 pub fn initialise() {
+    crate::targets::button_hack::install(reachability_with_hostname);
+
     MESSAGE_SENDER
         .set(Mutex::new(Menu::start_channel_polling()))
         .unwrap();
-
-    // Hooks should be installed here.
 }
 
 // todo: Re-enable RC calls.
