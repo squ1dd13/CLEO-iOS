@@ -362,6 +362,8 @@ impl Menu {
     }
 
     fn get_module_tab_data() -> Vec<TabData> {
+        // The menu will be automatically created from any TabData structures in this
+        //  vector, so adding another tab simply requires adding another item here.
         vec![
             crate::scripts::tab_data(),
             crate::cheats::tab_data(),
@@ -406,6 +408,7 @@ impl Menu {
                             }
                         });
                     }
+
                     MenuMessage::Hide => {
                         if menu.lock().unwrap().is_some() {
                             let menu = Arc::clone(&menu);
