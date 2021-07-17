@@ -13,6 +13,7 @@ mod gui;
 mod hook;
 mod loader;
 mod menu;
+mod old_menu;
 mod render;
 mod resources;
 mod scripts;
@@ -110,7 +111,7 @@ fn initialise() {
     loader::hook();
     settings::hook();
     gui::hook();
-    menu::hook();
+    old_menu::hook();
     touch::hook();
     text::hook();
     render::hook();

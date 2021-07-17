@@ -3,7 +3,7 @@
 use objc::{runtime::Object, *};
 use std::sync::atomic::AtomicU16;
 
-use crate::menu::MenuAction;
+use crate::old_menu::MenuAction;
 
 #[repr(C)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -129,7 +129,7 @@ fn update_pads() {
         MenuAction::queue(MenuAction::Toggle(true));
     }
 
-    crate::menu::queue_controller_input(current_state);
+    crate::old_menu::queue_controller_input(current_state);
 }
 
 pub fn hook() {

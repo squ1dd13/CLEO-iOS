@@ -2,7 +2,7 @@
 //! of the menu when related to touch events.
 
 use crate::gui::CGRect;
-use crate::menu::MenuAction;
+use crate::old_menu::MenuAction;
 use crate::{call_original, targets};
 use cached::proc_macro::cached;
 use lazy_static::lazy_static;
