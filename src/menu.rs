@@ -49,6 +49,31 @@ struct TabButton {
     view: *mut Object,
 }
 
+enum ButtonTag {
+    Tab(usize),
+    Row { tab: usize, row: usize },
+}
+
+impl ButtonTag {
+    fn to_i64(self) -> i64 {
+        match self {
+            ButtonTag::Tab(tab) => -(tab as i64),
+            ButtonTag::Row { tab, row } => ((tab as i64) << 32) | (row as i64),
+        }
+    }
+
+    fn from_i64(value: i64) -> ButtonTag {
+        if value < 0 {
+            ButtonTag::Tab((-value) as usize)
+        } else {
+            ButtonTag::Row {
+                tab: (value as usize) >> 32,
+                row: (value as usize) & (u32::MAX as usize),
+            }
+        }
+    }
+}
+
 struct Menu {
     tabs: Vec<Tab>,
     tab_buttons: Vec<TabButton>,
@@ -196,7 +221,17 @@ impl Menu {
         let tab_buttons = tab_data
             .iter()
             .enumerate()
-            .map(|(index, data)| TabButton::new(&data.name, index, tab_btn_width))
+            .map(|(index, data)| {
+                let button = TabButton::new(&data.name, index, tab_btn_width);
+
+                let tag = ButtonTag::Tab(index).to_i64();
+
+                unsafe {
+                    let _: () = msg_send![button.view, setTag: tag];
+                }
+
+                button
+            })
             .collect();
 
         let tab_frame = CGRect::new(
@@ -208,15 +243,29 @@ impl Menu {
 
         // Move all the tab data into Tab structures.
         // todo: Use saved TabState structures rather than making plain ones.
-        let tabs = tab_data.into_iter().map(|data| {
-            Tab::new(
+        let tabs = tab_data.into_iter().enumerate().map(|(tab_index, data)| {
+            let tab = Tab::new(
                 data,
                 tab_frame,
                 TabState {
                     selected: false,
                     scroll_y: 0.,
                 },
-            )
+            );
+
+            for (row_index, row) in tab.rows.iter().enumerate() {
+                let tag = ButtonTag::Row {
+                    tab: tab_index,
+                    row: row_index,
+                }
+                .to_i64();
+
+                unsafe {
+                    let _: () = msg_send![row.button, setTag: tag];
+                }
+            }
+
+            tab
         });
 
         // We collect here instead of chaining so that the formatting above is nicer.
