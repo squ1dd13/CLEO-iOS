@@ -3,7 +3,7 @@
 use objc::{runtime::Object, *};
 use std::sync::atomic::AtomicU16;
 
-use crate::old_menu::MenuAction;
+// use crate::old_menu::MenuAction;
 
 #[repr(C)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -126,10 +126,11 @@ fn update_pads() {
     //  don't want to act on the state of the select button because it is likely that the user is still
     //  holding it down, so if the menu has only just been shown then it will be removed again.
     if counter != 1000 && current_state.select != 0 {
-        MenuAction::queue(MenuAction::Toggle(true));
+
+        // MenuAction::queue(MenuAction::Toggle(true));
     }
 
-    crate::old_menu::queue_controller_input(current_state);
+    // crate::old_menu::queue_controller_input(current_state);
 }
 
 pub fn hook() {

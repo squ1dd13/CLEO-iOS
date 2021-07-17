@@ -2,7 +2,7 @@
 //! of the menu when related to touch events.
 
 use crate::gui::CGRect;
-use crate::old_menu::MenuAction;
+// use crate::old_menu::MenuAction;
 use crate::{call_original, targets};
 use cached::proc_macro::cached;
 use lazy_static::lazy_static;
@@ -144,7 +144,9 @@ fn process_touch(x: f32, y: f32, timestamp: f64, force: f32, touch_type: TouchTy
     // If we have registered a touch, it means the user has touched outside the menu (because
     //  if they touch the menu, we don't get the event). This is a way of dismissing the menu.
     // crate::menu::hide_on_main_thread();
-    MenuAction::queue(MenuAction::Hide);
+    // MenuAction::queue(MenuAction::Hide);
+
+    crate::menu::MenuMessage::Hide.send();
 
     /*
         Problem:  We don't know how each touch event is connected to ones we already know about.
@@ -174,7 +176,8 @@ fn process_touch(x: f32, y: f32, timestamp: f64, force: f32, touch_type: TouchTy
                                 log::info!("Ignoring menu swipe because there are other touches.");
                             } else {
                                 log::info!("Detected valid menu swipe.");
-                                MenuAction::queue(MenuAction::Show(false));
+                                crate::menu::MenuMessage::Show.send();
+                                // MenuAction::queue(MenuAction::Show(false));
                             }
                         }
                     } else {
