@@ -208,6 +208,10 @@ impl Tab {
 
         unsafe {
             let _: () = msg_send![scroll_view, setContentSize: content_size];
+
+            let background_colour: *const Object =
+                msg_send![class!(UIColor), colorWithWhite: 0.0 alpha: 0.95];
+            let _: () = msg_send![scroll_view, setBackgroundColor: background_colour];
         }
 
         Tab {
@@ -321,7 +325,7 @@ impl Menu {
         }
     }
 
-    fn add_to_window(&self) {
+    fn add_to_window(&mut self) {
         unsafe {
             let application: *mut Object = msg_send![class!(UIApplication), sharedApplication];
             let key_window: *mut Object = msg_send![application, keyWindow];
@@ -335,6 +339,11 @@ impl Menu {
             }
 
             let _: () = msg_send![key_window, addSubview: self.close_button];
+        }
+
+        for i in 0..self.tabs.len() {
+            self.tabs[i].set_selected(i == 0);
+            self.tab_buttons[i].set_selected(i == 0);
         }
     }
 
@@ -363,6 +372,7 @@ impl Menu {
     fn start_channel_polling() -> Sender<MenuMessage> {
         let (sender, receiver) = mpsc::channel();
 
+        // todo: start_channel_polling contains lots of prototyping code that needs to be updated.
         std::thread::spawn(move || {
             type MenuMutex = Mutex<Option<Menu>>;
             let menu: Arc<MenuMutex> = Arc::new(Mutex::new(None));
@@ -389,7 +399,7 @@ impl Menu {
 
                             if menu.is_none() {
                                 *menu = Some(Menu::new(Self::get_module_tab_data()));
-                                menu.as_ref().unwrap().add_to_window();
+                                menu.as_mut().unwrap().add_to_window();
                                 log::trace!("menu added to window");
                             } else {
                                 log::warn!("menu already exists, but was activated again (which should be impossible)");
