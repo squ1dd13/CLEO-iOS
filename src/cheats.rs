@@ -1,7 +1,11 @@
 //! Replaces the game's broken cheats system with our own, and provides utilities for interfacing
 //! with that system.
+// todo: Use a channel for queueing cheats.
 
-use crate::hook;
+use crate::{
+    hook,
+    menu::{RowData, TabData},
+};
 use lazy_static::lazy_static;
 use log::error;
 
@@ -93,6 +97,45 @@ fn do_cheats() {
         waiting.clear();
     } else {
         error!("Unable to lock cheat queue for CCheat::DoCheats!");
+    }
+}
+
+struct CheatData(usize);
+
+impl RowData for CheatData {
+    fn title(&self) -> &str {
+        CHEATS[self.0].code
+    }
+
+    fn detail(&self) -> Option<&str> {
+        Some(CHEATS[self.0].description)
+    }
+
+    fn value(&self) -> &str {
+        if CHEATS[self.0].is_active() {
+            "Active"
+        } else {
+            "Inactive"
+        }
+    }
+
+    fn foreground(&self) -> (u8, u8, u8, u8) {
+        todo!()
+    }
+
+    fn handle_tap(&mut self) {
+        CHEATS[self.0].queue();
+    }
+}
+
+pub fn tab_data() -> crate::menu::TabData {
+    TabData {
+        name: "Cheats".to_string(),
+        warning: Some(
+            r#"Cheats may break your save. It is strongly advised that you save to a different slot before using any cheats.
+Additionally, some – especially those without codes – can crash the game in some situations."#.to_string(),
+        ),
+        row_data: (0..CHEATS.len()).map(|cheat_index| Box::new(CheatData(cheat_index)) as Box<dyn RowData>).collect(),
     }
 }
 

@@ -279,7 +279,7 @@ impl Menu {
     fn get_module_tab_data() -> Vec<TabData> {
         vec![
             crate::scripts::tab_data(),
-            // crate::cheats::tab_data(),
+            crate::cheats::tab_data(),
             // crate::settings::tab_data(),
         ]
     }
