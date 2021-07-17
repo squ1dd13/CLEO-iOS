@@ -49,27 +49,39 @@ struct TabButton {
     view: *mut Object,
 }
 
-enum ButtonTag {
-    Tab(usize),
-    Row { tab: usize, row: usize },
+#[repr(C)]
+struct ButtonTag {
+    tab: Option<u8>,
+    row: Option<u32>,
+    is_close: bool,
+    _pad: [u8; 2],
 }
 
 impl ButtonTag {
-    fn to_i64(self) -> i64 {
-        match self {
-            ButtonTag::Tab(tab) => -(tab as i64),
-            ButtonTag::Row { tab, row } => ((tab as i64) << 32) | (row as i64),
+    fn new_tab(index: usize) -> ButtonTag {
+        ButtonTag {
+            tab: Some(index as u8),
+            row: None,
+            is_close: false,
+            _pad: [0u8; 2],
         }
     }
 
-    fn from_i64(value: i64) -> ButtonTag {
-        if value < 0 {
-            ButtonTag::Tab((-value) as usize)
-        } else {
-            ButtonTag::Row {
-                tab: (value as usize) >> 32,
-                row: (value as usize) & (u32::MAX as usize),
-            }
+    fn new_row(tab: usize, row: usize) -> ButtonTag {
+        ButtonTag {
+            tab: Some(tab as u8),
+            row: Some(row as u32),
+            is_close: false,
+            _pad: [0u8; 2],
+        }
+    }
+
+    fn new_close() -> ButtonTag {
+        ButtonTag {
+            tab: None,
+            row: None,
+            is_close: true,
+            _pad: [0u8; 2],
         }
     }
 }
@@ -200,6 +212,7 @@ impl TabButton {
             let btn: *mut Object = msg_send![btn, initWithFrame: frame];
 
             let _: () = msg_send![btn, setTitle: create_ns_string(title) forState: 0u64];
+            let _: () = msg_send![btn, setTag: ButtonTag::new_tab(index)];
 
             btn
         };
@@ -221,17 +234,7 @@ impl Menu {
         let tab_buttons = tab_data
             .iter()
             .enumerate()
-            .map(|(index, data)| {
-                let button = TabButton::new(&data.name, index, tab_btn_width);
-
-                let tag = ButtonTag::Tab(index).to_i64();
-
-                unsafe {
-                    let _: () = msg_send![button.view, setTag: tag];
-                }
-
-                button
-            })
+            .map(|(index, data)| TabButton::new(&data.name, index, tab_btn_width))
             .collect();
 
         let tab_frame = CGRect::new(
@@ -254,14 +257,9 @@ impl Menu {
             );
 
             for (row_index, row) in tab.rows.iter().enumerate() {
-                let tag = ButtonTag::Row {
-                    tab: tab_index,
-                    row: row_index,
-                }
-                .to_i64();
-
                 unsafe {
-                    let _: () = msg_send![row.button, setTag: tag];
+                    let _: () =
+                        msg_send![row.button, setTag: ButtonTag::new_row(tab_index, row_index)];
                 }
             }
 
@@ -283,6 +281,7 @@ impl Menu {
 
             let btn: *mut Object = msg_send![btn, initWithFrame: btn_frame];
             let _: () = msg_send![btn, setTitle: create_ns_string("Close") forState: 0u64];
+            let _: () = msg_send![btn, setTag: ButtonTag::new_close()];
 
             btn
         };
