@@ -1,14 +1,12 @@
-//! Provides a touch interface and logic to allow the user to interact with scripts, cheats and settings.
+//! Provides a touch interface and accompanying logic to allow the user to interact with scripts, cheats and settings.
 
+use crate::gui::{self, create_ns_string, CGRect, CGSize};
+use objc::{class, msg_send, runtime::Object, sel, sel_impl};
+use once_cell::sync::OnceCell;
 use std::sync::{
     mpsc::{self, Sender},
     Arc, Mutex,
 };
-
-use objc::{class, msg_send, runtime::Object, sel, sel_impl};
-use once_cell::sync::OnceCell;
-
-use crate::gui::{self, create_ns_string, CGPoint, CGRect, CGSize};
 
 pub trait RowData {
     fn title(&self) -> &str;
@@ -163,50 +161,61 @@ const CLOSE_BUTTON_HEIGHT: f64 = 35.;
 
 impl Tab {
     fn new(data: TabData, tab_frame: gui::CGRect, state: TabState) -> Tab {
-        unsafe {
-            let scroll_frame = if data.warning.is_some() {
-                // Make the scroll view slightly shorter so we can fit the warning above it.
-                CGRect::new(
-                    tab_frame.origin.x,
-                    tab_frame.origin.y + tab_frame.size.height * 0.05,
-                    tab_frame.size.width,
-                    tab_frame.size.height * 0.95,
-                )
-            } else {
-                tab_frame
-            };
+        let scroll_frame = if data.warning.is_some() {
+            // Make the scroll view slightly shorter so we can fit the warning above it.
+            CGRect::new(
+                tab_frame.origin.x,
+                tab_frame.origin.y + tab_frame.size.height * 0.05,
+                tab_frame.size.width,
+                tab_frame.size.height * 0.95,
+            )
+        } else {
+            tab_frame
+        };
 
+        let scroll_view: *mut Object = unsafe {
             let scroll_view: *mut Object = msg_send![class!(UIScrollView), alloc];
-            let scroll_view: *mut Object = msg_send![scroll_view, initWithFrame: scroll_frame];
+            msg_send![scroll_view, initWithFrame: scroll_frame]
+        };
 
-            let row_width = scroll_frame.size.width;
+        let row_width = scroll_frame.size.width;
 
-            let make_row = |(index, data)| {
-                Row::new(
-                    data,
-                    CGRect::new(0., ROW_HEIGHT * index as f64, row_width, ROW_HEIGHT),
-                )
-            };
+        let make_row = |(index, data)| {
+            Row::new(
+                data,
+                CGRect::new(0., ROW_HEIGHT * index as f64, row_width, ROW_HEIGHT),
+            )
+        };
 
-            // Move all the RowData elements into Row structures.
-            let rows: Vec<Row> = data
-                .row_data
-                .into_iter()
-                .enumerate()
-                .map(make_row)
-                .collect();
+        // Move all the RowData elements into Row structures.
+        let rows: Vec<Row> = data
+            .row_data
+            .into_iter()
+            .enumerate()
+            .map(make_row)
+            .collect();
 
-            for row in rows.iter() {
+        for row in rows.iter() {
+            unsafe {
                 let _: () = msg_send![scroll_view, addSubview: row.button];
             }
+        }
 
-            Tab {
-                name: data.name,
-                warning: data.warning,
-                scroll_view,
-                rows,
-                state,
-            }
+        let content_size = CGSize {
+            width: scroll_frame.size.width,
+            height: ROW_HEIGHT * rows.len() as f64,
+        };
+
+        unsafe {
+            let _: () = msg_send![scroll_view, setContentSize: content_size];
+        }
+
+        Tab {
+            name: data.name,
+            warning: data.warning,
+            scroll_view,
+            rows,
+            state,
         }
     }
 
@@ -450,10 +459,6 @@ fn reachability_with_hostname(
 
         if is_button {
             let tag: ButtonTag = msg_send![hostname, tag];
-
-            log::trace!("tag = {:?}", tag);
-            log::trace!("size = {}", std::mem::size_of_val(&tag));
-            log::trace!("size = {}", std::mem::size_of::<ButtonTag>());
 
             if tag.is_close {
                 log::trace!("close button pressed");

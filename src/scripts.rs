@@ -479,7 +479,7 @@ impl crate::menu::RowData for MenuInfo {
     }
 
     fn detail(&self) -> Option<&str> {
-        self.warning.as_ref().map(|w| w.as_str())
+        self.warning.as_deref()
     }
 
     fn value(&self) -> &str {

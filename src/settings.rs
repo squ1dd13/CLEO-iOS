@@ -8,10 +8,7 @@ use std::{
     sync::Mutex,
 };
 
-use crate::{
-    call_original,
-    menu::{RowData, TabData},
-};
+use crate::{call_original, menu::RowData};
 
 pub struct OptionInfo {
     pub title: &'static str,
