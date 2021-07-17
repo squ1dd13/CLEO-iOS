@@ -100,19 +100,17 @@ fn do_cheats() {
     }
 }
 
-struct CheatData(usize);
-
-impl RowData for CheatData {
+impl RowData for &Cheat {
     fn title(&self) -> &str {
-        CHEATS[self.0].code
+        self.code
     }
 
     fn detail(&self) -> Option<&str> {
-        Some(CHEATS[self.0].description)
+        Some(self.description)
     }
 
     fn value(&self) -> &str {
-        if CHEATS[self.0].is_active() {
+        if self.is_active() {
             "Active"
         } else {
             "Inactive"
@@ -124,7 +122,7 @@ impl RowData for CheatData {
     }
 
     fn handle_tap(&mut self) {
-        CHEATS[self.0].queue();
+        self.queue();
     }
 }
 
@@ -135,7 +133,7 @@ pub fn tab_data() -> crate::menu::TabData {
             r#"Cheats may break your save. It is strongly advised that you save to a different slot before using any cheats.
 Additionally, some – especially those without codes – can crash the game in some situations."#.to_string(),
         ),
-        row_data: (0..CHEATS.len()).map(|cheat_index| Box::new(CheatData(cheat_index)) as Box<dyn RowData>).collect(),
+        row_data: CHEATS.iter().map(|cheat| Box::new(cheat) as Box<dyn RowData>).collect(),
     }
 }
 
