@@ -280,7 +280,7 @@ impl Menu {
         vec![
             crate::scripts::tab_data(),
             crate::cheats::tab_data(),
-            // crate::settings::tab_data(),
+            // todo: Rework settings module to be compatible with improved menu.
         ]
     }
 
