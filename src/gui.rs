@@ -56,6 +56,21 @@ impl UIEdgeInsets {
     }
 }
 
+pub type Rgb = (u8, u8, u8);
+
+pub mod colours {
+    use super::*;
+
+    pub const RED: Rgb = (255, 40, 46);
+    pub const GREEN: Rgb = (78, 149, 64);
+
+    pub fn get(colour: Rgb, alpha: f64) -> *const Object {
+        unsafe {
+            msg_send![class!(UIColor), colorWithRed: colour.0 as f64 / 255. green: colour.1 as f64 / 255. blue: colour.2 as f64 / 255. alpha: alpha]
+        }
+    }
+}
+
 pub fn get_font(name: &str, size: f64) -> *const Object {
     unsafe { msg_send![class!(UIFont), fontWithName: create_ns_string(name) size: size] }
 }
