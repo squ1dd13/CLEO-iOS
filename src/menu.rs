@@ -11,17 +11,17 @@ use once_cell::sync::OnceCell;
 use crate::gui::{self, create_ns_string, CGPoint, CGRect, CGSize};
 
 pub trait RowData {
-    fn title(&self) -> String;
-    fn detail(&self) -> Option<String>;
-    fn value(&self) -> String;
+    fn title(&self) -> &str;
+    fn detail(&self) -> Option<&str>;
+    fn value(&self) -> &str;
     fn foreground(&self) -> (u8, u8, u8, u8);
     fn handle_tap(&mut self);
 }
 
 pub struct TabData {
-    name: String,
-    warning: Option<String>,
-    row_data: Vec<Box<dyn RowData>>,
+    pub name: String,
+    pub warning: Option<String>,
+    pub row_data: Vec<Box<dyn RowData>>,
 }
 
 struct Row {
@@ -97,8 +97,7 @@ impl Row {
             let button: *mut Object = msg_send![class!(UIButton), alloc];
             let button: *mut Object = msg_send![button, initWithFrame: frame];
 
-            let _: () =
-                msg_send![button, setTitle: create_ns_string(data.title().as_str()) forState: 0u64];
+            let _: () = msg_send![button, setTitle: create_ns_string(data.title()) forState: 0u64];
 
             Row {
                 data,
@@ -277,6 +276,14 @@ impl Menu {
         }
     }
 
+    fn get_module_tab_data() -> Vec<TabData> {
+        vec![
+            crate::scripts::tab_data(),
+            // crate::cheats::tab_data(),
+            // crate::settings::tab_data(),
+        ]
+    }
+
     fn start_channel_polling() -> Sender<MenuMessage> {
         let (sender, receiver) = mpsc::channel();
 
@@ -305,7 +312,7 @@ impl Menu {
                             let mut menu = menu.lock().unwrap();
 
                             if menu.is_none() {
-                                *menu = Some(Menu::new(vec![]));
+                                *menu = Some(Menu::new(Self::get_module_tab_data()));
                                 menu.as_ref().unwrap().add_to_window();
                                 log::trace!("menu added to window");
                             } else {

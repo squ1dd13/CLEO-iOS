@@ -4,7 +4,9 @@
 use crate::{
     call_original,
     check::{self, CompatIssue},
-    hook, targets, touch,
+    hook,
+    menu::TabData,
+    targets, touch,
 };
 use std::sync::Mutex;
 
@@ -468,6 +470,49 @@ impl MenuInfo {
         }
 
         self.running = !self.running;
+    }
+}
+
+impl crate::menu::RowData for MenuInfo {
+    fn title(&self) -> &str {
+        &self.name
+    }
+
+    fn detail(&self) -> Option<&str> {
+        self.warning.as_ref().map(|w| w.as_str())
+    }
+
+    fn value(&self) -> &str {
+        if self.running {
+            "Running"
+        } else {
+            "Not running"
+        }
+    }
+
+    fn foreground(&self) -> (u8, u8, u8, u8) {
+        todo!()
+    }
+
+    fn handle_tap(&mut self) {
+        log::info!("Tapped!");
+    }
+}
+
+pub fn tab_data() -> crate::menu::TabData {
+    // fixme: The iterator method chain is messy.
+    TabData {
+        name: "Scripts".to_string(),
+        warning: None,
+        row_data: SCRIPTS
+            .lock()
+            .unwrap()
+            .iter()
+            .map(|script| {
+                MenuInfo::new(script).map(|v| Box::new(v) as Box<dyn crate::menu::RowData>)
+            })
+            .flatten()
+            .collect(),
     }
 }
 
