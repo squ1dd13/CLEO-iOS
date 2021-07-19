@@ -185,7 +185,12 @@ impl Row {
 
             let (detail_text, detail_colour) = match data.detail() {
                 RowDetail::Info(s) => (s, gui::colours::white_with_alpha(1., 0.95)),
-                RowDetail::Warning(s) => (s, msg_send![class!(UIColor), orangeColor]),
+                RowDetail::Warning(s) => {
+                    let row_background = gui::colours::get(gui::colours::ORANGE, 0.2);
+                    let _: () = msg_send![button, setBackgroundColor: row_background];
+
+                    (s, gui::colours::get(gui::colours::ORANGE, 1.))
+                }
             };
 
             let _: () = msg_send![detail_label, setText: create_ns_string(detail_text)];
