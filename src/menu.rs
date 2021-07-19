@@ -451,7 +451,7 @@ impl Menu {
     fn start_channel_polling() -> Sender<MenuMessage> {
         let (sender, receiver) = mpsc::channel();
 
-        // todo: start_channel_polling contains lots of prototyping code that needs to be updated.
+        // fixme: start_channel_polling contains lots of prototyping code that needs to be updated.
         std::thread::spawn(move || {
             type MenuMutex = Mutex<Option<Menu>>;
             let menu: Arc<MenuMutex> = Arc::new(Mutex::new(None));
