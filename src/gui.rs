@@ -35,6 +35,19 @@ impl CGRect {
             size: CGSize { width, height },
         }
     }
+
+    pub fn rounded(self) -> Self {
+        CGRect {
+            origin: CGPoint {
+                x: self.origin.x.round(),
+                y: self.origin.y.round(),
+            },
+            size: CGSize {
+                width: self.size.width.round(),
+                height: self.size.height.round(),
+            },
+        }
+    }
 }
 
 #[repr(C)]

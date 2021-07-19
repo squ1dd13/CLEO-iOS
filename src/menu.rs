@@ -157,7 +157,8 @@ impl Row {
                 0.0,
                 frame.size.width * 0.9,
                 frame.size.height * 0.6,
-            );
+            )
+            .rounded();
 
             let value_label: *mut Object = msg_send![class!(UILabel), alloc];
             let value_label: *mut Object = msg_send![value_label, initWithFrame: value_frame];
@@ -174,7 +175,8 @@ impl Row {
                 frame.size.height * 0.5,
                 frame.size.width * 0.9,
                 frame.size.height * 0.4,
-            );
+            )
+            .rounded();
 
             let detail_label: *mut Object = msg_send![class!(UILabel), alloc];
             let detail_label: *mut Object = msg_send![detail_label, initWithFrame: detail_frame];
