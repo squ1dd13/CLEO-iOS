@@ -5,7 +5,7 @@ use crate::{
     call_original,
     check::{self, CompatIssue},
     hook,
-    menu::TabData,
+    menu::{self, TabData},
     targets, touch,
 };
 use std::sync::Mutex;
@@ -478,8 +478,12 @@ impl crate::menu::RowData for MenuInfo {
         &self.name
     }
 
-    fn detail(&self) -> Option<&str> {
-        self.warning.as_deref()
+    fn detail(&self) -> menu::RowDetail<'_> {
+        if let Some(warning) = self.warning.as_deref() {
+            menu::RowDetail::Warning(warning)
+        } else {
+            menu::RowDetail::Info("No compatibility issues detected.")
+        }
     }
 
     fn value(&self) -> &str {

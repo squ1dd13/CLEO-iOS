@@ -4,7 +4,7 @@
 
 use crate::{
     hook,
-    menu::{RowData, TabData},
+    menu::{self, RowData, TabData},
 };
 use lazy_static::lazy_static;
 use log::error;
@@ -105,8 +105,8 @@ impl RowData for &Cheat {
         self.code
     }
 
-    fn detail(&self) -> Option<&str> {
-        Some(self.description)
+    fn detail(&self) -> menu::RowDetail<'_> {
+        menu::RowDetail::Info(self.description)
     }
 
     fn value(&self) -> &str {

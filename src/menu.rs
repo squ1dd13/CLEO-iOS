@@ -8,9 +8,14 @@ use std::sync::{
     Arc, Mutex,
 };
 
+pub enum RowDetail<'a> {
+    Info(&'a str),
+    Warning(&'a str),
+}
+
 pub trait RowData {
     fn title(&self) -> &str;
-    fn detail(&self) -> Option<&str>;
+    fn detail(&self) -> RowDetail<'_>;
     fn value(&self) -> &str;
     fn foreground(&self) -> (u8, u8, u8, u8);
     fn handle_tap(&mut self);
