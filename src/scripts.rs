@@ -361,12 +361,7 @@ fn script_reset() {
     }
 }
 
-fn gen_compat_warning(invoked_disabled: usize, running_disabled: usize) -> Option<String> {
-    /*
-        "one CSI script has been disabled"
-        "two CSA scripts have been disabled"
-        "14 CSA scripts have been disabled"
-    */
+fn gen_compat_warning(invoked_errs: usize, running_errs: usize) -> Option<String> {
     fn gen_message(count: usize, extension: &str) -> String {
         const NUMBERS: &[&str] = &[
             "one", "two", "three", "four", "five", "six", "seven", "eight", "nine",
@@ -389,23 +384,23 @@ fn gen_compat_warning(invoked_disabled: usize, running_disabled: usize) -> Optio
 
     let mut output = String::new();
 
-    if invoked_disabled == 0 && running_disabled == 0 {
+    if invoked_errs == 0 && running_errs == 0 {
         return None;
     }
 
-    if invoked_disabled != 0 {
-        output += &gen_message(invoked_disabled, "CSI");
+    if invoked_errs != 0 {
+        output += &gen_message(invoked_errs, "CSI");
 
-        if running_disabled != 0 {
+        if running_errs != 0 {
             output += " and ";
         }
     }
 
-    if running_disabled != 0 {
-        output += &gen_message(running_disabled, "CSA");
+    if running_errs != 0 {
+        output += &gen_message(running_errs, "CSA");
     }
 
-    output += if invoked_disabled + running_disabled == 1 {
+    output += if invoked_errs + running_errs == 1 {
         " is"
     } else {
         " are"
@@ -473,7 +468,7 @@ impl MenuInfo {
     }
 }
 
-impl crate::menu::RowData for MenuInfo {
+impl menu::RowData for MenuInfo {
     fn title(&self) -> &str {
         &self.name
     }
@@ -503,20 +498,34 @@ impl crate::menu::RowData for MenuInfo {
     }
 }
 
-pub fn tab_data() -> crate::menu::TabData {
-    // fixme: The iterator method chain is messy.
+pub fn tab_data() -> menu::TabData {
+    let mut row_data = vec![];
+
+    let mut csi_errs = 0usize;
+    let mut csa_errs = 0usize;
+
+    for script in SCRIPTS.lock().unwrap().iter() {
+        let (cleo_script, err_inc) = match script {
+            Script::Running(s) => (s, &mut csa_errs),
+            Script::Invoked(s, _) => (s, &mut csi_errs),
+        };
+
+        if cleo_script.compat_issue.is_some() {
+            *err_inc += 1;
+        }
+
+        if let Some(info) = MenuInfo::new(script) {
+            row_data.push(Box::new(info) as Box<dyn menu::RowData>)
+        }
+    }
+
+    let warning = gen_compat_warning(csi_errs, csa_errs);
+    log::trace!("{:?}", warning);
+
     TabData {
         name: "Scripts".to_string(),
-        warning: None,
-        row_data: SCRIPTS
-            .lock()
-            .unwrap()
-            .iter()
-            .map(|script| {
-                MenuInfo::new(script).map(|v| Box::new(v) as Box<dyn crate::menu::RowData>)
-            })
-            .flatten()
-            .collect(),
+        warning,
+        row_data,
     }
 }
 
