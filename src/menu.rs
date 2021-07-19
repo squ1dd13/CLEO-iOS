@@ -137,6 +137,15 @@ impl Row {
             let button: *mut Object = msg_send![button, initWithFrame: frame];
 
             let _: () = msg_send![button, setTitle: create_ns_string(data.title()) forState: 0u64];
+            let _: () = msg_send![button, setContentHorizontalAlignment: 1u64];
+
+            let edge_insets =
+                gui::UIEdgeInsets::new(0., frame.size.width * 0.05, frame.size.height * 0.4, 0.);
+            let _: () = msg_send![button, setTitleEdgeInsets: edge_insets];
+
+            let label: *mut Object = msg_send![button, titleLabel];
+            let _: () =
+                msg_send![label, setFont: gui::get_font("ChaletComprime-CologneSixty", 25.0)];
 
             Row {
                 data,
