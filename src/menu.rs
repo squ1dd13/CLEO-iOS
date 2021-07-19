@@ -149,13 +149,28 @@ impl Row {
             let _: () = msg_send![button, setTitleEdgeInsets: edge_insets];
 
             let label: *mut Object = msg_send![button, titleLabel];
+            let font = gui::get_font("ChaletComprime-CologneSixty", 25.0);
+            let _: () = msg_send![label, setFont: font];
+
+            let value_frame = CGRect::new(
+                frame.size.width * 0.05,
+                0.0,
+                frame.size.width * 0.9,
+                frame.size.height * 0.6,
+            );
+
+            let value_label: *mut Object = msg_send![class!(UILabel), alloc];
+            let value_label: *mut Object = msg_send![value_label, initWithFrame: value_frame];
+            let _: () = msg_send![value_label, setFont: font];
+            let _: () = msg_send![value_label, setTextAlignment: 2u64];
+            let _: () = msg_send![value_label, setText: create_ns_string(data.value())];
             let _: () =
-                msg_send![label, setFont: gui::get_font("ChaletComprime-CologneSixty", 25.0)];
+                msg_send![value_label, setTextColor: gui::colours::white_with_alpha(1., 0.95)];
 
             Row {
                 data,
                 detail_label: std::ptr::null_mut(),
-                value_label: std::ptr::null_mut(),
+                value_label,
                 button,
             }
         }
@@ -211,6 +226,7 @@ impl Tab {
 
         for row in rows.iter() {
             unsafe {
+                let _: () = msg_send![row.button, addSubview: row.value_label];
                 let _: () = msg_send![scroll_view, addSubview: row.button];
             }
         }
