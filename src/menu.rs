@@ -169,6 +169,8 @@ impl Row {
 
             let detail_frame = CGRect::new(
                 frame.size.width * 0.05,
+                // 0.5 to move the detail up towards the title. This makes it more obvious that the
+                //  detail goes with the title, and makes the rows easier to read.
                 frame.size.height * 0.5,
                 frame.size.width * 0.9,
                 frame.size.height * 0.4,
