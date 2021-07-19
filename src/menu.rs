@@ -291,6 +291,10 @@ impl TabButton {
             let btn: *mut Object = msg_send![btn, initWithFrame: frame];
 
             let _: () = msg_send![btn, setTitle: create_ns_string(title) forState: 0u64];
+
+            let label: *mut Object = msg_send![btn, titleLabel];
+            let _: () = msg_send![label, setFont: gui::get_font("PricedownGTAVInt", 30.0)];
+
             add_button_handler(btn, ButtonTag::new_tab(index));
 
             btn
