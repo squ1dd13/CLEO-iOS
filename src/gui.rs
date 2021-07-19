@@ -69,6 +69,10 @@ pub mod colours {
             msg_send![class!(UIColor), colorWithRed: colour.0 as f64 / 255. green: colour.1 as f64 / 255. blue: colour.2 as f64 / 255. alpha: alpha]
         }
     }
+
+    pub fn white_with_alpha(white: f64, alpha: f64) -> *const Object {
+        unsafe { msg_send![class!(UIColor), colorWithWhite: white alpha: alpha] }
+    }
 }
 
 pub fn get_font(name: &str, size: f64) -> *const Object {

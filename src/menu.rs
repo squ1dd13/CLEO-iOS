@@ -209,9 +209,8 @@ impl Tab {
         unsafe {
             let _: () = msg_send![scroll_view, setContentSize: content_size];
 
-            let background_colour: *const Object =
-                msg_send![class!(UIColor), colorWithWhite: 0.0 alpha: 0.95];
-            let _: () = msg_send![scroll_view, setBackgroundColor: background_colour];
+            let background = gui::colours::white_with_alpha(0., 0.95);
+            let _: () = msg_send![scroll_view, setBackgroundColor: background];
         }
 
         Tab {
@@ -248,10 +247,14 @@ impl TabButton {
     }
 
     fn set_selected(&mut self, selected: bool) {
-        let alpha = if selected { 1. } else { 0.5 };
+        let colour_alpha = if selected { 0.95 } else { 0.7 };
+
+        let foreground = gui::colours::white_with_alpha(1., colour_alpha);
+        let background = gui::colours::white_with_alpha(0., colour_alpha);
 
         unsafe {
-            let _: () = msg_send![self.view, setAlpha: alpha];
+            let _: () = msg_send![self.view, setTitleColor: foreground forState: 0u64];
+            let _: () = msg_send![self.view, setBackgroundColor: background];
         }
     }
 }
