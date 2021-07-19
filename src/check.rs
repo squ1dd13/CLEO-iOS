@@ -416,13 +416,13 @@ fn get_commands() -> &'static HashMap<u16, Command> {
 }
 
 /// Defines reasons why a script should be marked as potentially incompatible.
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum CompatIssue {
-    /// The script relies on Android-specific stuff such as hardcoded memory addresses or symbol names.
-    AndroidSpecific,
-
     /// CLEO does not yet implement a particular command that the script uses.
     NotImpl,
+
+    /// The script relies on Android-specific stuff such as hardcoded memory addresses or symbol names.
+    AndroidSpecific,
 
     /// We can't say either way if the script is compatible, because the check failed for some reason.
     CheckFailed,
@@ -431,11 +431,11 @@ pub enum CompatIssue {
 impl Display for CompatIssue {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::AndroidSpecific => {
-                f.write_str("This script uses code that will only work on Android.")
-            }
             Self::NotImpl => {
                 f.write_str("This script requires features that are not available on iOS yet.")
+            }
+            Self::AndroidSpecific => {
+                f.write_str("This script uses code that will only work on Android.")
             }
             Self::CheckFailed => {
                 f.write_str("This script could not be checked for compatibility issues.")
@@ -461,14 +461,28 @@ pub fn check_bytecode(bytes: &[u8]) -> Result<Option<CompatIssue>, String> {
         log::info!("finished disassembly");
     }
 
-    for (_, instr) in instruction_map.iter() {
-        match instr.opcode {
-            0x0dd5 | 0x0dd6 | 0x0de1..=0x0df6 => return Ok(Some(CompatIssue::NotImpl)),
-            0x0dd0..=0x0ddb | 0x0dde => return Ok(Some(CompatIssue::AndroidSpecific)),
+    // The order of instruction_map.iter() is not guaranteed to be the same every time we run,
+    //  and sometimes the order change means that a different one of several errors in the script
+    //  is found and presented to the user. To prevent confusion caused by different messages being
+    //  given for the same script on different runs, we always report the maximum issue we find (or
+    //  nothing if there are no issues). The only downside to this is that we have to iterate over
+    //  all of the instructions rather than being able to stop at the first issue.
+    let mut max_issue = None;
 
-            _ => (),
+    for (_, instr) in instruction_map.iter() {
+        let issue = match instr.opcode {
+            0x0dd5 | 0x0dd6 | 0x0de1..=0x0df6 => Some(CompatIssue::NotImpl),
+            0x0dd0..=0x0ddb | 0x0dde => Some(CompatIssue::AndroidSpecific),
+
+            _ => None,
+        };
+
+        if let Some(issue) = &issue {
+            log::warn!("{}", issue);
         }
+
+        max_issue = max_issue.max(issue);
     }
 
-    Ok(None)
+    Ok(max_issue)
 }
