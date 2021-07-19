@@ -102,7 +102,11 @@ fn do_cheats() {
 
 impl RowData for &Cheat {
     fn title(&self) -> &str {
-        self.code
+        if self.code.is_empty() {
+            "???"
+        } else {
+            self.code
+        }
     }
 
     fn detail(&self) -> menu::RowDetail<'_> {
