@@ -373,6 +373,14 @@ impl Menu {
 
             let btn: *mut Object = msg_send![btn, initWithFrame: btn_frame];
             let _: () = msg_send![btn, setTitle: create_ns_string("Close") forState: 0u64];
+            let _: () = msg_send![
+                btn,
+                setBackgroundColor: gui::colours::get(gui::colours::RED, 0.35)
+            ];
+
+            let label: *mut Object = msg_send![btn, titleLabel];
+            let _: () = msg_send![label, setFont: gui::get_font("PricedownGTAVInt", 27.0)];
+
             add_button_handler(btn, ButtonTag::new_close());
 
             btn
