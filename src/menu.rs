@@ -141,8 +141,19 @@ impl Row {
             let button: *mut Object = msg_send![class!(UIButton), alloc];
             let button: *mut Object = msg_send![button, initWithFrame: frame];
 
+            let (detail_text, text_colour) = match data.detail() {
+                RowDetail::Info(s) => (s, gui::colours::white_with_alpha(1., 0.95)),
+                RowDetail::Warning(s) => {
+                    let row_background = gui::colours::get(gui::colours::ORANGE, 0.2);
+                    let _: () = msg_send![button, setBackgroundColor: row_background];
+
+                    (s, gui::colours::get(gui::colours::ORANGE, 1.))
+                }
+            };
+
             let _: () = msg_send![button, setTitle: create_ns_string(data.title()) forState: 0u64];
             let _: () = msg_send![button, setContentHorizontalAlignment: 1u64];
+            let _: () = msg_send![button, setTitleColor: text_colour forState: 0u64];
 
             let edge_insets =
                 gui::UIEdgeInsets::new(0., frame.size.width * 0.05, frame.size.height * 0.4, 0.);
@@ -185,18 +196,8 @@ impl Row {
             let _: () = msg_send![detail_label, setFont: font];
             let _: () = msg_send![detail_label, setTextAlignment: 0u64];
 
-            let (detail_text, detail_colour) = match data.detail() {
-                RowDetail::Info(s) => (s, gui::colours::white_with_alpha(1., 0.95)),
-                RowDetail::Warning(s) => {
-                    let row_background = gui::colours::get(gui::colours::ORANGE, 0.2);
-                    let _: () = msg_send![button, setBackgroundColor: row_background];
-
-                    (s, gui::colours::get(gui::colours::ORANGE, 1.))
-                }
-            };
-
             let _: () = msg_send![detail_label, setText: create_ns_string(detail_text)];
-            let _: () = msg_send![detail_label, setTextColor: detail_colour];
+            let _: () = msg_send![detail_label, setTextColor: text_colour];
 
             Row {
                 data,
