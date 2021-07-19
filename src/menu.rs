@@ -437,6 +437,8 @@ impl Menu {
             crate::cheats::tab_data(),
             // todo: Rework settings module to be compatible with improved menu.
         ]
+
+        // todo: Allow use of menu at any time, but only show script/cheat tabs when in a game. Always show settings.
     }
 
     fn start_channel_polling() -> Sender<MenuMessage> {
