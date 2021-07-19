@@ -167,9 +167,31 @@ impl Row {
             let _: () =
                 msg_send![value_label, setTextColor: gui::colours::white_with_alpha(1., 0.95)];
 
+            let detail_frame = CGRect::new(
+                frame.size.width * 0.05,
+                frame.size.height * 0.5,
+                frame.size.width * 0.9,
+                frame.size.height * 0.4,
+            );
+
+            let detail_label: *mut Object = msg_send![class!(UILabel), alloc];
+            let detail_label: *mut Object = msg_send![detail_label, initWithFrame: detail_frame];
+
+            let font = gui::get_font("ChaletComprime-CologneSixty", 20.0);
+            let _: () = msg_send![detail_label, setFont: font];
+            let _: () = msg_send![detail_label, setTextAlignment: 0u64];
+
+            let (detail_text, detail_colour) = match data.detail() {
+                RowDetail::Info(s) => (s, gui::colours::white_with_alpha(1., 0.95)),
+                RowDetail::Warning(s) => (s, msg_send![class!(UIColor), orangeColor]),
+            };
+
+            let _: () = msg_send![detail_label, setText: create_ns_string(detail_text)];
+            let _: () = msg_send![detail_label, setTextColor: detail_colour];
+
             Row {
                 data,
-                detail_label: std::ptr::null_mut(),
+                detail_label,
                 value_label,
                 button,
             }
@@ -227,6 +249,7 @@ impl Tab {
         for row in rows.iter() {
             unsafe {
                 let _: () = msg_send![row.button, addSubview: row.value_label];
+                let _: () = msg_send![row.button, addSubview: row.detail_label];
                 let _: () = msg_send![scroll_view, addSubview: row.button];
             }
         }
