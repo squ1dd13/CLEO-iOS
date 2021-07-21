@@ -138,6 +138,8 @@ impl VersionNumber {
             number.0.push(part.parse::<u8>()?);
         }
 
+        log::trace!("{:?}", number.0);
+
         Ok(number)
     }
 
@@ -147,9 +149,10 @@ impl VersionNumber {
         }
 
         for i in 0..self.0.len() {
-            // The first segment that is different determines which number is newer.
-            if self.0[i] > other.0[i] {
-                return Ok(true);
+            match self.0[i].cmp(&other.0[i]) {
+                std::cmp::Ordering::Less => break,
+                std::cmp::Ordering::Equal => continue,
+                std::cmp::Ordering::Greater => return Ok(true),
             }
         }
 

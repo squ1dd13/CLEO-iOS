@@ -1,6 +1,6 @@
 //! Provides a touch interface and accompanying logic to allow the user to interact with scripts, cheats and settings.
 
-use crate::gui::{self, create_ns_string, CGRect, CGSize};
+use crate::gui::{self, create_ns_string, CGPoint, CGRect, CGSize};
 use objc::{class, msg_send, runtime::Object, sel, sel_impl};
 use once_cell::sync::OnceCell;
 use std::sync::{
@@ -46,7 +46,6 @@ struct Tab {
     scroll_view: *mut Object,
     warning_label: Option<*mut Object>,
     rows: Vec<Row>,
-    state: TabState,
 }
 
 struct TabButton {
@@ -326,6 +325,13 @@ impl Tab {
         unsafe {
             let _: () = msg_send![scroll_view, setContentSize: content_size];
 
+            let content_offset = CGPoint {
+                x: 0.,
+                y: state.scroll_y,
+            };
+
+            let _: () = msg_send![scroll_view, setContentOffset: content_offset animated: false];
+
             let background = gui::colours::white_with_alpha(0., 0.95);
             let _: () = msg_send![scroll_view, setBackgroundColor: background];
         }
@@ -356,14 +362,16 @@ impl Tab {
             label
         });
 
-        Tab {
+        let mut tab = Tab {
             name: data.name,
             warning: data.warning,
             scroll_view,
             warning_label,
             rows,
-            state,
-        }
+        };
+
+        tab.set_selected(state.selected);
+        tab
     }
 
     fn set_selected(&mut self, selected: bool) {
