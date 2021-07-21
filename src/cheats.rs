@@ -149,8 +149,8 @@ pub fn hook() {
 // Android does, though, so I copied the codes from there. The order has been preserved.
 // The spreadsheet at
 //   https://docs.google.com/spreadsheets/d/1-rmga12W9reALga7fct22tJ-1thxbbsfGiGltK2qgh0/edit?usp=sharing
-//  was very helpful during research, and https://gta.fandom.com/wiki/Cheats_in_GTA_San_Andreas
-//  was very helpful for writing cheat descriptions.
+//  was very helpful during research, and the page at https://gta.fandom.com/wiki/Cheats_in_GTA_San_Andreas
+//  was really useful for writing cheat descriptions.
 #[allow(dead_code)]
 pub static CHEATS: [Cheat; 111] = [
     Cheat::new(0, "THUGSARMOURY", "Weapon set 1"),
@@ -271,7 +271,7 @@ pub static CHEATS: [Cheat; 111] = [
     Cheat::new(95, "ITSALLBULL", "Spawn Dozer"),
     Cheat::new(96, "FLYINGTOSTUNT", "Spawn Stunt Plane"),
     Cheat::new(97, "MONSTERMASH", "Spawn Monster Truck"),
-    Cheat::new(98, "", "Prostitutes pay you?"),
+    Cheat::new(98, "", "Prostitutes pay you"),
     Cheat::new(99, "", "Taxis have hydraulics and nitro"),
     Cheat::new(100, "", "CRASHES! Slot cheat 1"),
     Cheat::new(101, "", "CRASHES! Slot cheat 2"),
