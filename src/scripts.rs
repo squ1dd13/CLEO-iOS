@@ -5,7 +5,7 @@ use crate::{
     call_original,
     check::{self, CompatIssue},
     hook,
-    menu::{self, TabData},
+    menu::{self, MenuMessage, TabData},
     targets, touch,
 };
 use std::sync::Mutex;
@@ -407,7 +407,7 @@ fn gen_compat_warning(invoked_errs: usize, running_errs: usize) -> Option<String
     // };
 
     output +=
-        " may be incompatible with iOS.\nSee \"cleo.log\" in the CLEO folder for further details.";
+        " may be incompatible with iOS. Use them at your own risk.\nSee \"cleo.log\" in the CLEO folder for further details.";
 
     // Make the first character uppercase.
     let mut characters = output.chars();
@@ -498,8 +498,9 @@ impl menu::RowData for MenuInfo {
     }
 
     fn handle_tap(&mut self) -> bool {
-        log::info!("Tapped!");
-        true
+        self.activate();
+        MenuMessage::Hide.send();
+        false
     }
 }
 
@@ -525,7 +526,6 @@ pub fn tab_data() -> menu::TabData {
     }
 
     let warning = gen_compat_warning(csi_errs, csa_errs);
-    log::trace!("{:?}", warning);
 
     TabData {
         name: "Scripts".to_string(),
