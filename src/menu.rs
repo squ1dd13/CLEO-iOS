@@ -293,7 +293,7 @@ impl Tab {
             let label: *mut Object = msg_send![label, initWithFrame: warning_frame];
 
             let colour = gui::colours::get(gui::colours::ORANGE, 1.);
-            let font = gui::get_font("Helvetica-Bold", 25.);
+            let font = gui::get_font("HelveticaNeue-Bold", 25.);
             let _: () = msg_send![label, setTextColor: colour];
             let _: () = msg_send![label, setFont: font];
             let _: () = msg_send![label, setText: create_ns_string(warning)];

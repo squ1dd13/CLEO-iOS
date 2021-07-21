@@ -400,14 +400,14 @@ fn gen_compat_warning(invoked_errs: usize, running_errs: usize) -> Option<String
         output += &gen_message(running_errs, "CSA");
     }
 
-    output += if invoked_errs + running_errs == 1 {
-        " is"
-    } else {
-        " are"
-    };
+    // output += if invoked_errs + running_errs == 1 {
+    // " is"
+    // } else {
+    // " are"
+    // };
 
     output +=
-        " potentially incompatible.\nSee \"cleo.log\" in the CLEO folder for further details.";
+        " may be incompatible with iOS.\nSee \"cleo.log\" in the CLEO folder for further details.";
 
     // Make the first character uppercase.
     let mut characters = output.chars();
