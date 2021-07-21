@@ -44,6 +44,7 @@ struct Tab {
     name: String,
     warning: Option<String>,
     scroll_view: *mut Object,
+    warning_label: Option<*mut Object>,
     rows: Vec<Row>,
     state: TabState,
 }
@@ -220,15 +221,19 @@ const ROW_HEIGHT: f64 = 85.;
 const TAB_BUTTON_HEIGHT: f64 = 65.;
 const CLOSE_BUTTON_HEIGHT: f64 = 35.;
 
+// Some elements are still proportional to others. The height of the warning label is proportional
+//  to the height of the tab view as a whole.
+const WARNING_HEIGHT_FRAC: f64 = 0.1;
+
 impl Tab {
     fn new(data: TabData, tab_frame: gui::CGRect, state: TabState) -> Tab {
         let scroll_frame = if data.warning.is_some() {
             // Make the scroll view slightly shorter so we can fit the warning above it.
             CGRect::new(
                 tab_frame.origin.x,
-                tab_frame.origin.y + tab_frame.size.height * 0.05,
+                tab_frame.origin.y + tab_frame.size.height * WARNING_HEIGHT_FRAC,
                 tab_frame.size.width,
-                tab_frame.size.height * 0.95,
+                tab_frame.size.height * (1. - WARNING_HEIGHT_FRAC),
             )
         } else {
             tab_frame
@@ -276,10 +281,37 @@ impl Tab {
             let _: () = msg_send![scroll_view, setBackgroundColor: background];
         }
 
+        let warning_label = data.warning.as_ref().map(|warning| unsafe {
+            let warning_frame = CGRect::new(
+                0.,
+                tab_frame.origin.y,
+                tab_frame.size.width,
+                tab_frame.size.height * WARNING_HEIGHT_FRAC,
+            );
+
+            let label: *mut Object = msg_send![class!(UILabel), alloc];
+            let label: *mut Object = msg_send![label, initWithFrame: warning_frame];
+
+            let colour = gui::colours::get(gui::colours::ORANGE, 1.);
+            let font = gui::get_font("Helvetica-Bold", 25.);
+            let _: () = msg_send![label, setTextColor: colour];
+            let _: () = msg_send![label, setFont: font];
+            let _: () = msg_send![label, setText: create_ns_string(warning)];
+            let _: () = msg_send![label, setTextAlignment: 1u64];
+            let _: () = msg_send![label, setAdjustsFontSizeToFitWidth: true];
+            let _: () = msg_send![label, setNumberOfLines: 0u64];
+
+            let colour = gui::colours::get((0, 0, 0), 0.95);
+            let _: () = msg_send![label, setBackgroundColor: colour];
+
+            label
+        });
+
         Tab {
             name: data.name,
             warning: data.warning,
             scroll_view,
+            warning_label,
             rows,
             state,
         }
@@ -288,6 +320,10 @@ impl Tab {
     fn set_selected(&mut self, selected: bool) {
         unsafe {
             let _: () = msg_send![self.scroll_view, setHidden: !selected];
+
+            if let Some(label) = self.warning_label {
+                let _: () = msg_send![label, setHidden: !selected];
+            }
         }
     }
 }
@@ -414,6 +450,10 @@ impl Menu {
 
             for tab in self.tabs.iter() {
                 let _: () = msg_send![key_window, addSubview: tab.scroll_view];
+
+                if let Some(label) = tab.warning_label {
+                    let _: () = msg_send![key_window, addSubview: label];
+                }
             }
 
             let _: () = msg_send![key_window, addSubview: self.close_button];
@@ -433,6 +473,10 @@ impl Menu {
 
             for tab in self.tabs.iter() {
                 let _: () = msg_send![tab.scroll_view, removeFromSuperview];
+
+                if let Some(label) = tab.warning_label {
+                    let _: () = msg_send![label, removeFromSuperview];
+                }
             }
 
             let _: () = msg_send![self.close_button, removeFromSuperview];
@@ -609,6 +653,10 @@ impl Drop for Tab {
     fn drop(&mut self) {
         unsafe {
             // let _: () = msg_send![self.scroll_view, release];
+
+            // if let Some(label) = self.warning_label {
+            // let _: () = msg_send![label, release];
+            // }
         }
     }
 }
