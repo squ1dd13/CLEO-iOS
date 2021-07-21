@@ -201,7 +201,7 @@ impl CleoScript {
             // Intercept 'terminate' calls because the game's implementation will try to
             //  free our script data (which we don't want).
             0x004e => {
-                // Simply deactivate the script.
+                self.reset();
                 self.game_script.active = false;
                 true
             }
