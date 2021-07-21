@@ -17,8 +17,8 @@ pub trait RowData {
     fn title(&self) -> &str;
     fn detail(&self) -> RowDetail<'_>;
     fn value(&self) -> &str;
-    fn foreground(&self) -> (u8, u8, u8, u8);
-    fn handle_tap(&mut self);
+    fn tint(&self) -> Option<(u8, u8, u8)>;
+    fn handle_tap(&mut self) -> bool;
 }
 
 pub struct TabData {
@@ -104,6 +104,8 @@ pub enum MenuMessage {
     Show,
     Hide,
 
+    ReloadRows,
+
     SelectTab(usize),
     HitRow(usize, usize),
 }
@@ -142,19 +144,19 @@ impl Row {
             let button: *mut Object = msg_send![class!(UIButton), alloc];
             let button: *mut Object = msg_send![button, initWithFrame: frame];
 
-            let (detail_text, text_colour) = match data.detail() {
-                RowDetail::Info(s) => (s, gui::colours::white_with_alpha(1., 0.95)),
-                RowDetail::Warning(s) => {
-                    let row_background = gui::colours::get(gui::colours::ORANGE, 0.2);
-                    let _: () = msg_send![button, setBackgroundColor: row_background];
+            // let (detail_text, text_colour) = match data.detail() {
+            // RowDetail::Info(s) => (s, gui::colours::white_with_alpha(1., 0.95)),
+            // RowDetail::Warning(s) => {
+            // let row_background = gui::colours::get(gui::colours::ORANGE, 0.2);
+            // let _: () = msg_send![button, setBackgroundColor: row_background];
+            //
+            // (s, gui::colours::get(gui::colours::ORANGE, 1.))
+            // }
+            // };
 
-                    (s, gui::colours::get(gui::colours::ORANGE, 1.))
-                }
-            };
-
-            let _: () = msg_send![button, setTitle: create_ns_string(data.title()) forState: 0u64];
+            // let _: () = msg_send![button, setTitle: create_ns_string(data.title()) forState: 0u64];
             let _: () = msg_send![button, setContentHorizontalAlignment: 1u64];
-            let _: () = msg_send![button, setTitleColor: text_colour forState: 0u64];
+            // let _: () = msg_send![button, setTitleColor: text_colour forState: 0u64];
 
             let edge_insets =
                 gui::UIEdgeInsets::new(0., frame.size.width * 0.05, frame.size.height * 0.4, 0.);
@@ -176,9 +178,18 @@ impl Row {
             let value_label: *mut Object = msg_send![value_label, initWithFrame: value_frame];
             let _: () = msg_send![value_label, setFont: font];
             let _: () = msg_send![value_label, setTextAlignment: 2u64];
-            let _: () = msg_send![value_label, setText: create_ns_string(data.value())];
-            let _: () =
-                msg_send![value_label, setTextColor: gui::colours::white_with_alpha(1., 0.95)];
+            // let _: () = msg_send![value_label, setText: create_ns_string(data.value())];
+            // let _: () =
+            // msg_send![value_label, setTextColor: gui::colours::white_with_alpha(1., 0.95)];
+
+            // // tod o: Decide when to apply tint colour when there is also a warning.
+
+            // if let Some(tint) = data.tint() {
+            //     let background = gui::colours::get(tint, 0.2);
+            //     let value_colour = gui::colours::get(tint, 0.95);
+            //     let _: () = msg_send![button, setBackgroundColor: background];
+            //     let _: () = msg_send![value_label, setTextColor: value_colour];
+            // }
 
             let detail_frame = CGRect::new(
                 frame.size.width * 0.05,
@@ -197,20 +208,58 @@ impl Row {
             let _: () = msg_send![detail_label, setFont: font];
             let _: () = msg_send![detail_label, setTextAlignment: 0u64];
 
-            let _: () = msg_send![detail_label, setText: create_ns_string(detail_text)];
-            let _: () = msg_send![detail_label, setTextColor: text_colour];
+            // let _: () = msg_send![detail_label, setText: create_ns_string(detail_text)];
+            // let _: () = msg_send![detail_label, setTextColor: text_colour];
 
-            Row {
+            let mut row = Row {
                 data,
                 detail_label,
                 value_label,
                 button,
-            }
+            };
+
+            row.load();
+            row
+        }
+    }
+
+    fn load(&mut self) {
+        let (detail_text, foreground_colour, background_colour) = match self.data.detail() {
+            RowDetail::Info(s) => (
+                s,
+                gui::colours::white_with_alpha(1., 0.95),
+                gui::colours::white_with_alpha(0., 0.),
+            ),
+            RowDetail::Warning(s) => (
+                s,
+                gui::colours::get(gui::colours::ORANGE, 1.),
+                gui::colours::get(gui::colours::ORANGE, 0.2),
+            ),
+        };
+
+        let (background_colour, value_colour) = if let Some(tint) = self.data.tint() {
+            (gui::colours::get(tint, 0.2), gui::colours::get(tint, 0.95))
+        } else {
+            (background_colour, gui::colours::white_with_alpha(1., 0.95))
+        };
+
+        unsafe {
+            let _: () = msg_send![self.button, setBackgroundColor: background_colour];
+            let _: () = msg_send![self.button, setTitle: create_ns_string(self.data.title()) forState: 0u64];
+            let _: () = msg_send![self.button, setTitleColor: foreground_colour forState: 0u64];
+
+            let _: () = msg_send![self.value_label, setText: create_ns_string(self.data.value())];
+            let _: () = msg_send![self.value_label, setTextColor: value_colour];
+
+            let _: () = msg_send![self.detail_label, setText: create_ns_string(detail_text)];
+            let _: () = msg_send![self.detail_label, setTextColor: foreground_colour];
         }
     }
 
     fn hit(&mut self) {
-        self.data.handle_tap();
+        if self.data.handle_tap() {
+            MenuMessage::ReloadRows.send();
+        }
     }
 }
 
@@ -440,6 +489,8 @@ impl Menu {
     }
 
     fn add_to_window(&mut self) {
+        crate::hook::slide::<fn()>(0x10026ca5c)();
+
         unsafe {
             let application: *mut Object = msg_send![class!(UIApplication), sharedApplication];
             let key_window: *mut Object = msg_send![application, keyWindow];
@@ -481,6 +532,8 @@ impl Menu {
 
             let _: () = msg_send![self.close_button, removeFromSuperview];
         }
+
+        crate::hook::slide::<fn()>(0x10026ca6c)();
     }
 
     fn get_module_tab_data() -> Vec<TabData> {
@@ -493,6 +546,14 @@ impl Menu {
         ]
 
         // todo: Allow use of menu at any time, but only show script/cheat tabs when in a game. Always show settings.
+    }
+
+    fn reload_rows(&mut self) {
+        for tab in self.tabs.iter_mut() {
+            for row in tab.rows.iter_mut() {
+                row.load();
+            }
+        }
     }
 
     fn start_channel_polling() -> Sender<MenuMessage> {
@@ -539,6 +600,19 @@ impl Menu {
 
                             do_on_ui_thread(move || {
                                 menu.lock().unwrap().take().unwrap().remove();
+                            });
+                        }
+                    }
+
+                    MenuMessage::ReloadRows => {
+                        if menu.lock().unwrap().is_some() {
+                            let menu = Arc::clone(&menu);
+
+                            do_on_ui_thread(move || {
+                                let mut menu = menu.lock().unwrap();
+                                let menu = menu.as_mut().unwrap();
+
+                                menu.reload_rows();
                             });
                         }
                     }

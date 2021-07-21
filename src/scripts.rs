@@ -489,12 +489,17 @@ impl menu::RowData for MenuInfo {
         }
     }
 
-    fn foreground(&self) -> (u8, u8, u8, u8) {
-        todo!()
+    fn tint(&self) -> Option<(u8, u8, u8)> {
+        if self.running {
+            Some(crate::gui::colours::GREEN)
+        } else {
+            None
+        }
     }
 
-    fn handle_tap(&mut self) {
+    fn handle_tap(&mut self) -> bool {
         log::info!("Tapped!");
+        true
     }
 }
 

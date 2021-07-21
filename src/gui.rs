@@ -74,9 +74,10 @@ pub type Rgb = (u8, u8, u8);
 pub mod colours {
     use super::*;
 
-    pub const RED: Rgb = (255, 40, 46);
+    pub const RED: Rgb = (255, 83, 94);
     pub const ORANGE: Rgb = (255, 128, 0);
     pub const GREEN: Rgb = (78, 149, 64);
+    pub const BLUE: Rgb = (120, 200, 255);
 
     pub fn get(colour: Rgb, alpha: f64) -> *const Object {
         unsafe {

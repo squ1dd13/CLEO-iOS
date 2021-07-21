@@ -1,26 +1,24 @@
-//! Replaces the game's broken cheats system with our own, and provides utilities for interfacing
-//! with that system.
-// todo: Use a channel for queueing cheats.
+//! Replaces the game's broken cheats system with our own system that integrates with the menu.
 
 use crate::{
-    hook,
+    gui, hook,
     menu::{self, RowData, TabData},
 };
 use lazy_static::lazy_static;
 use log::error;
 
 pub struct Cheat {
-    pub index: u8,
-    pub code: &'static str,
-    pub description: &'static str,
+    index: usize,
+    code: &'static str,
+    description: &'static str,
 }
 
 lazy_static! {
-    static ref WAITING_CHEATS: std::sync::Mutex<Vec<u8>> = std::sync::Mutex::new(vec![]);
+    static ref WAITING_CHEATS: std::sync::Mutex<Vec<usize>> = std::sync::Mutex::new(vec![]);
 }
 
 impl Cheat {
-    const fn new(index: u8, code: &'static str, description: &'static str) -> Cheat {
+    const fn new(index: usize, code: &'static str, description: &'static str) -> Cheat {
         Cheat {
             index,
             code,
@@ -54,16 +52,23 @@ impl Cheat {
         }
     }
 
-    pub fn is_active(&self) -> bool {
+    fn is_active(&self) -> bool {
         *self.get_active_mut()
     }
 
-    pub fn queue(&self) {
-        if let Ok(waiting) = WAITING_CHEATS.lock().as_mut() {
-            waiting.push(self.index);
-        } else {
-            error!("Unable to lock cheat queue!");
-        }
+    fn queue(&self) {
+        let mut waiting = WAITING_CHEATS.lock().unwrap();
+        waiting.push(self.index);
+    }
+
+    fn cancel(&self) {
+        let mut waiting = WAITING_CHEATS.lock().unwrap();
+        waiting.retain(|cheat_index| *cheat_index != self.index);
+    }
+
+    fn is_in_queue(&self) -> bool {
+        let waiting = WAITING_CHEATS.lock().unwrap();
+        waiting.contains(&self.index)
     }
 
     fn run(&self) {
@@ -100,33 +105,97 @@ fn do_cheats() {
     }
 }
 
-impl RowData for &Cheat {
+struct CheatData {
+    cheat: &'static Cheat,
+    queued_state: Option<bool>,
+}
+
+impl CheatData {
+    fn new(cheat: &'static Cheat) -> CheatData {
+        CheatData {
+            cheat,
+            queued_state: if cheat.is_in_queue() {
+                Some(!cheat.is_active())
+            } else {
+                None
+            },
+        }
+    }
+
+    fn will_be_active(&self) -> bool {
+        self.queued_state.unwrap_or_else(|| self.cheat.is_active())
+    }
+}
+
+impl RowData for CheatData {
     fn title(&self) -> &str {
-        if self.code.is_empty() {
+        if self.cheat.code.is_empty() {
             "???"
         } else {
-            self.code
+            self.cheat.code
         }
     }
 
     fn detail(&self) -> menu::RowDetail<'_> {
-        menu::RowDetail::Info(self.description)
+        menu::RowDetail::Info(self.cheat.description)
     }
 
     fn value(&self) -> &str {
-        if self.is_active() {
-            "Active"
+        /*
+            State                       Tint        Status
+
+            In queue, turning on        Blue        "Queued On"
+            In queue, turning off       Red         "Queued Off"
+            Not in queue, on            Green       "On"
+            Not in queue, off           None        "Off"
+        */
+
+        let will_be_active = self.will_be_active();
+
+        if self.cheat.is_in_queue() {
+            if will_be_active {
+                "Queued On"
+            } else {
+                "Queued Off"
+            }
+        } else if will_be_active {
+            "On"
         } else {
-            "Inactive"
+            "Off"
         }
     }
 
-    fn foreground(&self) -> (u8, u8, u8, u8) {
-        todo!()
+    fn tint(&self) -> Option<(u8, u8, u8)> {
+        let will_be_active = self.will_be_active();
+
+        if self.cheat.is_in_queue() {
+            if will_be_active {
+                Some(gui::colours::BLUE)
+            } else {
+                Some(gui::colours::RED)
+            }
+        } else if will_be_active {
+            Some(gui::colours::GREEN)
+        } else {
+            None
+        }
     }
 
-    fn handle_tap(&mut self) {
-        self.queue();
+    fn handle_tap(&mut self) -> bool {
+        let is_queued = self.queued_state.is_some();
+
+        if is_queued {
+            // Remove the cheat from the queue.
+            self.cheat.cancel();
+            self.queued_state = None;
+        } else {
+            self.queued_state = Some(!self.cheat.is_active());
+
+            // Not queued yet.
+            self.cheat.queue();
+        }
+
+        true
     }
 }
 
@@ -137,7 +206,7 @@ pub fn tab_data() -> crate::menu::TabData {
             r#"Cheats may break your save. It is strongly advised that you save to a different slot before using any cheats.
 Additionally, some – especially those without codes – can crash the game in some situations."#.to_string(),
         ),
-        row_data: CHEATS.iter().map(|cheat| Box::new(cheat) as Box<dyn RowData>).collect(),
+        row_data: CHEATS.iter().map(|cheat| Box::new(CheatData::new(cheat)) as Box<dyn RowData>).collect(),
     }
 }
 
@@ -151,8 +220,7 @@ pub fn hook() {
 //   https://docs.google.com/spreadsheets/d/1-rmga12W9reALga7fct22tJ-1thxbbsfGiGltK2qgh0/edit?usp=sharing
 //  was very helpful during research, and the page at https://gta.fandom.com/wiki/Cheats_in_GTA_San_Andreas
 //  was really useful for writing cheat descriptions.
-#[allow(dead_code)]
-pub static CHEATS: [Cheat; 111] = [
+static CHEATS: [Cheat; 111] = [
     Cheat::new(0, "THUGSARMOURY", "Weapon set 1"),
     Cheat::new(1, "PROFESSIONALSKIT", "Weapon set 2"),
     Cheat::new(2, "NUTTERSTOYS", "Weapon set 3"),
