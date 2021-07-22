@@ -1,20 +1,22 @@
 //! Modifies rendering behaviour (60 FPS, FPS counter) and hooks systems related to rendering.
 
+use std::sync::atomic::Ordering;
+
 use libc::c_char;
 
-use crate::{call_original, hook, settings, targets};
+use crate::{
+    call_original, hook,
+    settings::{self, Settings},
+    targets,
+};
 
 // CTimer::GetCyclesPerMillisecond is called between the FPS limit being set and when it is enforced,
 //  so if we overwrite the limit here, our new value will be enforced.
 fn cycles_per_millisecond() -> u32 {
     unsafe {
-        settings::with_shared(&mut |options| {
-            *hook::slide::<*mut u32>(0x1008f07b8) = if options.get(settings::Key::SixtyFPS).value {
-                60
-            } else {
-                30
-            };
-        });
+        let sixty_fps = Settings::shared().sixty_fps.load(Ordering::SeqCst);
+
+        *hook::slide::<*mut u32>(0x1008f07b8) = if sixty_fps { 60 } else { 30 };
     }
 
     call_original!(targets::cycles_per_millisecond)
@@ -22,9 +24,8 @@ fn cycles_per_millisecond() -> u32 {
 
 fn idle(p1: u64, p2: u64) {
     unsafe {
-        settings::with_shared(&mut |options| {
-            *hook::slide::<*mut bool>(0x10081c519) = options.get(settings::Key::ShowFPS).value;
-        });
+        let show_fps = Settings::shared().show_fps.load(Ordering::SeqCst);
+        *hook::slide::<*mut bool>(0x10081c519) = show_fps;
     }
 
     call_original!(targets::idle, p1, p2);

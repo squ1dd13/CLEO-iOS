@@ -18,6 +18,8 @@ pub trait RowData {
     fn detail(&self) -> RowDetail<'_>;
     fn value(&self) -> &str;
     fn tint(&self) -> Option<(u8, u8, u8)>;
+
+    /// Should return true if the rows in the menu should be reloaded.
     fn handle_tap(&mut self) -> bool;
 }
 
@@ -550,6 +552,7 @@ impl Menu {
         vec![
             crate::scripts::tab_data(),
             crate::cheats::tab_data(),
+            crate::settings::tab_data(),
             // todo: Rework settings module to be compatible with improved menu.
         ]
 

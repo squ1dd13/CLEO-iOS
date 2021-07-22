@@ -1,124 +1,190 @@
-//! Provides the backend for the settings displayed in the menu, along with interfaces for fetching
-//! option values and saving/loading.
-// todo: Use JSON for storing settings instead of the crap we have going on here.
-// fixme: Settings module is not compatible with the new menu because of its design.
+//! Manages the saving and loading of settings, as well as providing menu data and a thread-safe API.
 
-use std::{
-    io::{Read, Write},
-    sync::Mutex,
+use std::sync::{
+    atomic::{AtomicBool, Ordering},
+    Arc,
 };
 
-use crate::{call_original, menu::RowData};
+use once_cell::sync::OnceCell;
 
-pub struct OptionInfo {
-    pub title: &'static str,
-    pub description: &'static str,
-    pub value: bool,
+use crate::{
+    menu::{self, RowData, RowDetail},
+    resources,
+};
+
+static SETTINGS: OnceCell<Settings> = OnceCell::new();
+
+#[derive(serde::Serialize, serde::Deserialize)]
+#[serde(default)]
+struct StoredSettings {
+    sixty_fps: bool,
+    show_fps: bool,
+}
+
+impl StoredSettings {
+    fn into_settings(self) -> Settings {
+        Settings {
+            sixty_fps: Arc::new(AtomicBool::new(self.sixty_fps)),
+            show_fps: Arc::new(AtomicBool::new(self.show_fps)),
+            changed: AtomicBool::new(true),
+        }
+    }
+
+    fn from_settings(settings: &Settings) -> StoredSettings {
+        StoredSettings {
+            sixty_fps: settings.sixty_fps.load(Ordering::SeqCst),
+            show_fps: settings.sixty_fps.load(Ordering::SeqCst),
+        }
+    }
+}
+
+impl Default for StoredSettings {
+    fn default() -> Self {
+        StoredSettings {
+            sixty_fps: true,
+            show_fps: false,
+        }
+    }
+}
+
+pub struct Settings {
+    pub sixty_fps: Arc<AtomicBool>,
+    pub show_fps: Arc<AtomicBool>,
+    changed: AtomicBool,
+}
+
+impl Settings {
+    fn load_path(path: std::path::PathBuf) -> std::io::Result<Settings> {
+        let stored: StoredSettings = serde_json::from_reader(std::fs::File::open(path)?)?;
+        Ok(stored.into_settings())
+    }
+
+    fn load_shared() {
+        let path = resources::get_documents_path("cleo_settings.json");
+
+        let settings = Self::load_path(path).unwrap_or_else(|err| {
+            log::error!("Failed to load settings from JSON: {:?}", err);
+            log::info!("Using default values instead.");
+            StoredSettings::default().into_settings()
+        });
+
+        if SETTINGS.set(settings).is_err() {
+            log::warn!("Settings structure already exists");
+        }
+    }
+
+    fn save(&self) -> std::io::Result<()> {
+        // Only save if the settings have changed.
+        if !self.changed.load(Ordering::SeqCst) {
+            return Ok(());
+        }
+
+        self.changed.store(false, Ordering::SeqCst);
+
+        // fixme: Settings::save should be non-blocking.
+        Ok(serde_json::to_writer_pretty(
+            std::fs::File::create(resources::get_documents_path("cleo_settings.json"))?,
+            &StoredSettings::from_settings(&self),
+        )?)
+    }
+
+    pub fn shared() -> &'static Settings {
+        SETTINGS.get().unwrap()
+    }
+}
+
+#[derive(Debug)]
+struct OptionInfo {
+    title: &'static str,
+    desc: &'static str,
+    value: Arc<AtomicBool>,
 }
 
 impl OptionInfo {
-    const fn new(title: &'static str, description: &'static str, value: bool) -> OptionInfo {
-        OptionInfo {
-            title,
-            description,
-            value,
+    fn new(title: &'static str, desc: &'static str, value: Arc<AtomicBool>) -> OptionInfo {
+        OptionInfo { title, desc, value }
+    }
+}
+
+impl crate::menu::RowData for OptionInfo {
+    fn title(&self) -> &str {
+        self.title
+    }
+
+    fn detail(&self) -> crate::menu::RowDetail<'_> {
+        RowDetail::Info(self.desc)
+    }
+
+    fn value(&self) -> &str {
+        if self.value.load(Ordering::SeqCst) {
+            "On"
+        } else {
+            "Off"
+        }
+    }
+
+    fn tint(&self) -> Option<(u8, u8, u8)> {
+        if self.value.load(Ordering::SeqCst) {
+            Some(crate::gui::colours::GREEN)
+        } else {
+            None
+        }
+    }
+
+    fn handle_tap(&mut self) -> bool {
+        self.value
+            .store(!self.value.load(Ordering::SeqCst), Ordering::SeqCst);
+        true
+    }
+}
+
+impl Drop for OptionInfo {
+    fn drop(&mut self) {
+        if let Err(err) = Settings::shared().save() {
+            log::info!("error saving settings in OptionInfo::drop: {}", err);
         }
     }
 }
 
-#[repr(usize)]
-pub enum Key {
-    SixtyFPS,
-    ShowFPS,
-}
+pub fn tab_data() -> menu::TabData {
+    let settings = Settings::shared();
 
-pub struct Settings(pub Vec<OptionInfo>);
+    let option_info = vec![
+        OptionInfo::new(
+            "60 FPS",
+            "Increase the framerate limit from 30 FPS to 60. Default is On.",
+            settings.sixty_fps.clone(),
+        ),
+        OptionInfo::new(
+            "Show FPS",
+            "Display the current framerate at the top of the screen. Default is Off.",
+            settings.show_fps.clone(),
+        ),
+    ];
 
-impl Settings {
-    pub fn get(&mut self, key: Key) -> &mut OptionInfo {
-        &mut self.0[key as usize]
+    menu::TabData {
+        name: "Settings".to_string(),
+        warning: None,
+        row_data: option_info
+            .into_iter()
+            .map(|info| Box::new(info) as Box<dyn RowData>)
+            .collect(),
     }
-
-    fn save(&self) {
-        let path = crate::resources::get_documents_path("cleo.settings");
-
-        if let Ok(mut opened) = std::fs::File::create(path) {
-            let bytes: Vec<u8> = self.0.iter().map(|opt| opt.value as u8).collect();
-
-            if let Err(err) = opened.write(&bytes[..]) {
-                log::error!("Unable to write settings file. Error: {:?}", err);
-            } else {
-                log::info!("Wrote settings file.");
-            }
-        }
-    }
-
-    pub fn load(&mut self) {
-        let path = crate::resources::get_documents_path("cleo.settings");
-
-        if let Ok(mut opened) = std::fs::File::open(path) {
-            let mut bytes = vec![0u8; self.0.len()];
-
-            match opened.read(&mut bytes[..]) {
-                Err(err) => {
-                    log::error!("Error while reading bytes from settings file: {:?}", err);
-                    return;
-                }
-
-                Ok(num) => {
-                    log::info!("Loaded {} bytes from cleo.settings file.", num);
-
-                    if num != bytes.len() {
-                        log::warn!("Did not fill settings buffer entirely! Default option values will be used.");
-                        return;
-                    }
-                }
-            };
-
-            // Apply the settings values to the options we have.
-            for (i, value) in bytes.iter().enumerate() {
-                self.0[i].value = *value != 0;
-            }
-        }
-    }
-}
-
-pub fn with_shared<T>(with: &mut impl FnMut(&mut Settings) -> T) -> T {
-    let mut locked = SETTINGS.lock();
-    with(locked.as_mut().unwrap())
-}
-
-pub fn save() {
-    std::thread::spawn(|| {
-        with_shared(&mut |options| {
-            options.save();
-        });
-    });
 }
 
 fn load_settings(menu_manager: u64) {
-    log::info!("Loading CLEO settings.");
-    with_shared(&mut Settings::load);
-    log::info!("Finished loading CLEO settings. Game will now load its own settings.");
+    log::info!("loading CLEO settings");
+    Settings::load_shared();
 
-    call_original!(crate::targets::load_settings, menu_manager);
+    // Save the current state of the settings so we create a settings file if it didn't exist.
+    if let Err(err) = Settings::shared().save() {
+        log::error!("unable to save settings after load: {:?}", err);
+    }
+
+    log::info!("loading game settings");
+    crate::call_original!(crate::targets::load_settings, menu_manager);
 }
 
 pub fn hook() {
     crate::targets::load_settings::install(load_settings);
-}
-
-lazy_static::lazy_static! {
-    static ref SETTINGS: Mutex<Settings> = Mutex::new(Settings(vec![
-        OptionInfo::new(
-            "60 FPS",
-            "Increase the framerate limit from 30 to 60 FPS.",
-            true,
-        ),
-        OptionInfo::new(
-            "Show FPS",
-            "Enable the game's built-in FPS visualisation.",
-            false,
-        ),
-    ]));
 }
