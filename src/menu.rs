@@ -145,19 +145,7 @@ impl Row {
             let button: *mut Object = msg_send![class!(UIButton), alloc];
             let button: *mut Object = msg_send![button, initWithFrame: frame];
 
-            // let (detail_text, text_colour) = match data.detail() {
-            // RowDetail::Info(s) => (s, gui::colours::white_with_alpha(1., 0.95)),
-            // RowDetail::Warning(s) => {
-            // let row_background = gui::colours::get(gui::colours::ORANGE, 0.2);
-            // let _: () = msg_send![button, setBackgroundColor: row_background];
-            //
-            // (s, gui::colours::get(gui::colours::ORANGE, 1.))
-            // }
-            // };
-
-            // let _: () = msg_send![button, setTitle: create_ns_string(data.title()) forState: 0u64];
             let _: () = msg_send![button, setContentHorizontalAlignment: 1u64];
-            // let _: () = msg_send![button, setTitleColor: text_colour forState: 0u64];
 
             let edge_insets =
                 gui::UIEdgeInsets::new(0., frame.size.width * 0.05, frame.size.height * 0.4, 0.);
@@ -179,18 +167,6 @@ impl Row {
             let value_label: *mut Object = msg_send![value_label, initWithFrame: value_frame];
             let _: () = msg_send![value_label, setFont: font];
             let _: () = msg_send![value_label, setTextAlignment: 2u64];
-            // let _: () = msg_send![value_label, setText: create_ns_string(data.value())];
-            // let _: () =
-            // msg_send![value_label, setTextColor: gui::colours::white_with_alpha(1., 0.95)];
-
-            // // tod o: Decide when to apply tint colour when there is also a warning.
-
-            // if let Some(tint) = data.tint() {
-            //     let background = gui::colours::get(tint, 0.2);
-            //     let value_colour = gui::colours::get(tint, 0.95);
-            //     let _: () = msg_send![button, setBackgroundColor: background];
-            //     let _: () = msg_send![value_label, setTextColor: value_colour];
-            // }
 
             let detail_frame = CGRect::new(
                 frame.size.width * 0.05,
@@ -208,9 +184,6 @@ impl Row {
             let font = gui::get_font("ChaletComprime-CologneSixty", 20.0);
             let _: () = msg_send![detail_label, setFont: font];
             let _: () = msg_send![detail_label, setTextAlignment: 0u64];
-
-            // let _: () = msg_send![detail_label, setText: create_ns_string(detail_text)];
-            // let _: () = msg_send![detail_label, setTextColor: text_colour];
 
             let mut row = Row {
                 data,
