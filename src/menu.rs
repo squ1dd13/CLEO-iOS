@@ -520,16 +520,21 @@ impl Menu {
     }
 
     fn get_module_tab_data() -> Vec<TabData> {
-        // The menu will be automatically created from any TabData structures in this
-        //  vector, so adding another tab simply requires adding another item here.
-        vec![
-            crate::scripts::tab_data(),
-            crate::cheats::tab_data(),
-            crate::settings::tab_data(),
-            // todo: Rework settings module to be compatible with improved menu.
-        ]
+        let game_state = unsafe { *crate::hook::slide::<*const u32>(0x1006806d0) };
 
-        // todo: Allow use of menu at any time, but only show script/cheat tabs when in a game. Always show settings.
+        // The menu will be automatically created from any TabData structures in the
+        //  vector that we return, so adding another tab simply requires adding other stuff here.
+        if game_state == 9 {
+            // In a game, so allow access to all the tabs.
+            vec![
+                crate::scripts::tab_data(),
+                crate::cheats::tab_data(),
+                crate::settings::tab_data(),
+            ]
+        } else {
+            // Not in a game, so only allow access to the settings tab.
+            vec![crate::settings::tab_data()]
+        }
     }
 
     fn reload_rows(&mut self) {
