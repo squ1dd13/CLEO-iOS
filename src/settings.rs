@@ -26,14 +26,14 @@ impl StoredSettings {
         Settings {
             sixty_fps: Arc::new(AtomicBool::new(self.sixty_fps)),
             show_fps: Arc::new(AtomicBool::new(self.show_fps)),
-            changed: AtomicBool::new(true),
+            dirty: AtomicBool::new(true),
         }
     }
 
     fn from_settings(settings: &Settings) -> StoredSettings {
         StoredSettings {
             sixty_fps: settings.sixty_fps.load(Ordering::SeqCst),
-            show_fps: settings.sixty_fps.load(Ordering::SeqCst),
+            show_fps: settings.show_fps.load(Ordering::SeqCst),
         }
     }
 }
@@ -50,7 +50,7 @@ impl Default for StoredSettings {
 pub struct Settings {
     pub sixty_fps: Arc<AtomicBool>,
     pub show_fps: Arc<AtomicBool>,
-    changed: AtomicBool,
+    dirty: AtomicBool,
 }
 
 impl Settings {
@@ -75,17 +75,22 @@ impl Settings {
 
     fn save(&self) -> std::io::Result<()> {
         // Only save if the settings have changed.
-        if !self.changed.load(Ordering::SeqCst) {
+        if !self.dirty.load(Ordering::SeqCst) {
+            log::info!("settings have not changed since last save");
             return Ok(());
         }
 
-        self.changed.store(false, Ordering::SeqCst);
+        self.dirty.store(false, Ordering::SeqCst);
 
         // fixme: Settings::save should be non-blocking.
         Ok(serde_json::to_writer_pretty(
             std::fs::File::create(resources::get_documents_path("cleo_settings.json"))?,
             &StoredSettings::from_settings(&self),
         )?)
+    }
+
+    fn set_dirty(&self) {
+        self.dirty.store(true, Ordering::SeqCst);
     }
 
     pub fn shared() -> &'static Settings {
@@ -134,6 +139,9 @@ impl crate::menu::RowData for OptionInfo {
     fn handle_tap(&mut self) -> bool {
         self.value
             .store(!self.value.load(Ordering::SeqCst), Ordering::SeqCst);
+
+        Settings::shared().set_dirty();
+
         true
     }
 }
