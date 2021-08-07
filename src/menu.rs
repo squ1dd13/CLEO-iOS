@@ -705,9 +705,9 @@ pub fn initialise() {
 impl Drop for Row {
     fn drop(&mut self) {
         unsafe {
-            // let _: () = msg_send![self.detail_label, release];
-            // let _: () = msg_send![self.value_label, release];
-            // let _: () = msg_send![self.button, release];
+            let _: () = msg_send![self.detail_label, release];
+            let _: () = msg_send![self.value_label, release];
+            let _: () = msg_send![self.button, release];
         }
     }
 }
@@ -715,11 +715,11 @@ impl Drop for Row {
 impl Drop for Tab {
     fn drop(&mut self) {
         unsafe {
-            // let _: () = msg_send![self.scroll_view, release];
+            let _: () = msg_send![self.scroll_view, release];
 
-            // if let Some(label) = self.warning_label {
-            // let _: () = msg_send![label, release];
-            // }
+            if let Some(label) = self.warning_label {
+                let _: () = msg_send![label, release];
+            }
         }
     }
 }
@@ -727,7 +727,7 @@ impl Drop for Tab {
 impl Drop for TabButton {
     fn drop(&mut self) {
         unsafe {
-            // let _: () = msg_send![self.view, release];
+            let _: () = msg_send![self.view, release];
         }
     }
 }
@@ -735,7 +735,7 @@ impl Drop for TabButton {
 impl Drop for Menu {
     fn drop(&mut self) {
         unsafe {
-            // let _: () = msg_send![self.close_button, release];
+            let _: () = msg_send![self.close_button, release];
         }
     }
 }
