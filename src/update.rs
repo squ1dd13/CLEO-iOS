@@ -8,12 +8,12 @@ use std::{
     sync::Mutex,
 };
 
-fn get_current_version() -> Result<VersionNumber, Box<dyn std::error::Error>> {
+fn get_current_version() -> eyre::Result<VersionNumber> {
     // This is why the Rust and .deb packages need the same version.
     VersionNumber::new(env!("CARGO_PKG_VERSION"))
 }
 
-fn should_request_release() -> Result<bool, Box<dyn std::error::Error>> {
+fn should_request_release() -> eyre::Result<bool> {
     // In order to not hit the GitHub API rate limit, we don't request the latest
     //  version of CLEO every time we check for updates. Instead, we store the version
     //  number we find when we do check GitHub, and then for the next 5 hours we treat
@@ -42,7 +42,7 @@ fn should_request_release() -> Result<bool, Box<dyn std::error::Error>> {
     Ok(false)
 }
 
-fn get_target_version() -> Result<VersionNumber, Box<dyn std::error::Error>> {
+fn get_target_version() -> eyre::Result<VersionNumber> {
     let file_path = resources::get_documents_path("update_checked");
     let should_fetch = should_request_release()?;
 
@@ -99,18 +99,15 @@ fn was_update_found() -> bool {
     false
 }
 
-fn is_update_available() -> Result<bool, Box<dyn std::error::Error>> {
-    log::trace!("Check current");
+fn is_update_available() -> eyre::Result<bool> {
     // Find the current version of CLEO we're on.
     let current = get_current_version()?;
 
-    log::trace!("Check target");
     // Find the newest known version.
     let newest = get_target_version()?;
 
-    log::trace!("Compare");
     // Compare.
-    Ok(newest.is_newer_than(&current)?)
+    newest.is_newer_than(&current)
 }
 
 pub fn start_update_check() {
@@ -130,7 +127,7 @@ pub fn start_update_check() {
 struct VersionNumber(Vec<u8>);
 
 impl VersionNumber {
-    fn new(string: impl AsRef<str>) -> Result<VersionNumber, Box<dyn std::error::Error>> {
+    fn new(string: impl AsRef<str>) -> eyre::Result<VersionNumber> {
         let parts = string.as_ref().split('.');
         let mut number = VersionNumber(vec![]);
 
@@ -143,9 +140,13 @@ impl VersionNumber {
         Ok(number)
     }
 
-    fn is_newer_than(self: &VersionNumber, other: &VersionNumber) -> Result<bool, String> {
+    fn is_newer_than(self: &VersionNumber, other: &VersionNumber) -> eyre::Result<bool> {
         if self.0.len() != other.0.len() {
-            return Err("Cannot compare version numbers with different formats!".to_string());
+            return Err(eyre::eyre!(
+                "version numbers differ in component count ({:?} and {:?})",
+                self.0,
+                other.0
+            ));
         }
 
         for i in 0..self.0.len() {

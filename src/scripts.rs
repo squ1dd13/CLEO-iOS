@@ -310,7 +310,7 @@ lazy_static::lazy_static! {
     static ref SCRIPTS: Mutex<Vec<Script>> = Mutex::new(vec![]);
 }
 
-fn load_script(path: &impl AsRef<std::path::Path>) -> std::io::Result<CleoScript> {
+fn load_script(path: &impl AsRef<std::path::Path>) -> eyre::Result<CleoScript> {
     Ok(CleoScript::new(std::fs::read(path)?))
 }
 

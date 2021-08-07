@@ -358,7 +358,8 @@ fn with_replacements<T>(with: &mut impl FnMut(&mut ArchiveReplacements) -> T) ->
     with(locked.as_mut().unwrap())
 }
 
-fn load_archive_into_database(path: &str, img_id: i32) -> std::io::Result<()> {
+// fixme: Loading archives causes a visible delay during loading.
+fn load_archive_into_database(path: &str, img_id: i32) -> eyre::Result<()> {
     // We use a BufReader because we do many small reads.
     let mut file = std::io::BufReader::new(std::fs::File::open(path)?);
 

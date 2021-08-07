@@ -3,32 +3,28 @@
 
 use cached::proc_macro::cached;
 use dlopen::symbor::Library;
+use eyre::Context;
 use log::error;
 
-fn get_single_symbol<T: Copy>(path: &str, sym_name: &str) -> Result<T, dlopen::Error> {
-    let lib = Library::open(path)?;
-    let symbol = unsafe { lib.symbol::<T>(sym_name) }?;
+fn get_single_symbol<T: Copy>(path: &str, sym_name: &str) -> eyre::Result<T> {
+    let lib = Library::open(path).wrap_err_with(|| format!("failed to open library {}", path))?;
+    let symbol = unsafe { lib.symbol::<T>(sym_name) }
+        .wrap_err_with(|| format!("unable to find {} in {}", sym_name, path))?;
     Ok(*symbol)
 }
 
 #[cached(result = true)]
-fn get_raw_hook_fn() -> Result<usize, dlopen::Error> {
-    const HOOK_LIB_NAME: &str = "libsubstrate.dylib";
-    const HOOK_FUNC_NAME: &str = "MSHookFunction";
-
-    get_single_symbol(HOOK_LIB_NAME, HOOK_FUNC_NAME)
+fn get_raw_hook_fn() -> eyre::Result<usize> {
+    get_single_symbol("libsubstrate.dylib", "MSHookFunction")
 }
 
 #[cached(result = true)]
-fn get_shit_raw_hook_fn() -> Result<usize, dlopen::Error> {
-    const HOOK_LIB_NAME: &str = "libhooker.dylib";
-    const HOOK_FUNC_NAME: &str = "LHHookFunctions";
-
-    get_single_symbol(HOOK_LIB_NAME, HOOK_FUNC_NAME)
+fn get_shit_raw_hook_fn() -> eyre::Result<usize> {
+    get_single_symbol("libhooker.dylib", "LHHookFunctions")
 }
 
 #[cached(result = true)]
-fn get_aslr_offset_fn() -> Result<fn(u32) -> usize, dlopen::Error> {
+fn get_aslr_offset_fn() -> eyre::Result<fn(u32) -> usize> {
     get_single_symbol::<fn(image: u32) -> usize>(
         "/usr/lib/system/libdyld.dylib",
         "_dyld_get_image_vmaddr_slide",

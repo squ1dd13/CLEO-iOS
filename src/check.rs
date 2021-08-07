@@ -84,7 +84,7 @@ impl std::fmt::Display for Value {
 }
 
 impl Value {
-    fn read(reader: &mut impl io::Read) -> io::Result<Value> {
+    fn read(reader: &mut impl io::Read) -> eyre::Result<Value> {
         let id = reader.read_u8()?;
 
         Ok(match id {
@@ -176,7 +176,8 @@ impl Value {
                 return Err(io::Error::new(
                     io::ErrorKind::InvalidData,
                     format!("Unknown type ID '{}'", id),
-                ));
+                )
+                .into());
             }
         })
     }
@@ -230,7 +231,7 @@ struct Param {
 }
 
 impl Param {
-    fn read(&self, reader: &mut impl io::Read) -> io::Result<Value> {
+    fn read(&self, reader: &mut impl io::Read) -> eyre::Result<Value> {
         let value = Value::read(reader)?;
 
         if let ParamType::Pointer = self.param_type {
@@ -251,7 +252,7 @@ struct Command {
     params: Vec<Param>,
 }
 
-fn load_all_commands() -> std::result::Result<HashMap<u16, Command>, Box<bincode::ErrorKind>> {
+fn load_all_commands() -> eyre::Result<HashMap<u16, Command>, Box<bincode::ErrorKind>> {
     let commands_bin = include_bytes!("../commands.bin");
     bincode::deserialize(commands_bin)
 }
@@ -267,7 +268,7 @@ struct Instr {
 }
 
 impl Instr {
-    fn read(commands: &HashMap<u16, Command>, reader: &mut Cursor<&[u8]>) -> io::Result<Instr> {
+    fn read(commands: &HashMap<u16, Command>, reader: &mut Cursor<&[u8]>) -> eyre::Result<Instr> {
         let offset = reader.position();
 
         let (opcode, bool_inverted) = {
@@ -286,7 +287,8 @@ impl Instr {
                 return Err(Error::new(
                     ErrorKind::InvalidData,
                     format!("unknown opcode {:#x}", opcode),
-                ));
+                )
+                .into());
             }
         };
 
@@ -353,7 +355,7 @@ fn disassemble(
     commands: &HashMap<u16, Command>,
     reader: &mut Cursor<&[u8]>,
     instrs: &mut HashMap<u64, Instr>,
-) -> io::Result<()> {
+) -> eyre::Result<()> {
     let start = std::time::Instant::now();
 
     // Start with offset 0 (the beginning of the script).
@@ -444,7 +446,7 @@ impl Display for CompatIssue {
     }
 }
 
-pub fn check_bytecode(bytes: &[u8]) -> Result<Option<CompatIssue>, String> {
+pub fn check_bytecode(bytes: &[u8]) -> eyre::Result<Option<CompatIssue>, String> {
     // Even though we don't particularly care about the offsets, we need a HashMap so that `disassemble` can
     //  easily check if it's visited an offset before (to avoid infinite loops).
     let mut instruction_map = HashMap::new();
