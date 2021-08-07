@@ -314,7 +314,7 @@ fn load_script(path: &impl AsRef<std::path::Path>) -> std::io::Result<CleoScript
     Ok(CleoScript::new(std::fs::read(path)?))
 }
 
-pub fn load_running_script(path: &impl AsRef<std::path::Path>) -> std::io::Result<()> {
+pub fn load_running_script(path: &impl AsRef<std::path::Path>) -> eyre::Result<()> {
     SCRIPTS
         .lock()
         .unwrap()
@@ -323,7 +323,7 @@ pub fn load_running_script(path: &impl AsRef<std::path::Path>) -> std::io::Resul
     Ok(())
 }
 
-pub fn load_invoked_script(path: &impl AsRef<std::path::Path>) -> std::io::Result<()> {
+pub fn load_invoked_script(path: &impl AsRef<std::path::Path>) -> eyre::Result<()> {
     SCRIPTS.lock().unwrap().push(Script::Invoked(
         load_script(path)?,
         path.as_ref()
@@ -400,14 +400,14 @@ fn gen_compat_warning(invoked_errs: usize, running_errs: usize) -> Option<String
         output += &gen_message(running_errs, "CSA");
     }
 
-    // output += if invoked_errs + running_errs == 1 {
-    // " is"
-    // } else {
-    // " are"
-    // };
+    let it_them = if invoked_errs + running_errs == 1 {
+        "it"
+    } else {
+        "them"
+    };
 
     output +=
-        " may be incompatible with iOS. Use them at your own risk.\nSee \"cleo.log\" in the CLEO folder for further details.";
+        format!(" may be incompatible with iOS. Use {} at your own risk.\nSee \"cleo.log\" in the CLEO folder for further details.", it_them).as_str();
 
     // Make the first character uppercase.
     let mut characters = output.chars();
@@ -429,16 +429,6 @@ pub struct MenuInfo {
 }
 
 impl MenuInfo {
-    pub fn all() -> Vec<MenuInfo> {
-        SCRIPTS
-            .lock()
-            .unwrap()
-            .iter()
-            .map(MenuInfo::new)
-            .flatten()
-            .collect()
-    }
-
     fn new(script: &Script) -> Option<MenuInfo> {
         match script {
             Script::Invoked(script, name) => Some(MenuInfo {

@@ -75,7 +75,7 @@ fn generate_numberplate(chars: *mut u8, length: i32) -> bool {
     }
 }
 
-pub fn load_fxt(path: &impl AsRef<std::path::Path>) -> std::io::Result<()> {
+pub fn load_fxt(path: &impl AsRef<std::path::Path>) -> eyre::Result<()> {
     // todo: Remove the regex so we don't need the crate anymore.
     let comment_pattern: regex::Regex = regex::Regex::new(r"//|#").unwrap();
 

@@ -85,7 +85,7 @@ impl Settings {
         // fixme: Settings::save should be non-blocking.
         Ok(serde_json::to_writer_pretty(
             std::fs::File::create(resources::get_documents_path("cleo_settings.json"))?,
-            &StoredSettings::from_settings(&self),
+            &StoredSettings::from_settings(self),
         )?)
     }
 

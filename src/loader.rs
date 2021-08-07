@@ -1,5 +1,6 @@
-//! Provides CLEO's file swapping functionality.
+//! Implementation for CLEO's file swapping functionality.
 
+use eyre::Result;
 use lazy_static::lazy_static;
 use std::collections::HashMap;
 use std::sync::Mutex;
@@ -63,7 +64,7 @@ fn find_absolute_path_c(p1: i32, p2: *const u8, p3: i32) -> *const u8 {
     c_path
 }
 
-pub fn load_replacement(path: &impl AsRef<std::path::Path>) -> std::io::Result<()> {
+pub fn load_replacement(path: &impl AsRef<std::path::Path>) -> Result<()> {
     // fixme: File replacements should not be case-sensitive.
     let game_file_path = path_in_game_dir(path).unwrap();
 
@@ -74,7 +75,8 @@ pub fn load_replacement(path: &impl AsRef<std::path::Path>) -> std::io::Result<(
                 "target file '{}' does not exist (you may need to change the capitalisation)",
                 game_file_path.display()
             ),
-        ));
+        )
+        .into());
     }
 
     PATH_SWAPS.lock().unwrap().insert(

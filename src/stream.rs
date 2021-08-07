@@ -501,7 +501,7 @@ impl ArchiveFileReplacement {
     }
 }
 
-pub fn load_replacement(image_name: &str, path: &impl AsRef<Path>) -> std::io::Result<()> {
+pub fn load_replacement(image_name: &str, path: &impl AsRef<Path>) -> eyre::Result<()> {
     with_replacements(&mut |replacements| {
         let size = path.as_ref().metadata()?.len();
 

@@ -3,8 +3,10 @@
 
 use crate::{call_original, targets};
 use log::trace;
-use objc::runtime::{Class, Sel};
-use objc::{runtime::Object, *};
+use objc::{
+    runtime::{Object, Sel},
+    *,
+};
 use std::os::raw::c_long;
 
 #[repr(C)]
@@ -92,13 +94,6 @@ pub mod colours {
 
 pub fn get_font(name: &str, size: f64) -> *const Object {
     unsafe { msg_send![class!(UIFont), fontWithName: create_ns_string(name) size: size] }
-}
-
-pub fn create_with_frame(class: &Class, frame: CGRect) -> *mut Object {
-    unsafe {
-        let allocated: *mut Object = msg_send![class, alloc];
-        msg_send![allocated, initWithFrame: frame]
-    }
 }
 
 pub fn create_ns_string(rust_string: &str) -> *const Object {
