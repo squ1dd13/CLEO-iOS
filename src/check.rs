@@ -379,7 +379,7 @@ fn disassemble(
                     // Log the error and continue - we can't guarantee that the game would go down
                     //  this invalid path, so the script could still run fine (this is the basis
                     //  of many script obfuscation methods).
-                    log::warn!("encountered error at {:#x}: {}", *offset, err);
+                    log::warn!("Encountered error at {:#x}: {}", *offset, err);
 
                     continue;
                 }
@@ -396,7 +396,7 @@ fn disassemble(
     let end = std::time::Instant::now();
     let time_taken = end - start;
 
-    log::info!("disassembly took {:#?}", time_taken);
+    log::info!("Disassembly took {:#?}", time_taken);
 
     Ok(())
 }
@@ -408,7 +408,7 @@ fn get_commands() -> &'static HashMap<u16, Command> {
         let loaded = match load_all_commands() {
             Ok(l) => l,
             Err(err) => {
-                log::error!("error loading commands: {}", err);
+                log::error!("Error loading commands: {}", err);
                 return HashMap::new();
             }
         };
@@ -458,9 +458,9 @@ pub fn check_bytecode(bytes: &[u8]) -> eyre::Result<Option<CompatIssue>, String>
     );
 
     if let Err(err) = disasm_result {
-        log::warn!("error at end of disassembly: {}", err);
+        log::warn!("Error at end of disassembly: {}", err);
     } else {
-        log::info!("finished disassembly");
+        log::info!("Finished disassembly");
     }
 
     // The order of instruction_map.iter() is not guaranteed to be the same every time we run,

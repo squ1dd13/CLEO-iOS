@@ -152,7 +152,7 @@ impl Menu {
         };
 
         if n != number as usize {
-            log::trace!("correcting {} to {}", number, n);
+            log::trace!("Correcting {} to {}", number, n);
         }
 
         n
@@ -617,7 +617,7 @@ Additionally, some – especially those without codes – can crash the game in 
         }
 
         for (index, item) in injected_scripts.iter().enumerate() {
-            log::trace!("item = {:?}", item);
+            log::trace!("Item = {:?}", item);
 
             let button = self.create_single_script_button(index, item, self.height * 0.15);
 

@@ -134,7 +134,7 @@ impl MenuMessage {
     /// Directly send this message using the specified sender.
     pub fn send_with_sender(self, sender: &Sender<Self>) {
         if let Err(err) = sender.send(self) {
-            log::error!("failed to send {:?}", err.0);
+            log::error!("Failed to send {:?}", err.0);
         }
     }
 }
@@ -576,9 +576,9 @@ impl Menu {
                             if menu.is_none() {
                                 *menu = Some(Menu::new(Self::get_module_tab_data()));
                                 menu.as_mut().unwrap().add_to_window();
-                                log::trace!("menu added to window");
+                                log::trace!("Menu added to window");
                             } else {
-                                log::warn!("menu already exists, but was activated again (which should be impossible)");
+                                log::warn!("Menu already exists, but was activated again (which should be impossible)");
                             }
                         });
                     }
@@ -623,7 +623,7 @@ impl Menu {
                                 }
                             });
                         } else {
-                            log::warn!("tab select message delivered, but menu does not exist!");
+                            log::warn!("Tab select message delivered, but menu does not exist!");
                         }
                     }
 
@@ -638,7 +638,7 @@ impl Menu {
                                 row.hit();
                             });
                         } else {
-                            log::warn!("tab select message delivered, but menu does not exist!");
+                            log::warn!("Tab select message delivered, but menu does not exist!");
                         }
                     }
                 }
@@ -661,13 +661,13 @@ fn reachability_with_hostname(
             let tag: ButtonTag = msg_send![hostname, tag];
 
             if tag.is_close {
-                log::trace!("close button pressed");
+                log::trace!("Close button pressed");
                 MenuMessage::Hide.send();
                 return std::ptr::null_mut();
             }
 
             if tag.tab == -1 {
-                log::error!("if tag.is_close is false, tag.tab cannot be -1");
+                log::error!("tag.tab cannot be -1 when tag.is_close is false");
             } else if tag.row == -1 {
                 MenuMessage::SelectTab(tag.tab as usize).send();
             } else {

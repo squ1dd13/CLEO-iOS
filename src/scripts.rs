@@ -95,14 +95,14 @@ impl CleoScript {
         let compat_issue = match check::check_bytecode(&bytes) {
             Ok(v) => v,
             Err(err) => {
-                log::error!("check_bytecode failed: {}", err);
+                log::error!("Check_bytecode failed: {}", err);
 
                 // It wouldn't be safe to assume that the script is valid because the check failed.
                 Some(CompatIssue::CheckFailed)
             }
         };
 
-        log::info!("compatibility: {:?}", compat_issue);
+        log::info!("Compatibility: {:?}", compat_issue);
 
         CleoScript {
             game_script: GameScript::new(bytes.as_ptr().cast(), false),
@@ -207,7 +207,7 @@ impl CleoScript {
             }
 
             0xdd0..=0xdd4 | 0xdde | 0xdd8..=0xdda | 0xdd7 => {
-                log::error!("opcode {:#x} unsupported on iOS", opcode);
+                log::error!("Opcode {:#x} unsupported on iOS", opcode);
                 true
             }
 
@@ -246,7 +246,7 @@ impl CleoScript {
                 let state = if let Some(state) = touch::query_zone(zone) {
                     state
                 } else {
-                    log::warn!("returning invalid touch state for zone {}", zone);
+                    log::warn!("Returning invalid touch state for zone {}", zone);
                     false
                 };
 
@@ -263,7 +263,7 @@ impl CleoScript {
                 let out = if let Some(state) = touch::query_zone(zone) {
                     state as i32
                 } else {
-                    log::warn!("returning invalid touch state for zone {}", zone);
+                    log::warn!("Returning invalid touch state for zone {}", zone);
                     0
                 };
 
@@ -311,6 +311,7 @@ lazy_static::lazy_static! {
 }
 
 fn load_script(path: &impl AsRef<std::path::Path>) -> eyre::Result<CleoScript> {
+    log::info!("Loading script {}", path.as_ref().display());
     Ok(CleoScript::new(std::fs::read(path)?))
 }
 

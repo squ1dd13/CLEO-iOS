@@ -79,7 +79,7 @@ impl ModResource {
         let extension = path.extension();
 
         if extension.is_none() && path.is_file() {
-            log::warn!("Only folders may have no extension.");
+            log::warn!("Only folders may have no extension");
             return None;
         }
 
@@ -113,7 +113,7 @@ impl ModResource {
             "fxt" => Some(ModResource::LanguageFile(path.to_path_buf())),
 
             _ => {
-                log::warn!("Unrecognised extension '{}'.", extension);
+                log::warn!("Unrecognised extension '{}'", extension);
                 None
             }
         }
@@ -134,7 +134,7 @@ fn find_cleo_dir_path() -> PathBuf {
 
         if path.exists() {
             log::error!(
-                "Using old pre-official path. Please consider switching to the newer path."
+                "using old pre-official path. Please consider switching to the newer path."
             );
 
             return path.to_path_buf();

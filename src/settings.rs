@@ -76,7 +76,7 @@ impl Settings {
     fn save(&self) -> eyre::Result<()> {
         // Only save if the settings have changed.
         if !self.dirty.load(Ordering::SeqCst) {
-            log::info!("settings have not changed since last save");
+            log::info!("Settings have not changed since last save");
             return Ok(());
         }
 
@@ -149,7 +149,7 @@ impl crate::menu::RowData for OptionInfo {
 impl Drop for OptionInfo {
     fn drop(&mut self) {
         if let Err(err) = Settings::shared().save() {
-            log::info!("error saving settings in OptionInfo::drop: {}", err);
+            log::info!("Error saving settings in OptionInfo::drop: {}", err);
         }
     }
 }
@@ -181,15 +181,15 @@ pub fn tab_data() -> menu::TabData {
 }
 
 fn load_settings(menu_manager: u64) {
-    log::info!("loading CLEO settings");
+    log::info!("Loading CLEO settings");
     Settings::load_shared();
 
     // Save the current state of the settings so we create a settings file if it didn't exist.
     if let Err(err) = Settings::shared().save() {
-        log::error!("unable to save settings after load: {:?}", err);
+        log::error!("Unable to save settings after load: {:?}", err);
     }
 
-    log::info!("loading game settings");
+    log::info!("Loading game settings");
     crate::call_original!(crate::targets::load_settings, menu_manager);
 }
 
