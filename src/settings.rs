@@ -193,6 +193,6 @@ fn load_settings(menu_manager: u64) {
     crate::call_original!(crate::targets::load_settings, menu_manager);
 }
 
-pub fn hook() {
+pub fn init() {
     crate::targets::load_settings::install(load_settings);
 }

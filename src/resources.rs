@@ -230,7 +230,7 @@ pub fn get_documents_path(resource_name: &str) -> PathBuf {
     path
 }
 
-pub fn initialise() {
+pub fn init() {
     let cleo_path = find_cleo_dir_path();
 
     log::info!("Creating archive folders...");

@@ -297,7 +297,7 @@ fn persistent_store_coordinator(_this: *mut Object, _sel: Sel) -> *const Object 
     std::ptr::null()
 }
 
-pub fn hook() {
+pub fn init() {
     if !crate::hook::is_german_game() {
         targets::legal_splash::install(legal_splash_did_load);
     } else {

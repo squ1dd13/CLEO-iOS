@@ -103,7 +103,7 @@ pub fn load_fxt(path: &impl AsRef<std::path::Path>) -> eyre::Result<()> {
     Ok(())
 }
 
-pub fn hook() {
+pub fn init() {
     targets::get_gxt_string::install(get_gxt_string);
     targets::gen_plate::install(generate_numberplate);
 }

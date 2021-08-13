@@ -692,7 +692,7 @@ fn add_button_handler(button: *mut Object, tag: ButtonTag) {
     }
 }
 
-pub fn initialise() {
+pub fn init() {
     crate::targets::button_hack::install(reachability_with_hostname);
 
     MESSAGE_SENDER

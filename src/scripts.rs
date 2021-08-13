@@ -524,7 +524,7 @@ pub fn tab_data() -> menu::TabData {
     }
 }
 
-pub fn hook() {
+pub fn init() {
     targets::script_tick::install(script_update);
     targets::reset_before_start::install(script_reset);
 }

@@ -229,7 +229,7 @@ fn init_for_title(screen: *mut u8) {
     }
 }
 
-pub fn hook() {
+pub fn init() {
     crate::targets::init_for_title::install(init_for_title);
 }
 

@@ -214,7 +214,7 @@ If you don't want to risk breaking your save, back up your progress to a differe
     }
 }
 
-pub fn hook() {
+pub fn init() {
     crate::targets::do_cheats::install(do_cheats);
 }
 

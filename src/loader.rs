@@ -86,6 +86,6 @@ pub fn load_replacement(path: &impl AsRef<std::path::Path>) -> eyre::Result<()> 
     Ok(())
 }
 
-pub fn hook() {
+pub fn init() {
     crate::targets::find_absolute_path::install(find_absolute_path_c);
 }

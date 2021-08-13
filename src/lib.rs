@@ -106,21 +106,20 @@ mod targets {
 }
 
 fn initialise() {
-    stream::hook();
-    update::hook();
-    loader::hook();
-    settings::hook();
-    gui::hook();
+    stream::init();
+    update::init();
+    loader::init();
+    settings::init();
+    gui::init();
     // old_menu::hook();
-    menu::initialise();
-    touch::hook();
-    text::hook();
-    render::hook();
-    scripts::hook();
-    cheats::hook();
-    controller::hook();
-
-    resources::initialise();
+    menu::init();
+    touch::init();
+    text::init();
+    render::init();
+    scripts::init();
+    cheats::init();
+    controller::init();
+    resources::init();
 }
 
 #[ctor]

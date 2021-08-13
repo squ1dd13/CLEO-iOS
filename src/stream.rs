@@ -464,7 +464,7 @@ fn load_directory(path_c: *const i8, archive_id: i32) {
     });
 }
 
-pub fn hook() {
+pub fn init() {
     const CD_STREAM_INIT: hook::Target<fn(i32)> = hook::Target::Address(0x100177eb8);
     CD_STREAM_INIT.hook_hard(stream_init);
 

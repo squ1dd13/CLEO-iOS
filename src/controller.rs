@@ -134,6 +134,6 @@ fn update_pads() {
     // crate::old_menu::queue_controller_input(current_state);
 }
 
-pub fn hook() {
+pub fn init() {
     crate::targets::update_pads::install(update_pads);
 }
