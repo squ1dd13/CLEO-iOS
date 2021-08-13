@@ -150,18 +150,18 @@ fn load() {
 
     info!(
         r#"
-
-                        Welcome to CLEO iOS!                        
-            Written by @squ1dd13 (squ1dd13dev@gmail.com).           
-       Made with ❤️ in Great Britain. Proudly written in Rust.       
- Check out the GitHub repo at https://github.com/squ1dd13/CLEO-iOS. 
-Need support? Join the Discord server: https://discord.gg/cXwkTUasJU
-
+ 
+                         Welcome to CLEO iOS!                        
+             Written by @squ1dd13 (squ1dd13dev@gmail.com).           
+        Made with ❤️ in Great Britain. Proudly written in Rust.       
+  Check out the GitHub repo at https://github.com/squ1dd13/CLEO-iOS. 
+ Need support? Join the Discord server! https://discord.gg/cXwkTUasJU
+ 
 "#
     );
 
     // todo: Log game version.
-    info!("Package version: {}", env!("CARGO_PKG_VERSION"));
+    info!("Cargo package version is {}", env!("CARGO_PKG_VERSION"));
 
     update::start_update_check();
     initialise();
