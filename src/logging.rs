@@ -16,10 +16,10 @@ enum MessageType {
 
 #[derive(Serialize, Deserialize)]
 struct Message {
-    group: String,
+    module: String,
     msg_type: MessageType,
     string: String,
-    process: String,
+    what_process: String,
     time: String,
 }
 
@@ -57,23 +57,23 @@ impl Message {
     }
 
     fn write_to_file(&self, file: &mut File) {
-        let prefix = match self.msg_type {
-            MessageType::Normal => "",
-            MessageType::Error => "<!!!> ",
-            MessageType::Warning => "<!> ",
-            MessageType::Important => "<***> ",
+        let level_name = match self.msg_type {
+            MessageType::Normal => "info",
+            MessageType::Error => "error",
+            MessageType::Warning => "warning",
+            MessageType::Important => "info",
         };
 
-        // Format: "[process.subsystem][time] <message type> message"
+        // This is a direct copy of the format used by VSCode (adapted for Rust).
+        //      [date time] [module] [level] Text
         let _ = file.write_fmt(format_args!(
-            "[{}.{}][{}] {}{}\n",
-            self.process, self.group, self.time, prefix, self.string
+            "[{}] [{}] [{}] {}\n",
+            self.time, self.module, level_name, self.string
         ));
     }
 }
 
 pub struct Logger {
-    name: String,
     socket: Option<net::UdpSocket>,
     address: String,
     file: Mutex<Option<File>>,
@@ -82,14 +82,13 @@ pub struct Logger {
 pub(crate) static mut GLOBAL_LOGGER: Option<Logger> = None;
 
 impl Logger {
-    pub fn new(name: &str) -> &'static mut Logger {
+    pub fn new() -> &'static mut Logger {
         unsafe {
             if GLOBAL_LOGGER.is_some() {
                 panic!("Logger already created!");
             }
 
             GLOBAL_LOGGER = Some(Logger {
-                name: String::from(name),
                 socket: None,
                 address: String::new(),
                 file: Mutex::new(None),
@@ -108,8 +107,8 @@ impl Logger {
         self.file = Mutex::new(File::create(path).ok());
     }
 
-    pub fn commit<S: AsRef<str>>(&self, level: Level, value: S) {
-        let msg_type = match level {
+    pub fn commit(&self, record: &log::Record) {
+        let msg_type = match record.level() {
             Level::Error => MessageType::Error,
             Level::Warn => MessageType::Warning,
             Level::Info => MessageType::Important,
@@ -118,14 +117,20 @@ impl Logger {
         };
 
         let message = Message {
-            group: self.name.clone(),
+            module: record
+                .module_path()
+                .unwrap_or("unknown")
+                .split("::")
+                .last()
+                .unwrap()
+                .to_string(),
             msg_type,
-            string: String::from(value.as_ref()),
-            process: get_proc_name(),
-            time: Local::now().format("%H:%M:%S").to_string(),
+            string: format!("{}", record.args()),
+            what_process: get_proc_name(),
+            time: Local::now().format("%Y-%m-%d %H:%M:%S%.3f").to_string(),
         };
 
-        if level < Level::Debug {
+        if record.level() < Level::Debug {
             if let Ok(mut file) = self.file.lock() {
                 message.write_to_file(file.as_mut().unwrap());
             }
@@ -156,7 +161,8 @@ impl log::Log for Logger {
 
     fn log(&self, record: &Record) {
         if self.enabled(record.metadata()) {
-            self.commit(record.level(), format!("{}", record.args()));
+            self.commit(record);
+            // self.commit(record.level(), format!("{}", record.args()));
         }
     }
 

@@ -56,3 +56,5 @@ else
     (scp ./libcleo.dylib root@$1:/Library/MobileSubstrate/DynamicLibraries/CLEO.dylib >/dev/null) || exit 1
     printf "done.\n"
 fi
+
+printf "All done.\n"

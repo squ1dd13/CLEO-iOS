@@ -14,6 +14,7 @@ mod hook;
 mod loader;
 mod menu;
 // mod old_menu;
+mod logging;
 mod render;
 mod resources;
 mod scripts;
@@ -21,7 +22,6 @@ mod settings;
 mod stream;
 mod text;
 mod touch;
-mod udp;
 mod update;
 
 mod targets {
@@ -111,7 +111,6 @@ fn initialise() {
     loader::init();
     settings::init();
     gui::init();
-    // old_menu::hook();
     menu::init();
     touch::init();
     text::init();
@@ -125,7 +124,7 @@ fn initialise() {
 #[ctor]
 fn load() {
     // Load the logger before everything else so we can log from constructors.
-    let logger = udp::Logger::new("cleo");
+    let logger = logging::Logger::new();
 
     // Only attempt to connect over UDP if we're in debug mode.
     if cfg!(feature = "debug") {
@@ -134,7 +133,7 @@ fn load() {
 
     logger.connect_file(resources::get_log_path());
 
-    log::set_logger(unsafe { udp::GLOBAL_LOGGER.as_ref().unwrap() })
+    log::set_logger(unsafe { logging::GLOBAL_LOGGER.as_ref().unwrap() })
         .map(|_| log::set_max_level(log::LevelFilter::max()))
         .unwrap();
 
@@ -152,14 +151,17 @@ fn load() {
     info!(
         r#"
 
-**********************************************************************
-                         Welcome to CLEO iOS!                         
-                By @squ1dd13 (squ1dd13dev@gmail.com).                 
-                        Made with ❤️ in 🇬🇧.                           
-  Check out the GitHub repo at https://github.com/squ1dd13/CLEO-iOS.  
-**********************************************************************
+                        Welcome to CLEO iOS!                        
+            Written by @squ1dd13 (squ1dd13dev@gmail.com).           
+       Made with ❤️ in Great Britain. Proudly written in Rust.       
+ Check out the GitHub repo at https://github.com/squ1dd13/CLEO-iOS. 
+Need support? Join the Discord server: https://discord.gg/cXwkTUasJU
+
 "#
     );
+
+    // todo: Log game version.
+    info!("Package version: {}", env!("CARGO_PKG_VERSION"));
 
     update::start_update_check();
     initialise();
