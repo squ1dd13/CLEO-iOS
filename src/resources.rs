@@ -124,26 +124,12 @@ impl ModResource {
 fn find_cleo_dir_path() -> PathBuf {
     // Since iOS 13.5, we haven't been able to access the /var/mobile/Documents folder, so CLEO resources
     //  moved to the game's data folder. This is harder to find for users, but allows compatibility with
-    //  basically any version of iOS. However, some users still use the /var/mobile/Documents/CS folder
-    //  that was used exclusively in earlier C++ versions, so we still support that folder.
+    //  basically any version of iOS.
     let path = get_documents_path("CLEO");
 
     if !path.exists() {
-        // Try the old path.
-        let path = Path::new("/var/mobile/Documents/CS");
+        log::warn!("CLEO folder was not found. It will be created.");
 
-        if path.exists() {
-            log::error!(
-                "using old pre-official path. Please consider switching to the newer path."
-            );
-
-            return path.to_path_buf();
-        } else {
-            log::error!("Unable to find the CLEO folder!");
-        }
-    }
-
-    if !path.exists() {
         // Create the folder.
         if let Err(err) = std::fs::create_dir(&path) {
             log::error!("Unable to create CLEO folder! Error: {}", err);
@@ -151,6 +137,30 @@ fn find_cleo_dir_path() -> PathBuf {
     }
 
     path
+}
+
+fn create_replace_dir() {
+    let path_lower = {
+        let mut replace_path = find_cleo_dir_path();
+        replace_path.push("replace");
+        replace_path
+    };
+
+    let path_upper = {
+        let mut replace_path = find_cleo_dir_path();
+        replace_path.push("Replace");
+        replace_path
+    };
+
+    if path_lower.exists() || path_upper.exists() {
+        log::info!("Replace folder already exists.");
+        return;
+    }
+
+    // We use the uppercase path if we're making the folder.
+    if let Err(err) = std::fs::create_dir(&path_upper) {
+        log::error!("Error creating dir {:?}: {}", path_upper, err);
+    }
 }
 
 fn create_archive_dirs() {
@@ -232,6 +242,9 @@ pub fn get_documents_path(resource_name: &str) -> PathBuf {
 
 pub fn init() {
     let cleo_path = find_cleo_dir_path();
+
+    log::info!("Looking for Replace folder...");
+    create_replace_dir();
 
     log::info!("Creating archive folders...");
     create_archive_dirs();
