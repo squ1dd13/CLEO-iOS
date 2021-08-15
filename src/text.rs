@@ -34,10 +34,12 @@ pub fn set_kv(key: &str, value: &str) {
         // The game expects the strings to be null-terminated.
         utf16.push(0);
 
-        if custom_strings.insert(key.into(), utf16).is_some() {
+        if let Some(previous) = custom_strings.insert(key.into(), utf16) {
             warn!(
-                "Replacing previous value for key '{}' with new value '{}'.",
-                key, value
+                "Replacing previous value '{}' for key '{}' with new value '{}'.",
+                String::from_utf16_lossy(&previous),
+                key,
+                value
             );
         }
     }
