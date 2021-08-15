@@ -102,7 +102,14 @@ impl CleoScript {
             }
         };
 
-        log::info!("Compatibility: {:?}", compat_issue);
+        log::info!(
+            "Compatibility issues: {}",
+            if let Some(issue) = &compat_issue {
+                issue.to_string()
+            } else {
+                "None".to_string()
+            }
+        );
 
         CleoScript {
             game_script: GameScript::new(bytes.as_ptr().cast(), false),
