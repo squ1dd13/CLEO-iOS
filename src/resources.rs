@@ -131,6 +131,13 @@ impl ModResource {
         if is_in_archive {
             let archive_name = first_component?.file_name()?.to_str()?.to_lowercase();
 
+            let instruction_file_name = format!("put files to go inside {} here", archive_name);
+
+            if path.file_name()?.to_str()? == instruction_file_name {
+                // Ignore the instruction file.
+                return None;
+            }
+
             return Some(ModResource::StreamReplacement(
                 archive_name,
                 path.to_path_buf(),
