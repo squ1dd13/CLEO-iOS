@@ -27,22 +27,16 @@ fn get_gxt_string(text_obj_ptr: usize, key: *const c_char) -> *const u16 {
     return call_original!(targets::get_gxt_string, text_obj_ptr, key);
 }
 
-pub fn set_kv(key: &str, value: &str) {
-    if let Ok(mut custom_strings) = CUSTOM_STRINGS.lock() {
-        let mut utf16: Vec<u16> = value.encode_utf16().collect();
+/// Add a key-value pair to the string map. Returns true if the key was already present. If the key is present, the value
+/// will be overwritten.
+pub fn set_kv(key: &str, value: &str) -> bool {
+    let mut custom_strings = CUSTOM_STRINGS.lock().unwrap();
+    let mut utf16: Vec<u16> = value.encode_utf16().collect();
 
-        // The game expects the strings to be null-terminated.
-        utf16.push(0);
+    // The game expects the strings to be null-terminated.
+    utf16.push(0);
 
-        if let Some(previous) = custom_strings.insert(key.into(), utf16) {
-            warn!(
-                "Replacing previous value '{}' for key '{}' with new value '{}'.",
-                String::from_utf16_lossy(&previous),
-                key,
-                value
-            );
-        }
-    }
+    custom_strings.insert(key.into(), utf16).is_some()
 }
 
 fn generate_numberplate(chars: *mut u8, length: i32) -> bool {
@@ -81,6 +75,8 @@ pub fn load_fxt(path: &impl AsRef<std::path::Path>) -> eyre::Result<()> {
     // todo: Remove the regex so we don't need the crate anymore.
     let comment_pattern: regex::Regex = regex::Regex::new(r"//|#").unwrap();
 
+    let mut overwrites = 0;
+
     for line in std::fs::read_to_string(path.as_ref())?.lines() {
         let line = comment_pattern.split(line).next().map(|s| s.trim());
 
@@ -98,8 +94,18 @@ pub fn load_fxt(path: &impl AsRef<std::path::Path>) -> eyre::Result<()> {
                 continue;
             }
 
-            set_kv(key.unwrap(), value.unwrap());
+            if set_kv(key.unwrap(), value.unwrap()) {
+                overwrites += 1;
+            }
         }
+    }
+
+    if overwrites != 0 {
+        log::warn!(
+            "Loading of {:?} resulted in {} overwrite(s).",
+            path.as_ref().file_name().unwrap(),
+            overwrites
+        );
     }
 
     Ok(())
