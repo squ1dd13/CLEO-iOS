@@ -221,7 +221,7 @@ impl CleoScript {
                 //  to preempt both of these things and exit the app ourselves.
                 // This isn't really an issue, since to get to this point the user must have ignored the warnings
                 //  about this script being incompatible with iOS.
-                // todo: In the future, we should show an alert informing the user that the game will exit.
+                // todo: In the future, we should show an alert informing the user that the game will exit and telling them which script is at fault.
                 crate::gui::exit_to_homescreen();
 
                 true
