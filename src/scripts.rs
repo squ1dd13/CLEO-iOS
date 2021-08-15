@@ -298,7 +298,7 @@ enum Script {
 
     // todo: Add support for PC CS scripts.
     /// CSA scripts. These start when the game has finished loading.
-    Running(CleoScript),
+    Running { script: CleoScript, enabled: bool },
 }
 
 // fixme: We shouldn't need to implement Sync/Send manually.
@@ -310,7 +310,13 @@ impl Script {
         for script in scripts {
             let script = match script {
                 Script::Invoked(script, _) => script,
-                Script::Running(script) => script,
+                Script::Running { script, enabled } => {
+                    if !*enabled {
+                        continue;
+                    }
+
+                    script
+                }
             };
 
             script.update();
@@ -329,10 +335,17 @@ fn load_script(path: &impl AsRef<std::path::Path>) -> eyre::Result<CleoScript> {
 }
 
 pub fn load_running_script(path: &impl AsRef<std::path::Path>) -> eyre::Result<()> {
+    let script = load_script(path)?;
+
+    // Only enable by default if the script has no compatibility issues. We have to decide here
+    //  because the user is not normally in charge of launching CSA scripts.
+    // todo: Allow switching between Off/On/Always On for CSA scripts in menu. Use '<' and '>' to show that there are more options available.
+    let enabled = script.compat_issue.is_none();
+
     SCRIPTS
         .lock()
         .unwrap()
-        .push(Script::Running(load_script(path)?));
+        .push(Script::Running { script, enabled });
 
     Ok(())
 }
@@ -367,7 +380,7 @@ fn script_reset() {
                 script.game_script.active = false;
                 script.reset();
             }
-            Script::Running(script) => {
+            Script::Running { script, enabled: _ } => {
                 script.game_script.active = true;
                 script.reset();
             }
@@ -517,7 +530,7 @@ pub fn tab_data() -> menu::TabData {
 
     for script in SCRIPTS.lock().unwrap().iter() {
         let (cleo_script, err_inc) = match script {
-            Script::Running(s) => (s, &mut csa_errs),
+            Script::Running { script, enabled: _ } => (script, &mut csa_errs),
             Script::Invoked(s, _) => (s, &mut csi_errs),
         };
 
