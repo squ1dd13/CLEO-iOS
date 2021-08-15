@@ -83,7 +83,7 @@ struct CleoScript {
     /// The source of the script's data. This is kept with the game script because the pointers in the
     /// game script are to positions within this vector, so the vector can only be safely dropped once
     /// those pointers are not needed anymore.
-    bytes: Vec<u8>,
+    _bytes: Vec<u8>,
 
     /// A potential incompatibility that the script has. There may be several of these, but the `check`
     /// module only returns the first that is found.
@@ -113,7 +113,7 @@ impl CleoScript {
 
         CleoScript {
             game_script: GameScript::new(bytes.as_ptr().cast(), false),
-            bytes,
+            _bytes: bytes,
             compat_issue,
         }
     }
