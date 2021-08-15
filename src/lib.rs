@@ -156,7 +156,6 @@ fn load() {
         Made with ❤️ in Great Britain. Proudly written in Rust.       
   Check out the GitHub repo at https://github.com/squ1dd13/CLEO-iOS. 
  Need support? Join the Discord server! https://discord.gg/cXwkTUasJU
- 
 "#
     );
 

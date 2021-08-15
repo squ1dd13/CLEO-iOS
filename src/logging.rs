@@ -11,7 +11,7 @@ enum MessageType {
     Normal,
     Error,
     Warning,
-    Important,
+    Debug,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -19,7 +19,6 @@ struct Message {
     module: String,
     msg_type: MessageType,
     string: String,
-    what_process: String,
     time: String,
 }
 
@@ -61,7 +60,7 @@ impl Message {
             MessageType::Normal => "info",
             MessageType::Error => "error",
             MessageType::Warning => "warning",
-            MessageType::Important => "info",
+            MessageType::Debug => "debug",
         };
 
         // This is a direct copy of the format used by VSCode (adapted for Rust).
@@ -111,9 +110,8 @@ impl Logger {
         let msg_type = match record.level() {
             Level::Error => MessageType::Error,
             Level::Warn => MessageType::Warning,
-            Level::Info => MessageType::Important,
-            Level::Debug => MessageType::Normal,
-            Level::Trace => MessageType::Normal,
+            Level::Info => MessageType::Normal,
+            Level::Debug | Level::Trace => MessageType::Debug,
         };
 
         let message = Message {
@@ -126,7 +124,6 @@ impl Logger {
                 .to_string(),
             msg_type,
             string: format!("{}", record.args()),
-            what_process: get_proc_name(),
             time: Local::now().format("%Y-%m-%d %H:%M:%S%.3f").to_string(),
         };
 
