@@ -215,6 +215,15 @@ impl CleoScript {
 
             0xdd0..=0xdd4 | 0xdde | 0xdd8..=0xdda | 0xdd7 => {
                 log::error!("Opcode {:#x} unsupported on iOS", opcode);
+
+                // We know that continuing any further would lead to a crash at best, or strange behaviour caused by
+                //  the script (and therefore game) being in an invalid and uncontrolled state at worst. It is best
+                //  to preempt both of these things and exit the app ourselves.
+                // This isn't really an issue, since to get to this point the user must have ignored the warnings
+                //  about this script being incompatible with iOS.
+                // todo: In the future, we should show an alert informing the user that the game will exit.
+                crate::gui::exit_to_homescreen();
+
                 true
             }
 
@@ -414,8 +423,9 @@ fn gen_compat_warning(invoked_errs: usize, running_errs: usize) -> Option<String
         "them"
     };
 
+    // fixme: Not happy with the wording here. The end result sounds clunky.
     output +=
-        format!(" may be incompatible with iOS. Use {} at your own risk.\nSee \"cleo.log\" in the CLEO folder for further details.", it_them).as_str();
+        format!(" may be incompatible with iOS. Use {} at your own risk.\nView the scripts below for more details.", it_them).as_str();
 
     // Make the first character uppercase.
     let mut characters = output.chars();

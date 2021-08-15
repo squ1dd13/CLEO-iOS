@@ -106,6 +106,20 @@ pub fn create_ns_string(rust_string: &str) -> *const Object {
     }
 }
 
+pub fn exit_to_homescreen() {
+    unsafe {
+        dispatch::Queue::main().exec_sync(|| {
+            let control: *mut Object = msg_send![class!(UIControl), new];
+            let app: *mut Object = msg_send![class!(UIApplication), sharedApplication];
+            let _: () = msg_send![control, sendAction: sel!(suspend) to: app forEvent: 0usize];
+
+            dispatch::Queue::main().exec_after(std::time::Duration::from_millis(200), || {
+                std::process::exit(0);
+            })
+        });
+    }
+}
+
 fn legal_splash_did_load(this: *mut Object, sel: Sel) {
     log::info!("Showing splash screen.");
 
