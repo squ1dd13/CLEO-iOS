@@ -95,21 +95,18 @@ impl CleoScript {
         let compat_issue = match check::check_bytecode(&bytes) {
             Ok(v) => v,
             Err(err) => {
-                log::error!("Check_bytecode failed: {}", err);
+                log::error!("check_bytecode failed: {}", err);
 
                 // It wouldn't be safe to assume that the script is valid because the check failed.
                 Some(CompatIssue::CheckFailed)
             }
         };
 
-        log::info!(
-            "Compatibility issues: {}",
-            if let Some(issue) = &compat_issue {
-                issue.to_string()
-            } else {
-                "None".to_string()
-            }
-        );
+        if let Some(issue) = &compat_issue {
+            log::warn!("Compatibility issue: {}", issue);
+        } else {
+            log::info!("No compatibility issues detected.");
+        }
 
         CleoScript {
             game_script: GameScript::new(bytes.as_ptr().cast(), false),
