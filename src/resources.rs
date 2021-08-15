@@ -3,7 +3,10 @@
 
 use crate::*;
 use cached::proc_macro::cached;
-use std::path::{Path, PathBuf};
+use std::{
+    fmt::Display,
+    path::{Path, PathBuf},
+};
 
 /*
     Documents       The game's documents directory.
@@ -38,6 +41,33 @@ enum ModResource {
 
     // A file from the "Replace" folder.
     FileReplacement(PathBuf),
+}
+
+impl Display for ModResource {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ModResource::StartupScript(path) => {
+                write!(f, "startup script {:?}", path.file_name().unwrap())
+            }
+            ModResource::InvokedScript(path) => {
+                write!(f, "invoked script {:?}", path.file_name().unwrap())
+            }
+            ModResource::LanguageFile(path) => {
+                write!(f, "language file {:?}", path.file_name().unwrap())
+            }
+            ModResource::StreamReplacement(img_name, path) => write!(
+                f,
+                "replacement file {:?} for archive \"{}\"",
+                path.file_name().unwrap(),
+                img_name
+            ),
+            ModResource::FileReplacement(path) => write!(
+                f,
+                "general file replacement {:?}",
+                path.file_name().unwrap()
+            ),
+        }
+    }
 }
 
 impl ModResource {
@@ -153,7 +183,7 @@ fn create_replace_dir() {
     };
 
     if path_lower.exists() || path_upper.exists() {
-        log::info!("Replace folder already exists.");
+        log::info!("'Replace' folder already exists.");
         return;
     }
 
@@ -243,7 +273,7 @@ pub fn get_documents_path(resource_name: &str) -> PathBuf {
 pub fn init() {
     let cleo_path = find_cleo_dir_path();
 
-    log::info!("Looking for Replace folder...");
+    log::info!("Creating 'Replace' folder...");
     create_replace_dir();
 
     log::info!("Creating archive folders...");
@@ -253,7 +283,7 @@ pub fn init() {
     let all_resources = ModResource::flatten_dir(&cleo_path).unwrap();
 
     for resource in all_resources.iter() {
-        log::trace!("{:#?}", resource);
+        log::info!("Attempting to load {}.", resource);
 
         let load_error = match resource {
             ModResource::StartupScript(path) => scripts::load_running_script(path).err(),

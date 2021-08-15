@@ -107,7 +107,7 @@ pub fn create_ns_string(rust_string: &str) -> *const Object {
 }
 
 fn legal_splash_did_load(this: *mut Object, sel: Sel) {
-    trace!("splish splash splosh");
+    log::info!("Showing splash screen.");
 
     // All of this code draws the numberplate splash screen. I'm too lazy to embed an image
     //  and use a UIImageView, so the numberplate is made from scratch with UIViews and UILabels.
