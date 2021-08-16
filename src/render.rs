@@ -4,11 +4,7 @@ use std::sync::atomic::Ordering;
 
 use libc::c_char;
 
-use crate::{
-    call_original, hook,
-    settings::{self, Settings},
-    targets,
-};
+use crate::{call_original, hook, settings::Settings, targets};
 
 // CTimer::GetCyclesPerMillisecond is called between the FPS limit being set and when it is enforced,
 //  so if we overwrite the limit here, our new value will be enforced.

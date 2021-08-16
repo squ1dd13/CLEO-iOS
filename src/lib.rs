@@ -1,7 +1,8 @@
 //! Sets up CLEO when the library is loaded.
 
+#![feature(panic_info_message)]
+
 use ctor::ctor;
-use log::{error, info};
 use objc::runtime::Object;
 use objc::runtime::Sel;
 use std::os::raw::c_char;
@@ -12,9 +13,8 @@ mod controller;
 mod gui;
 mod hook;
 mod loader;
-mod menu;
-// mod old_menu;
 mod logging;
+mod menu;
 mod render;
 mod resources;
 mod scripts;
@@ -123,32 +123,10 @@ fn initialise() {
 
 #[ctor]
 fn load() {
-    // Load the logger before everything else so we can log from constructors.
-    let logger = logging::Logger::new();
+    // Load the logging system before everything else so we can log from constructors.
+    logging::init();
 
-    // Only attempt to connect over UDP if we're in debug mode.
-    if cfg!(feature = "debug") {
-        logger.connect_udp("192.168.1.183:4568");
-    }
-
-    logger.connect_file(resources::get_log_path());
-
-    log::set_logger(unsafe { logging::GLOBAL_LOGGER.as_ref().unwrap() })
-        .map(|_| log::set_max_level(log::LevelFilter::max()))
-        .unwrap();
-
-    // Install the panic hook so we can print useful stuff rather than just exiting on a panic.
-    std::panic::set_hook(Box::new(|info| {
-        let backtrace = backtrace::Backtrace::new();
-
-        if let Some(s) = info.payload().downcast_ref::<&str>() {
-            error!("\npanic: {:?}\n\nbacktrace:\n{:?}", s, backtrace);
-        } else {
-            error!("\npanic\n\nbacktrace:\n{:?}", backtrace);
-        }
-    }));
-
-    info!(
+    log::info!(
         r#"
  
                          Welcome to CLEO iOS!                        
@@ -160,7 +138,7 @@ fn load() {
     );
 
     // todo: Log game version.
-    info!("Cargo package version is {}", env!("CARGO_PKG_VERSION"));
+    log::info!("Cargo package version is {}", env!("CARGO_PKG_VERSION"));
 
     // Start checking for updates in the background.
     update::start_update_check();

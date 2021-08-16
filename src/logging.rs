@@ -3,8 +3,9 @@
 use cached::proc_macro::cached;
 use chrono::Local;
 use log::{Level, Metadata, Record};
+use once_cell::sync::OnceCell;
 use serde::{Deserialize, Serialize};
-use std::{fs::File, io::Write, net, path::Path, sync::Mutex};
+use std::{fs::File, io::Write, net, sync::Mutex};
 
 #[derive(Clone, Copy, Serialize, Deserialize)]
 enum MessageType {
@@ -72,40 +73,9 @@ impl Message {
     }
 }
 
-pub struct Logger {
-    socket: Option<net::UdpSocket>,
-    address: String,
-    file: Mutex<Option<File>>,
-}
-
-pub(crate) static mut GLOBAL_LOGGER: Option<Logger> = None;
+pub struct Logger;
 
 impl Logger {
-    pub fn new() -> &'static mut Logger {
-        unsafe {
-            if GLOBAL_LOGGER.is_some() {
-                panic!("Logger already created!");
-            }
-
-            GLOBAL_LOGGER = Some(Logger {
-                socket: None,
-                address: String::new(),
-                file: Mutex::new(None),
-            });
-
-            GLOBAL_LOGGER.as_mut().unwrap()
-        }
-    }
-
-    pub fn connect_udp(&mut self, address: &str) {
-        self.socket = net::UdpSocket::bind("0.0.0.0:0").ok();
-        self.address = String::from(address);
-    }
-
-    pub fn connect_file<P: AsRef<Path>>(&mut self, path: P) {
-        self.file = Mutex::new(File::create(path).ok());
-    }
-
     pub fn commit(&self, record: &log::Record) {
         let msg_type = match record.level() {
             Level::Error => MessageType::Error,
@@ -127,27 +97,13 @@ impl Logger {
             time: Local::now().format("%Y-%m-%d %H:%M:%S%.3f").to_string(),
         };
 
-        if record.level() < Level::Debug {
-            if let Ok(mut file) = self.file.lock() {
-                message.write_to_file(file.as_mut().unwrap());
-            }
-        }
-
-        if self.socket.is_none() {
-            return;
-        }
-
-        let packed = message.pack();
-
-        if packed.is_none() {
-            return;
-        }
-
-        let _ = self
-            .socket
-            .as_ref()
-            .unwrap()
-            .send_to(&packed.unwrap(), self.address.as_str());
+        MSG_SENDER
+            .get()
+            .unwrap() // We know that this method can only run after MSG_SENDER is set.
+            .lock()
+            .unwrap() // We want to panic if lock() fails.
+            .send(message)
+            .unwrap(); // We also want to panic if send() fails.
     }
 }
 
@@ -159,9 +115,74 @@ impl log::Log for Logger {
     fn log(&self, record: &Record) {
         if self.enabled(record.metadata()) {
             self.commit(record);
-            // self.commit(record.level(), format!("{}", record.args()));
         }
     }
 
     fn flush(&self) {}
+}
+
+static MSG_SENDER: OnceCell<Mutex<std::sync::mpsc::Sender<Message>>> = OnceCell::new();
+
+fn install_panic_hook() {
+    // Install the panic hook so we can print useful stuff rather than just exiting on a panic.
+    std::panic::set_hook(Box::new(|info: &std::panic::PanicInfo| {
+        // If we can't get the message from info.message, we try to downcast the payload to &str.
+        let message = if let Some(message) = info.message() {
+            Some(message.to_string())
+        } else {
+            info.payload().downcast_ref::<&str>().map(|s| s.to_string())
+        }
+        .unwrap_or_else(|| "no message".into());
+
+        let backtrace = backtrace::Backtrace::new();
+
+        if let Some(location) = info.location() {
+            log::error!(
+                "\n\npanic at {}: {}\n\nbacktrace:\n{:?}",
+                location,
+                message,
+                backtrace
+            );
+        } else {
+            log::error!("\n\npanic: {}\n\nbacktrace:\n{:?}", message, backtrace);
+        }
+    }));
+}
+
+pub fn init() {
+    install_panic_hook();
+
+    log::set_logger(unsafe {
+        static mut DUMMY: Logger = Logger {};
+        &mut DUMMY
+    })
+    .map(|_| log::set_max_level(log::LevelFilter::max()))
+    .unwrap();
+
+    // Start receiving log messages on a background thread. This eliminates the massive performance
+    //  impact of writing to files/sockets in normal game code.
+    std::thread::spawn(|| {
+        let (sender, receiver) = std::sync::mpsc::channel();
+        MSG_SENDER.set(Mutex::new(sender)).unwrap();
+
+        // Only attempt to connect over UDP if we're in debug mode.
+        let socket = if cfg!(feature = "debug") {
+            net::UdpSocket::bind("0.0.0.0:0").ok()
+        } else {
+            None
+        };
+
+        let mut file = File::create(crate::resources::get_log_path()).unwrap();
+
+        loop {
+            let msg = receiver.recv().unwrap();
+            msg.write_to_file(&mut file);
+
+            if let Some(socket) = &socket {
+                if let Some(bin) = msg.pack() {
+                    let _ = socket.send_to(&bin, "192.168.1.183:4568");
+                }
+            }
+        }
+    });
 }
