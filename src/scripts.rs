@@ -458,7 +458,7 @@ fn gen_compat_warning(invoked_errs: usize, running_errs: usize) -> Option<String
 #[derive(Debug)]
 pub enum ScriptState {
     Disabled,
-    Enabled,
+    TempEnabled,
     AlwaysEnabled,
 }
 
@@ -467,6 +467,8 @@ pub enum ScriptStateMenu {
     Csi(bool),
     Csa(ScriptState),
 }
+
+// todo: Split MenuInfo into two different structs for the different types of script we have.
 
 /// Information to be displayed in the script menu for a given script.
 #[derive(Debug)]
@@ -487,8 +489,11 @@ impl MenuInfo {
             Script::Running { script, enabled } => Some(MenuInfo {
                 name: script.name.clone(),
                 state: ScriptStateMenu::Csa(if *enabled {
-                    // todo: Check if always enabled.
-                    ScriptState::Enabled
+                    if script.compat_issue.is_some() {
+                        ScriptState::TempEnabled
+                    } else {
+                        ScriptState::AlwaysEnabled
+                    }
                 } else {
                     ScriptState::Disabled
                 }),
@@ -519,7 +524,7 @@ impl MenuInfo {
                     script.game_script.active = true;
 
                     self.state = if *enabled {
-                        ScriptStateMenu::Csa(ScriptState::Enabled)
+                        ScriptStateMenu::Csa(ScriptState::TempEnabled)
                     } else {
                         ScriptStateMenu::Csa(ScriptState::Disabled)
                     }
@@ -557,7 +562,7 @@ impl menu::RowData for MenuInfo {
             }
             ScriptStateMenu::Csa(state) => match state {
                 ScriptState::Disabled => "CSA / Off",
-                ScriptState::Enabled => "CSA / Temporarily On",
+                ScriptState::TempEnabled => "CSA / Temporarily On",
                 ScriptState::AlwaysEnabled => "CSA / Always On",
             },
         }
@@ -574,7 +579,7 @@ impl menu::RowData for MenuInfo {
             }
             ScriptStateMenu::Csa(state) => match state {
                 ScriptState::Disabled => None,
-                ScriptState::Enabled => Some(crate::gui::colours::GREEN),
+                ScriptState::TempEnabled => Some(crate::gui::colours::GREEN),
                 ScriptState::AlwaysEnabled => Some(crate::gui::colours::BLUE),
             },
         }
