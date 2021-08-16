@@ -85,13 +85,16 @@ struct CleoScript {
     /// those pointers are not needed anymore.
     _bytes: Vec<u8>,
 
+    /// The name shown to the user in the menu.
+    name: String,
+
     /// A potential incompatibility that the script has. There may be several of these, but the `check`
     /// module only returns the first that is found.
     compat_issue: Option<check::CompatIssue>,
 }
 
 impl CleoScript {
-    fn new(bytes: Vec<u8>) -> CleoScript {
+    fn new(bytes: Vec<u8>, name: String) -> CleoScript {
         let compat_issue = match check::check_bytecode(&bytes) {
             Ok(v) => v,
             Err(err) => {
@@ -111,6 +114,7 @@ impl CleoScript {
         CleoScript {
             game_script: GameScript::new(bytes.as_ptr().cast(), false),
             _bytes: bytes,
+            name,
             compat_issue,
         }
     }
@@ -294,7 +298,7 @@ impl CleoScript {
 
 enum Script {
     /// CSI scripts. These do not run until the user tells them to using the menu.
-    Invoked(CleoScript, String),
+    Invoked(CleoScript),
 
     // todo: Add support for PC CS scripts.
     /// CSA scripts. These start when the game has finished loading.
@@ -309,7 +313,7 @@ impl Script {
     fn update_all(scripts: &mut [Script]) {
         for script in scripts {
             let script = match script {
-                Script::Invoked(script, _) => script,
+                Script::Invoked(script) => script,
                 Script::Running { script, enabled } => {
                     if !*enabled {
                         continue;
@@ -331,7 +335,15 @@ lazy_static::lazy_static! {
 
 fn load_script(path: &impl AsRef<std::path::Path>) -> eyre::Result<CleoScript> {
     log::info!("Loading script {}", path.as_ref().display());
-    Ok(CleoScript::new(std::fs::read(path)?))
+    Ok(CleoScript::new(
+        std::fs::read(path)?,
+        path.as_ref()
+            .file_stem()
+            .unwrap()
+            .to_str()
+            .unwrap()
+            .to_string(),
+    ))
 }
 
 pub fn load_running_script(path: &impl AsRef<std::path::Path>) -> eyre::Result<()> {
@@ -351,15 +363,10 @@ pub fn load_running_script(path: &impl AsRef<std::path::Path>) -> eyre::Result<(
 }
 
 pub fn load_invoked_script(path: &impl AsRef<std::path::Path>) -> eyre::Result<()> {
-    SCRIPTS.lock().unwrap().push(Script::Invoked(
-        load_script(path)?,
-        path.as_ref()
-            .file_stem()
-            .unwrap()
-            .to_str()
-            .unwrap()
-            .to_string(),
-    ));
+    SCRIPTS
+        .lock()
+        .unwrap()
+        .push(Script::Invoked(load_script(path)?));
 
     Ok(())
 }
@@ -376,7 +383,7 @@ fn script_reset() {
 
     for script in scripts.iter_mut() {
         match script {
-            Script::Invoked(script, _) => {
+            Script::Invoked(script) => {
                 script.game_script.active = false;
                 script.reset();
             }
@@ -448,23 +455,45 @@ fn gen_compat_warning(invoked_errs: usize, running_errs: usize) -> Option<String
     Some(upper_first + characters.as_str())
 }
 
+#[derive(Debug)]
+pub enum ScriptState {
+    Disabled,
+    Enabled,
+    AlwaysEnabled,
+}
+
+#[derive(Debug)]
+pub enum ScriptStateMenu {
+    Csi(bool),
+    Csa(ScriptState),
+}
+
 /// Information to be displayed in the script menu for a given script.
 #[derive(Debug)]
 pub struct MenuInfo {
     pub name: String,
-    pub running: bool,
+    pub state: ScriptStateMenu,
     pub warning: Option<String>,
 }
 
 impl MenuInfo {
     fn new(script: &Script) -> Option<MenuInfo> {
         match script {
-            Script::Invoked(script, name) => Some(MenuInfo {
-                name: name.clone(),
-                running: script.game_script.active,
+            Script::Invoked(script) => Some(MenuInfo {
+                name: script.name.clone(),
+                state: ScriptStateMenu::Csi(script.game_script.active),
                 warning: script.compat_issue.as_ref().map(|issue| issue.to_string()),
             }),
-            _ => None,
+            Script::Running { script, enabled } => Some(MenuInfo {
+                name: script.name.clone(),
+                state: ScriptStateMenu::Csa(if *enabled {
+                    // todo: Check if always enabled.
+                    ScriptState::Enabled
+                } else {
+                    ScriptState::Disabled
+                }),
+                warning: script.compat_issue.as_ref().map(|issue| issue.to_string()),
+            }),
         }
     }
 
@@ -472,17 +501,35 @@ impl MenuInfo {
         // A linear search by name is fine, because this shouldn't be called from
         //  performance-critical code.
         for script in SCRIPTS.lock().unwrap().iter_mut() {
-            if let Script::Invoked(script, name) = script {
-                if name != &self.name {
-                    continue;
-                }
+            match script {
+                Script::Invoked(script) => {
+                    if script.name != self.name {
+                        continue;
+                    }
 
-                script.game_script.active = true;
-                break;
+                    script.game_script.active = true;
+                    break;
+                }
+                Script::Running { script, enabled } => {
+                    if script.name != self.name {
+                        continue;
+                    }
+
+                    *enabled = true;
+                    script.game_script.active = true;
+
+                    self.state = if *enabled {
+                        ScriptStateMenu::Csa(ScriptState::Enabled)
+                    } else {
+                        ScriptStateMenu::Csa(ScriptState::Disabled)
+                    }
+                }
             }
         }
 
-        self.running = !self.running;
+        if let ScriptStateMenu::Csi(state) = &self.state {
+            self.state = ScriptStateMenu::Csi(!state);
+        }
     }
 }
 
@@ -500,18 +547,41 @@ impl menu::RowData for MenuInfo {
     }
 
     fn value(&self) -> &str {
-        if self.running {
-            "Running"
-        } else {
-            "Not running"
+        match &self.state {
+            ScriptStateMenu::Csi(state) => {
+                if *state {
+                    "CSI / Running"
+                } else {
+                    "CSI / Not running"
+                }
+            }
+            ScriptStateMenu::Csa(state) => match state {
+                ScriptState::Disabled => "CSA / Off",
+                ScriptState::Enabled => "CSA / Temporarily On",
+                ScriptState::AlwaysEnabled => "CSA / Always On",
+            },
         }
     }
 
     fn tint(&self) -> Option<(u8, u8, u8)> {
-        if self.running {
-            Some(crate::gui::colours::GREEN)
-        } else {
-            None
+        // if self.running {
+        //     Some(crate::gui::colours::GREEN)
+        // } else {
+        //     None
+        // }
+        match &self.state {
+            ScriptStateMenu::Csi(state) => {
+                if *state {
+                    Some(crate::gui::colours::GREEN)
+                } else {
+                    None
+                }
+            }
+            ScriptStateMenu::Csa(state) => match state {
+                ScriptState::Disabled => None,
+                ScriptState::Enabled => Some(crate::gui::colours::GREEN),
+                ScriptState::AlwaysEnabled => Some(crate::gui::colours::BLUE),
+            },
         }
     }
 
@@ -531,7 +601,7 @@ pub fn tab_data() -> menu::TabData {
     for script in SCRIPTS.lock().unwrap().iter() {
         let (cleo_script, err_inc) = match script {
             Script::Running { script, enabled: _ } => (script, &mut csa_errs),
-            Script::Invoked(s, _) => (s, &mut csi_errs),
+            Script::Invoked(s) => (s, &mut csi_errs),
         };
 
         if cleo_script.compat_issue.is_some() {
