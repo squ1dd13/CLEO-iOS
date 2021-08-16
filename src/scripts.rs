@@ -338,7 +338,7 @@ fn load_script(path: &impl AsRef<std::path::Path>) -> eyre::Result<CleoScript> {
     Ok(CleoScript::new(
         std::fs::read(path)?,
         path.as_ref()
-            .file_stem()
+            .file_name()
             .unwrap()
             .to_str()
             .unwrap()
@@ -564,11 +564,6 @@ impl menu::RowData for MenuInfo {
     }
 
     fn tint(&self) -> Option<(u8, u8, u8)> {
-        // if self.running {
-        //     Some(crate::gui::colours::GREEN)
-        // } else {
-        //     None
-        // }
         match &self.state {
             ScriptStateMenu::Csi(state) => {
                 if *state {
