@@ -57,4 +57,4 @@ else
     printf "done.\n"
 fi
 
-printf "All done.\n"
+printf "=> All done.\n"
