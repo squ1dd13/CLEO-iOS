@@ -338,7 +338,7 @@ fn load_script(path: &impl AsRef<std::path::Path>) -> eyre::Result<CleoScript> {
     Ok(CleoScript::new(
         std::fs::read(path)?,
         path.as_ref()
-            .file_name()
+            .file_stem()
             .unwrap()
             .to_str()
             .unwrap()
@@ -539,15 +539,50 @@ impl MenuInfo {
 }
 
 impl menu::RowData for MenuInfo {
-    fn title(&self) -> &str {
-        &self.name
+    fn title(&self) -> String {
+        let prefix = match &self.state {
+            ScriptStateMenu::Csi(_) => "CSI: ",
+            ScriptStateMenu::Csa(_) => "CSA: ",
+        }
+        .to_string();
+
+        prefix + &self.name
     }
 
-    fn detail(&self) -> menu::RowDetail<'_> {
-        if let Some(warning) = self.warning.as_deref() {
-            menu::RowDetail::Warning(warning)
+    fn detail(&self) -> menu::RowDetail {
+        let issues_str = if let Some(warning) = self.warning.as_deref() {
+            warning
         } else {
-            menu::RowDetail::Info("No compatibility issues detected.")
+            "No issues detected."
+        };
+
+        let info_str = match &self.state {
+            ScriptStateMenu::Csi(state) => {
+                if *state {
+                    format!("Running. {}", issues_str)
+                } else {
+                    format!("Not running. {}", issues_str)
+                }
+            }
+            ScriptStateMenu::Csa(state) => match state {
+                ScriptState::Disabled => format!("Disabled (not running at all). {} Tap to enable.", issues_str),
+                ScriptState::TempEnabled => format!(
+                    "Temporarily enabled (will not start next time the game loads). {} Tap to permanently enable.",
+                    issues_str
+                ),
+                ScriptState::AlwaysEnabled => {
+                    format!(
+                        "Permanently enabled (starts when the game loads). {} Tap to disable.",
+                        issues_str
+                    )
+                }
+            },
+        };
+
+        if self.warning.is_some() {
+            menu::RowDetail::Warning(info_str)
+        } else {
+            menu::RowDetail::Info(info_str)
         }
     }
 
@@ -555,15 +590,21 @@ impl menu::RowData for MenuInfo {
         match &self.state {
             ScriptStateMenu::Csi(state) => {
                 if *state {
-                    "CSI / Running"
+                    "Running"
                 } else {
-                    "CSI / Not running"
+                    "Not running"
                 }
             }
             ScriptStateMenu::Csa(state) => match state {
-                ScriptState::Disabled => "CSA / Off",
-                ScriptState::TempEnabled => "CSA / Temporarily On",
-                ScriptState::AlwaysEnabled => "CSA / Always On",
+                ScriptState::Disabled => {
+                    if self.warning.is_some() {
+                        "Off (Warning)"
+                    } else {
+                        "Off"
+                    }
+                }
+                ScriptState::TempEnabled => "Temporarily On",
+                ScriptState::AlwaysEnabled => "Always On",
             },
         }
     }
@@ -579,16 +620,22 @@ impl menu::RowData for MenuInfo {
             }
             ScriptStateMenu::Csa(state) => match state {
                 ScriptState::Disabled => None,
-                ScriptState::TempEnabled => Some(crate::gui::colours::GREEN),
-                ScriptState::AlwaysEnabled => Some(crate::gui::colours::BLUE),
+                ScriptState::TempEnabled | ScriptState::AlwaysEnabled => {
+                    Some(crate::gui::colours::GREEN)
+                }
             },
         }
     }
 
     fn handle_tap(&mut self) -> bool {
         self.activate();
-        MenuMessage::Hide.send();
-        false
+
+        if let ScriptStateMenu::Csi(_) = &self.state {
+            MenuMessage::Hide.send();
+            false
+        } else {
+            true
+        }
     }
 }
 
@@ -612,6 +659,8 @@ pub fn tab_data() -> menu::TabData {
             row_data.push(Box::new(info) as Box<dyn menu::RowData>)
         }
     }
+
+    row_data.sort_by_cached_key(|x| x.title());
 
     let warning = gen_compat_warning(csi_errs, csa_errs);
 

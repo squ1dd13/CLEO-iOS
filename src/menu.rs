@@ -8,14 +8,14 @@ use std::sync::{
     Arc, Mutex,
 };
 
-pub enum RowDetail<'a> {
-    Info(&'a str),
-    Warning(&'a str),
+pub enum RowDetail {
+    Info(String),
+    Warning(String),
 }
 
 pub trait RowData {
-    fn title(&self) -> &str;
-    fn detail(&self) -> RowDetail<'_>;
+    fn title(&self) -> String;
+    fn detail(&self) -> RowDetail;
     fn value(&self) -> &str;
     fn tint(&self) -> Option<(u8, u8, u8)>;
 
@@ -183,6 +183,7 @@ impl Row {
 
             let font = gui::get_font("ChaletComprime-CologneSixty", 20.0);
             let _: () = msg_send![detail_label, setFont: font];
+            let _: () = msg_send![detail_label, setAdjustsFontSizeToFitWidth: true];
             let _: () = msg_send![detail_label, setTextAlignment: 0u64];
 
             let mut row = Row {
@@ -219,13 +220,13 @@ impl Row {
 
         unsafe {
             let _: () = msg_send![self.button, setBackgroundColor: background_colour];
-            let _: () = msg_send![self.button, setTitle: create_ns_string(self.data.title()) forState: 0u64];
+            let _: () = msg_send![self.button, setTitle: create_ns_string(&self.data.title()) forState: 0u64];
             let _: () = msg_send![self.button, setTitleColor: foreground_colour forState: 0u64];
 
             let _: () = msg_send![self.value_label, setText: create_ns_string(self.data.value())];
             let _: () = msg_send![self.value_label, setTextColor: value_colour];
 
-            let _: () = msg_send![self.detail_label, setText: create_ns_string(detail_text)];
+            let _: () = msg_send![self.detail_label, setText: create_ns_string(&detail_text)];
             let _: () = msg_send![self.detail_label, setTextColor: foreground_colour];
         }
     }

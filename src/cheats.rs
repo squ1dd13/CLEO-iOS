@@ -128,16 +128,17 @@ impl CheatData {
 }
 
 impl RowData for CheatData {
-    fn title(&self) -> &str {
+    fn title(&self) -> String {
         if self.cheat.code.is_empty() {
             "???"
         } else {
             self.cheat.code
         }
+        .into()
     }
 
-    fn detail(&self) -> menu::RowDetail<'_> {
-        menu::RowDetail::Info(self.cheat.description)
+    fn detail(&self) -> menu::RowDetail {
+        menu::RowDetail::Info(self.cheat.description.into())
     }
 
     fn value(&self) -> &str {

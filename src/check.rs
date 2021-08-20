@@ -433,15 +433,9 @@ pub enum CompatIssue {
 impl Display for CompatIssue {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::NotImpl => {
-                f.write_str("This script requires features that are not available on iOS yet.")
-            }
-            Self::AndroidSpecific => {
-                f.write_str("This script uses code that will only work on Android.")
-            }
-            Self::CheckFailed => {
-                f.write_str("This script could not be checked for compatibility issues.")
-            }
+            Self::NotImpl => f.write_str("Uses features unavailable on iOS."),
+            Self::AndroidSpecific => f.write_str("Uses some Android-only code."),
+            Self::CheckFailed => f.write_str("Compatibility check failed."),
         }
     }
 }

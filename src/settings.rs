@@ -112,12 +112,12 @@ impl OptionInfo {
 }
 
 impl crate::menu::RowData for OptionInfo {
-    fn title(&self) -> &str {
-        self.title
+    fn title(&self) -> String {
+        self.title.into()
     }
 
-    fn detail(&self) -> crate::menu::RowDetail<'_> {
-        RowDetail::Info(self.desc)
+    fn detail(&self) -> crate::menu::RowDetail {
+        RowDetail::Info(self.desc.into())
     }
 
     fn value(&self) -> &str {
