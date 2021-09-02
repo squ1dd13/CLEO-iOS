@@ -11,6 +11,7 @@ use crate::{
 use std::sync::Mutex;
 
 #[repr(C, align(8))]
+#[derive(Debug)]
 struct GameScript {
     // Do not use these; scripts should never be linked.
     next: usize,
@@ -77,6 +78,7 @@ impl GameScript {
 }
 
 /// Wrapper for game-compatible script structures that allows use with both game code and CLEO code.
+#[derive(Debug)]
 struct CleoScript {
     game_script: GameScript,
 
@@ -296,6 +298,7 @@ impl CleoScript {
     }
 }
 
+#[derive(Debug)]
 enum Script {
     /// CSI scripts. These do not run until the user tells them to using the menu.
     Invoked(CleoScript),
@@ -480,6 +483,8 @@ pub struct MenuInfo {
 
 impl MenuInfo {
     fn new(script: &Script) -> Option<MenuInfo> {
+        log::trace!("Creating MenuInfo for script\n{:#?}", script);
+
         match script {
             Script::Invoked(script) => Some(MenuInfo {
                 name: script.name.clone(),
