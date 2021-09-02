@@ -262,8 +262,33 @@ fn legal_splash_did_load(this: *mut Object, sel: Sel) {
         let _: () = msg_send![background_view, addSubview: backing_outer];
         let _: () = msg_send![backing, release];
 
+        let bottom_text_frame = CGRect {
+            origin: CGPoint {
+                x: 0.0,
+                y: bounds.size.height * 0.9,
+            },
+            size: CGSize {
+                width: bounds.size.width,
+                height: bounds.size.height * 0.1,
+            },
+        };
+
+        let copyright = "Copyright © 2020-2021 Squ1dd13. Code licenced under the MIT License.\nMade with love in the United Kingdom. Have fun.";
+
+        let label: *mut Object = msg_send![class!(UILabel), alloc];
+        let label: *mut Object = msg_send![label, initWithFrame: bottom_text_frame];
+        let font = get_font("HelveticaNeue", 10.);
+        let colour = colours::white_with_alpha(0.5, 0.7);
+        let _: () = msg_send![label, setTextColor: colour];
+        let _: () = msg_send![label, setFont: font];
+        let _: () = msg_send![label, setText: create_ns_string(copyright)];
+        let _: () = msg_send![label, setTextAlignment: 1u64];
+        let _: () = msg_send![label, setNumberOfLines: 2u64];
+
         let _: () = msg_send![view, addSubview: background_view];
         let _: () = msg_send![background_view, release];
+        let _: () = msg_send![view, addSubview: label];
+        let _: () = msg_send![label, release];
     }
 }
 
