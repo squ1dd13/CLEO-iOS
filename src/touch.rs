@@ -71,6 +71,11 @@ lazy_static! {
 }
 
 pub fn query_zone(zone: usize) -> Option<bool> {
+    if !(1..10).contains(&zone) {
+        warn!("Touch zone {} does not lie within 1..10.", zone);
+        return None;
+    }
+
     let zones = TOUCH_ZONES.lock().ok();
 
     if zones.is_none() {
