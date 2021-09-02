@@ -19,6 +19,7 @@ static SETTINGS: OnceCell<Settings> = OnceCell::new();
 struct StoredSettings {
     sixty_fps: bool,
     show_fps: bool,
+    save_cheats: bool,
 }
 
 impl StoredSettings {
@@ -26,6 +27,7 @@ impl StoredSettings {
         Settings {
             sixty_fps: Arc::new(AtomicBool::new(self.sixty_fps)),
             show_fps: Arc::new(AtomicBool::new(self.show_fps)),
+            save_cheats: Arc::new(AtomicBool::new(self.save_cheats)),
             dirty: AtomicBool::new(true),
         }
     }
@@ -34,6 +36,7 @@ impl StoredSettings {
         StoredSettings {
             sixty_fps: settings.sixty_fps.load(Ordering::SeqCst),
             show_fps: settings.show_fps.load(Ordering::SeqCst),
+            save_cheats: settings.save_cheats.load(Ordering::SeqCst),
         }
     }
 }
@@ -43,6 +46,7 @@ impl Default for StoredSettings {
         StoredSettings {
             sixty_fps: true,
             show_fps: false,
+            save_cheats: false,
         }
     }
 }
@@ -50,6 +54,7 @@ impl Default for StoredSettings {
 pub struct Settings {
     pub sixty_fps: Arc<AtomicBool>,
     pub show_fps: Arc<AtomicBool>,
+    pub save_cheats: Arc<AtomicBool>,
     dirty: AtomicBool,
 }
 
@@ -69,14 +74,14 @@ impl Settings {
         });
 
         if SETTINGS.set(settings).is_err() {
-            log::warn!("Settings structure already exists");
+            log::warn!("Settings structure already exists.");
         }
     }
 
     fn save(&self) -> eyre::Result<()> {
         // Only save if the settings have changed.
         if !self.dirty.load(Ordering::SeqCst) {
-            log::info!("Settings have not changed since last save");
+            log::info!("Settings have not changed since last save.");
             return Ok(());
         }
 
@@ -167,6 +172,11 @@ pub fn tab_data() -> menu::TabData {
             "Show FPS",
             "Display the current framerate at the top of the screen. Default is Off.",
             settings.show_fps.clone(),
+        ),
+        OptionInfo::new(
+            "Save Cheat States",
+            "Preserve the states of toggleable cheats between game loads/launches. Default is Off.",
+            settings.save_cheats.clone(),
         ),
     ];
 

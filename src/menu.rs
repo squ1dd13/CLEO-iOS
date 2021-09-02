@@ -181,7 +181,7 @@ impl Row {
             let detail_label: *mut Object = msg_send![class!(UILabel), alloc];
             let detail_label: *mut Object = msg_send![detail_label, initWithFrame: detail_frame];
 
-            let font = gui::get_font("ChaletComprime-CologneSixty", 20.0);
+            let font = gui::get_font("ChaletComprime-CologneSixty", 19.0);
             let _: () = msg_send![detail_label, setFont: font];
             let _: () = msg_send![detail_label, setAdjustsFontSizeToFitWidth: true];
             let _: () = msg_send![detail_label, setTextAlignment: 0u64];
