@@ -6,6 +6,7 @@ use crate::{
 };
 use lazy_static::lazy_static;
 use log::error;
+use once_cell::unsync::Lazy;
 
 pub struct Cheat {
     index: usize,
@@ -201,6 +202,21 @@ impl RowData for CheatData {
 }
 
 pub fn tab_data() -> crate::menu::TabData {
+    let sorted_cheats: Lazy<Vec<&Cheat>> = Lazy::new(|| {
+        let mut vec: Vec<&Cheat> = CHEATS.iter().by_ref().collect();
+
+        vec.sort_by_key(|cheat| {
+            if cheat.code.is_empty() {
+                // Push cheats without codes to the end. If we don't do this, the cheat menu only shows "???" for the first few rows.
+                "ZZZZZ"
+            } else {
+                cheat.code
+            }
+        });
+
+        vec
+    });
+
     TabData {
         name: "Cheats".to_string(),
         warning: Some(
@@ -208,7 +224,7 @@ pub fn tab_data() -> crate::menu::TabData {
 If you don't want to risk breaking your save, back up your progress to a different slot first."#
                 .to_string(),
         ),
-        row_data: CHEATS
+        row_data: sorted_cheats
             .iter()
             .map(|cheat| Box::new(CheatData::new(cheat)) as Box<dyn RowData>)
             .collect(),

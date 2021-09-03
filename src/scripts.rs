@@ -483,7 +483,7 @@ pub struct MenuInfo {
 
 impl MenuInfo {
     fn new(script: &Script) -> Option<MenuInfo> {
-        log::trace!("Creating MenuInfo for script\n{:#?}", script);
+        log::trace!("script = {:?}", script);
 
         match script {
             Script::Invoked(script) => Some(MenuInfo {
