@@ -398,66 +398,6 @@ fn script_reset() {
     }
 }
 
-fn gen_compat_warning(invoked_errs: usize, running_errs: usize) -> Option<String> {
-    fn gen_message(count: usize, extension: &str) -> String {
-        const NUMBERS: &[&str] = &[
-            "one", "two", "three", "four", "five", "six", "seven", "eight", "nine",
-        ];
-
-        if count == 0 {
-            return "".to_string();
-        }
-
-        format!(
-            "{} {} script{}",
-            NUMBERS
-                .get(count - 1)
-                .map(|s| s.to_string())
-                .unwrap_or_else(|| count.to_string()),
-            extension,
-            if count == 1 { "" } else { "s" }
-        )
-    }
-
-    let mut output = String::new();
-
-    if invoked_errs == 0 && running_errs == 0 {
-        return None;
-    }
-
-    if invoked_errs != 0 {
-        output += &gen_message(invoked_errs, "CSI");
-
-        if running_errs != 0 {
-            output += " and ";
-        }
-    }
-
-    if running_errs != 0 {
-        output += &gen_message(running_errs, "CSA");
-    }
-
-    let it_them = if invoked_errs + running_errs == 1 {
-        "it"
-    } else {
-        "them"
-    };
-
-    // fixme: Not happy with the wording here. The end result sounds clunky.
-    output +=
-        format!(" may be incompatible with iOS. Use {} at your own risk.\nView the scripts below for more details.", it_them).as_str();
-
-    // Make the first character uppercase.
-    let mut characters = output.chars();
-    let upper_first = characters
-        .next()
-        .unwrap()
-        .to_uppercase()
-        .collect::<String>();
-
-    Some(upper_first + characters.as_str())
-}
-
 #[derive(Debug)]
 pub enum ScriptState {
     Disabled,
@@ -483,27 +423,29 @@ pub struct MenuInfo {
 
 impl MenuInfo {
     fn new(script: &Script) -> Option<MenuInfo> {
-        log::trace!("script = {:?}", script);
-
         match script {
             Script::Invoked(script) => Some(MenuInfo {
                 name: script.name.clone(),
                 state: ScriptStateMenu::Csi(script.game_script.active),
                 warning: script.compat_issue.as_ref().map(|issue| issue.to_string()),
             }),
-            Script::Running { script, enabled } => Some(MenuInfo {
-                name: script.name.clone(),
-                state: ScriptStateMenu::Csa(if *enabled {
-                    if script.compat_issue.is_some() {
-                        ScriptState::TempEnabled
+            Script::Running { script, enabled } => {
+                log::trace!("script = {:?}", script.game_script);
+                log::trace!("bytes = {:?}", script._bytes.as_slice());
+                Some(MenuInfo {
+                    name: script.name.clone(), //"yes".into(), //
+                    state: ScriptStateMenu::Csa(if *enabled {
+                        if script.compat_issue.is_some() {
+                            ScriptState::TempEnabled
+                        } else {
+                            ScriptState::AlwaysEnabled
+                        }
                     } else {
-                        ScriptState::AlwaysEnabled
-                    }
-                } else {
-                    ScriptState::Disabled
-                }),
-                warning: script.compat_issue.as_ref().map(|issue| issue.to_string()),
-            }),
+                        ScriptState::Disabled
+                    }),
+                    warning: script.compat_issue.as_ref().map(|issue| issue.to_string()),
+                })
+            }
         }
     }
 
@@ -644,16 +586,35 @@ impl menu::RowData for MenuInfo {
     }
 }
 
-pub fn tab_data() -> menu::TabData {
+fn gen_warning_string(count: usize) -> Option<String> {
+    const NUMBERS: &[&str] = &[
+        "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine",
+    ];
+
+    if count == 0 {
+        return None;
+    }
+
+    Some(format!(
+        "{} of these scripts {} potentially incompatible with iOS. {} highlighted in orange.\nSee below for further details.",
+        NUMBERS
+            .get(count - 1)
+            .map(|s| s.to_string())
+            .unwrap_or_else(|| count.to_string()),
+        if count == 1 { "is" } else { "are" },
+        if count == 1 { "This script is" } else { "These scripts are" },
+    ))
+}
+
+pub fn tab_data_csa() -> menu::TabData {
     let mut row_data = vec![];
 
-    let mut csi_errs = 0usize;
-    let mut csa_errs = 0usize;
+    let mut errs = 0usize;
 
     for script in SCRIPTS.lock().unwrap().iter() {
         let (cleo_script, err_inc) = match script {
-            Script::Running { script, enabled: _ } => (script, &mut csa_errs),
-            Script::Invoked(s) => (s, &mut csi_errs),
+            Script::Running { script, enabled: _ } => (script, &mut errs),
+            Script::Invoked(_) => continue,
         };
 
         if cleo_script.compat_issue.is_some() {
@@ -667,11 +628,41 @@ pub fn tab_data() -> menu::TabData {
 
     row_data.sort_by_cached_key(|x| x.title());
 
-    let warning = gen_compat_warning(csi_errs, csa_errs);
+    TabData {
+        name: "CSA".to_string(),
+        warning: gen_warning_string(errs),
+        row_data,
+    }
+}
+
+pub fn tab_data_csi() -> menu::TabData {
+    let mut row_data = vec![];
+
+    let mut errs = 0usize;
+
+    for script in SCRIPTS.lock().unwrap().iter() {
+        let (cleo_script, err_inc) = match script {
+            Script::Running {
+                script: _,
+                enabled: _,
+            } => continue,
+            Script::Invoked(s) => (s, &mut errs),
+        };
+
+        if cleo_script.compat_issue.is_some() {
+            *err_inc += 1;
+        }
+
+        if let Some(info) = MenuInfo::new(script) {
+            row_data.push(Box::new(info) as Box<dyn menu::RowData>)
+        }
+    }
+
+    row_data.sort_by_cached_key(|x| x.title());
 
     TabData {
-        name: "Scripts".to_string(),
-        warning,
+        name: "CSI".to_string(),
+        warning: gen_warning_string(errs),
         row_data,
     }
 }

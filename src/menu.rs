@@ -528,7 +528,8 @@ impl Menu {
         if game_state == 9 {
             // In a game, so allow access to all the tabs.
             vec![
-                crate::scripts::tab_data(),
+                crate::scripts::tab_data_csi(),
+                crate::scripts::tab_data_csa(),
                 crate::cheats::tab_data(),
                 crate::settings::tab_data(),
             ]
