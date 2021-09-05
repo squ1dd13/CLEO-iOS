@@ -273,7 +273,7 @@ fn legal_splash_did_load(this: *mut Object, sel: Sel) {
             },
         };
 
-        let copyright = "Copyright © 2020-2021 Squ1dd13. Code licenced under the MIT License.\nMade with love in the United Kingdom. Have fun.";
+        let copyright = "Copyright © 2020-2021 Squ1dd13. Code licenced under the MIT License.\nMade with love in the United Kingdom. Have fun!";
 
         let label: *mut Object = msg_send![class!(UILabel), alloc];
         let label: *mut Object = msg_send![label, initWithFrame: bottom_text_frame];
