@@ -1,12 +1,15 @@
 //! Replaces the game's broken cheats system with our own system that integrates with the menu.
 
+use std::sync::atomic::{AtomicBool, Ordering};
+
 use crate::{
-    gui, hook,
+    call_original, gui, hook,
     menu::{self, RowData, TabData},
+    settings::Settings,
 };
 use lazy_static::lazy_static;
 use log::error;
-use once_cell::unsync::Lazy;
+use once_cell::sync::Lazy;
 
 pub struct Cheat {
     index: usize,
@@ -85,6 +88,13 @@ impl Cheat {
     }
 }
 
+// (a, b) where a = "check b" and b = "save the cheat states". a is false when a save is in progress.
+// This is a weak system for avoiding two saves happening at the same time, but it works well enough.
+// Besides, it's practically impossible for a save to be triggered when one is already in progress because
+//  saving is very fast.
+static SAVE_FLAGS: Lazy<(AtomicBool, AtomicBool)> =
+    Lazy::new(|| (AtomicBool::new(true), AtomicBool::new(false)));
+
 // CCheat::DoCheats is where cheat codes are checked and then cheats activated (indirectly),
 //  so we need to do our cheat stuff here to ensure that the cheats don't fuck up the game by
 //  doing stuff at weird times. The point in CGame::Process where DoCheats is called is where
@@ -103,6 +113,45 @@ fn do_cheats() {
         waiting.clear();
     } else {
         error!("Unable to lock cheat queue for CCheat::DoCheats!");
+    }
+
+    if SAVE_FLAGS.0.load(Ordering::SeqCst) && SAVE_FLAGS.1.load(Ordering::SeqCst) {
+        // Ignore further requests to save the cheat states.
+        SAVE_FLAGS.0.store(false, Ordering::SeqCst);
+
+        // We need to save the cheat states now. We only do this after the cheat functions have been called because
+        //  some will clear their "enabled" status when they run.
+        // todo: Check that saving cheats after execution is always a good idea.
+
+        // We just save an array of bytes in the order of the cheats, with each being 1 or 0 depending on the status of that cheat.
+        // We do this outside of our saving thread because we don't want the statuses to change while we're accessing them.
+        let cheat_state_bytes: Vec<u8> = CHEATS
+            .iter()
+            .map(|cheat| {
+                let is_active = cheat.is_active();
+                if is_active {
+                    log::info!("Saving status ON for cheat '{}'.", cheat.code);
+                }
+                is_active as u8
+            })
+            .collect();
+
+        std::thread::spawn(|| {
+            if let Err(err) = std::fs::write(
+                crate::resources::get_documents_path("cleo_saved_cheats.u8"),
+                cheat_state_bytes,
+            ) {
+                log::error!("Error while saving cheat states: {}", err);
+            } else {
+                log::info!("Cheat states saved successfully.");
+            }
+
+            // Clear save request flag (so we don't keep saving infinitely).
+            SAVE_FLAGS.1.store(false, Ordering::SeqCst);
+
+            // Allow new saving requests to be processed.
+            SAVE_FLAGS.0.store(true, Ordering::SeqCst);
+        });
     }
 }
 
@@ -197,11 +246,16 @@ impl RowData for CheatData {
             self.cheat.queue();
         }
 
+        if Settings::shared().save_cheats.load(Ordering::SeqCst) {
+            // Request that the cheats be saved because it is likely that a status will change.
+            SAVE_FLAGS.1.store(true, Ordering::SeqCst);
+        }
+
         true
     }
 }
 
-pub fn tab_data() -> crate::menu::TabData {
+pub fn tab_data() -> TabData {
     let sorted_cheats: Lazy<Vec<&Cheat>> = Lazy::new(|| {
         let mut vec: Vec<&Cheat> = CHEATS.iter().by_ref().collect();
 
@@ -231,8 +285,56 @@ If you don't want to risk breaking your save, back up your progress to a differe
     }
 }
 
+fn reset_cheats() {
+    log::info!("Resetting cheats");
+    call_original!(crate::targets::reset_cheats);
+
+    if !Settings::shared().save_cheats.load(Ordering::SeqCst) {
+        log::info!("Cheat saving/loading is disabled.");
+        return;
+    }
+
+    log::info!("Loading saved cheats.");
+
+    let path = crate::resources::get_documents_path("cleo_saved_cheats.u8");
+
+    if !path.exists() {
+        log::info!("No saved cheats file found.");
+        return;
+    }
+
+    match std::fs::read(path) {
+        Ok(loaded_bytes) => {
+            // Check that we have a file that matches our cheat count.
+            if loaded_bytes.len() != CHEATS.len() {
+                log::error!("Invalid cheat save: byte count must match cheat count.");
+                return;
+            }
+
+            // Ensure that all the bytes are valid.
+            for byte in loaded_bytes.iter() {
+                if byte != &0 && byte != &1 {
+                    log::error!("Invalid cheat save: found non-Boolean byte.");
+                    return;
+                }
+            }
+
+            // Set all the cheat statuses according to the bytes in the file.
+            for (i, b) in loaded_bytes.iter().enumerate() {
+                *CHEATS[i].get_active_mut() = b == &1;
+            }
+
+            log::info!("Cheats loaded successfully.");
+        }
+        Err(err) => {
+            log::error!("Error loading cheat file: {}", err);
+        }
+    }
+}
+
 pub fn init() {
     crate::targets::do_cheats::install(do_cheats);
+    crate::targets::reset_cheats::install(reset_cheats);
 }
 
 // We have to include the codes because the game doesn't have the array.
@@ -288,7 +390,11 @@ static CHEATS: [Cheat; 111] = [
     Cheat::new(35, "STICKLIKEGLUE", "Improved suspension and handling"),
     Cheat::new(36, "GOODBYECRUELWORLD", "Suicide"),
     Cheat::new(37, "DONTTRYANDSTOPME", "Traffic lights are always green"),
-    Cheat::new(38, "ALLDRIVERSARECRIMINALS", "Aggressive drivers"),
+    Cheat::new(
+        38,
+        "ALLDRIVERSARECRIMINALS",
+        "All NPC drivers drive aggressively and have a wanted level",
+    ),
     Cheat::new(39, "PINKISTHENEWCOOL", "Pink traffic"),
     Cheat::new(40, "SOLONGASITSBLACK", "Black traffic"),
     Cheat::new(41, "", "Cars have sideways wheels"),
@@ -297,7 +403,7 @@ static CHEATS: [Cheat; 111] = [
     Cheat::new(44, "BUFFMEUP", "Maximum muscle"),
     Cheat::new(45, "", "Maximum gambling skill"),
     Cheat::new(46, "LEANANDMEAN", "Minimum fat and muscle"),
-    Cheat::new(47, "BLUESUEDESHOES", "Pedestrians are Elvis Presley"),
+    Cheat::new(47, "BLUESUEDESHOES", "All pedestrians are Elvis Presley"),
     Cheat::new(
         48,
         "ATTACKOFTHEVILLAGEPEOPLE",

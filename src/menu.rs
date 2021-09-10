@@ -702,8 +702,6 @@ pub fn init() {
         .unwrap();
 }
 
-// todo: Re-enable RC calls.
-
 impl Drop for Row {
     fn drop(&mut self) {
         unsafe {

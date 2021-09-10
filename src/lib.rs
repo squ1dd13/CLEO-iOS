@@ -103,6 +103,8 @@ mod targets {
         0x1002b5a78,
         fn(*const c_char, *const c_char)
     );
+
+    create_soft_target!(reset_cheats, 0x1001a8194, fn());
 }
 
 fn initialise() {
