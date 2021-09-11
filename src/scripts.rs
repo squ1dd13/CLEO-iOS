@@ -8,7 +8,10 @@ use crate::{
     menu::{self, MenuMessage, TabData},
     targets, touch,
 };
-use std::sync::Mutex;
+use std::{
+    hash::{Hash, Hasher},
+    sync::Mutex,
+};
 
 #[repr(C, align(8))]
 #[derive(Debug)]
@@ -93,6 +96,9 @@ struct CleoScript {
     /// A potential incompatibility that the script has. There may be several of these, but the `check`
     /// module only returns the first that is found.
     compat_issue: Option<check::CompatIssue>,
+
+    /// A hash of the script's bytes. This hash can be used to identify the script.
+    hash: u64,
 }
 
 impl CleoScript {
@@ -113,11 +119,18 @@ impl CleoScript {
             log::info!("No compatibility issues detected.");
         }
 
+        let hash = {
+            let mut hasher = std::collections::hash_map::DefaultHasher::new();
+            bytes.hash(&mut hasher);
+            hasher.finish()
+        };
+
         CleoScript {
             game_script: GameScript::new(bytes.as_ptr().cast(), false),
             _bytes: bytes,
             name,
             compat_issue,
+            hash,
         }
     }
 
@@ -298,27 +311,63 @@ impl CleoScript {
     }
 }
 
+#[derive(Debug, Clone, Copy)]
+enum CsaState {
+    EnabledNormally,
+    Disabled,
+    Forced,
+}
+
 #[derive(Debug)]
 enum Script {
     /// CSI scripts. These do not run until the user tells them to using the menu.
-    Invoked(CleoScript),
+    Csi(CleoScript),
 
     // todo: Add support for PC CS scripts.
     /// CSA scripts. These start when the game has finished loading.
-    Running { script: CleoScript, enabled: bool },
+    Csa { script: CleoScript, state: CsaState },
 }
 
-// fixme: We shouldn't need to implement Sync/Send manually.
+impl PartialEq for Script {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Script::Csi(l0), Script::Csi(r0)) => l0.hash == r0.hash,
+            (
+                Script::Csa {
+                    script: l_script,
+                    state: _,
+                },
+                Script::Csa {
+                    script: r_script,
+                    state: _,
+                },
+            ) => l_script.hash == r_script.hash,
+            _ => false,
+        }
+    }
+}
+
+impl std::cmp::Eq for Script {}
+
+impl std::hash::Hash for Script {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        state.write_u64(match self {
+            Script::Csi(script) => script.hash,
+            Script::Csa { script, state: _ } => script.hash,
+        });
+    }
+}
+
 unsafe impl Sync for Script {}
 unsafe impl Send for Script {}
 
 impl Script {
-    fn update_all(scripts: &mut [Script]) {
-        for script in scripts {
+    fn update_all(scripts: &mut Vec<Script>) {
+        for script in scripts.iter_mut() {
             let script = match script {
-                Script::Invoked(script) => script,
-                Script::Running { script, enabled } => {
-                    if !*enabled {
+                Script::Csi(script) => script,
+                Script::Csa { script, state } => {
+                    if let CsaState::Disabled = state {
                         continue;
                     }
 
@@ -332,7 +381,6 @@ impl Script {
 }
 
 lazy_static::lazy_static! {
-    // fixme: Should we be using Arc<Mutex<...>> for the script vector?
     static ref SCRIPTS: Mutex<Vec<Script>> = Mutex::new(vec![]);
 }
 
@@ -352,15 +400,14 @@ fn load_script(path: &impl AsRef<std::path::Path>) -> eyre::Result<CleoScript> {
 pub fn load_running_script(path: &impl AsRef<std::path::Path>) -> eyre::Result<()> {
     let script = load_script(path)?;
 
-    // Only enable by default if the script has no compatibility issues. We have to decide here
-    //  because the user is not normally in charge of launching CSA scripts.
-    // todo: Allow switching between Off/On/Always On for CSA scripts in menu. Use '<' and '>' to show that there are more options available.
-    let enabled = script.compat_issue.is_none();
+    // fixme: CSA state loading doesn't take into account previous user settings.
+    let state = if script.compat_issue.is_none() {
+        CsaState::EnabledNormally
+    } else {
+        CsaState::Disabled
+    };
 
-    SCRIPTS
-        .lock()
-        .unwrap()
-        .push(Script::Running { script, enabled });
+    SCRIPTS.lock().unwrap().push(Script::Csa { script, state });
 
     Ok(())
 }
@@ -369,7 +416,7 @@ pub fn load_invoked_script(path: &impl AsRef<std::path::Path>) -> eyre::Result<(
     SCRIPTS
         .lock()
         .unwrap()
-        .push(Script::Invoked(load_script(path)?));
+        .push(Script::Csi(load_script(path)?));
 
     Ok(())
 }
@@ -386,114 +433,75 @@ fn script_reset() {
 
     for script in scripts.iter_mut() {
         match script {
-            Script::Invoked(script) => {
+            Script::Csi(script) => {
                 script.game_script.active = false;
                 script.reset();
             }
-            Script::Running { script, enabled: _ } => {
-                script.game_script.active = true;
+            Script::Csa { script, state } => {
+                script.game_script.active = if let CsaState::Disabled = state {
+                    false
+                } else {
+                    true
+                };
+
                 script.reset();
             }
         }
     }
 }
 
-#[derive(Debug)]
-pub enum ScriptState {
-    Disabled,
-    TempEnabled,
-    AlwaysEnabled,
+// #[derive(Debug)]
+// pub enum ScriptState {
+//     Disabled,
+//     TempEnabled,
+//     AlwaysEnabled,
+// }
+
+// #[derive(Debug)]
+// pub enum ScriptStateMenu {
+//     Csi(bool),
+//     Csa(ScriptState),
+// }
+
+pub struct CsiMenuInfo {
+    name: String,
+    state: bool,
+    warning: Option<String>,
 }
 
-#[derive(Debug)]
-pub enum ScriptStateMenu {
-    Csi(bool),
-    Csa(ScriptState),
-}
+impl CsiMenuInfo {
+    fn new(script: &Script) -> Option<CsiMenuInfo> {
+        let script = if let Script::Csi(script) = script {
+            script
+        } else {
+            return None;
+        };
 
-// todo: Split MenuInfo into two different structs for the different types of script we have.
-
-/// Information to be displayed in the script menu for a given script.
-#[derive(Debug)]
-pub struct MenuInfo {
-    pub name: String,
-    pub state: ScriptStateMenu,
-    pub warning: Option<String>,
-}
-
-impl MenuInfo {
-    fn new(script: &Script) -> Option<MenuInfo> {
-        match script {
-            Script::Invoked(script) => Some(MenuInfo {
-                name: script.name.clone(),
-                state: ScriptStateMenu::Csi(script.game_script.active),
-                warning: script.compat_issue.as_ref().map(|issue| issue.to_string()),
-            }),
-            Script::Running { script, enabled } => {
-                log::trace!("script = {:?}", script.game_script);
-                log::trace!("bytes = {:?}", script._bytes.as_slice());
-                Some(MenuInfo {
-                    name: script.name.clone(), //"yes".into(), //
-                    state: ScriptStateMenu::Csa(if *enabled {
-                        if script.compat_issue.is_some() {
-                            ScriptState::TempEnabled
-                        } else {
-                            ScriptState::AlwaysEnabled
-                        }
-                    } else {
-                        ScriptState::Disabled
-                    }),
-                    warning: script.compat_issue.as_ref().map(|issue| issue.to_string()),
-                })
-            }
-        }
+        Some(CsiMenuInfo {
+            name: script.name.clone(),
+            state: script.game_script.active,
+            warning: script.compat_issue.as_ref().map(|issue| issue.to_string()),
+        })
     }
 
-    pub fn activate(&mut self) {
-        // A linear search by name is fine, because this shouldn't be called from
-        //  performance-critical code.
+    fn activate(&mut self) {
         for script in SCRIPTS.lock().unwrap().iter_mut() {
-            match script {
-                Script::Invoked(script) => {
-                    if script.name != self.name {
-                        continue;
-                    }
-
-                    script.game_script.active = true;
-                    break;
+            if let Script::Csi(script) = script {
+                if script.name != self.name {
+                    continue;
                 }
-                Script::Running { script, enabled } => {
-                    if script.name != self.name {
-                        continue;
-                    }
 
-                    *enabled = true;
-                    script.game_script.active = true;
-
-                    self.state = if *enabled {
-                        ScriptStateMenu::Csa(ScriptState::TempEnabled)
-                    } else {
-                        ScriptStateMenu::Csa(ScriptState::Disabled)
-                    }
-                }
+                script.game_script.active = true;
+                self.state = true;
+                break;
             }
-        }
-
-        if let ScriptStateMenu::Csi(state) = &self.state {
-            self.state = ScriptStateMenu::Csi(!state);
         }
     }
 }
 
-impl menu::RowData for MenuInfo {
+impl menu::RowData for CsiMenuInfo {
     fn title(&self) -> String {
-        let prefix = match &self.state {
-            ScriptStateMenu::Csi(_) => "CSI: ",
-            ScriptStateMenu::Csa(_) => "CSA: ",
-        }
-        .to_string();
-
-        prefix + &self.name
+        self.name.clone()
     }
 
     fn detail(&self) -> menu::RowDetail {
@@ -503,27 +511,10 @@ impl menu::RowData for MenuInfo {
             "No issues detected."
         };
 
-        let info_str = match &self.state {
-            ScriptStateMenu::Csi(state) => {
-                if *state {
-                    format!("Running. {}", issues_str)
-                } else {
-                    format!("Not running. {}", issues_str)
-                }
-            }
-            ScriptStateMenu::Csa(state) => match state {
-                ScriptState::Disabled => format!("Disabled (not running at all). {} Tap to enable.", issues_str),
-                ScriptState::TempEnabled => format!(
-                    "Temporarily enabled (will not start next time the game loads). {} Tap to permanently enable.",
-                    issues_str
-                ),
-                ScriptState::AlwaysEnabled => {
-                    format!(
-                        "Permanently enabled (starts when the game loads). {} Tap to disable.",
-                        issues_str
-                    )
-                }
-            },
+        let info_str = if self.state {
+            format!("Running. {}", issues_str)
+        } else {
+            format!("Not running. {}", issues_str)
         };
 
         if self.warning.is_some() {
@@ -534,55 +525,134 @@ impl menu::RowData for MenuInfo {
     }
 
     fn value(&self) -> &str {
-        match &self.state {
-            ScriptStateMenu::Csi(state) => {
-                if *state {
-                    "Running"
-                } else {
-                    "Not running"
-                }
-            }
-            ScriptStateMenu::Csa(state) => match state {
-                ScriptState::Disabled => {
-                    if self.warning.is_some() {
-                        "Off (Warning)"
-                    } else {
-                        "Off"
-                    }
-                }
-                ScriptState::TempEnabled => "Temporarily On",
-                ScriptState::AlwaysEnabled => "Always On",
-            },
+        if self.state {
+            "Running"
+        } else {
+            "Not running"
         }
     }
 
     fn tint(&self) -> Option<(u8, u8, u8)> {
-        match &self.state {
-            ScriptStateMenu::Csi(state) => {
-                if *state {
-                    Some(crate::gui::colours::GREEN)
-                } else {
-                    None
-                }
-            }
-            ScriptStateMenu::Csa(state) => match state {
-                ScriptState::Disabled => None,
-                ScriptState::TempEnabled | ScriptState::AlwaysEnabled => {
-                    Some(crate::gui::colours::GREEN)
-                }
-            },
+        if self.state {
+            Some(crate::gui::colours::GREEN)
+        } else {
+            None
         }
     }
 
     fn handle_tap(&mut self) -> bool {
         self.activate();
 
-        if let ScriptStateMenu::Csi(_) = &self.state {
-            MenuMessage::Hide.send();
-            false
+        // We don't allow queueing of scripts because we don't want to make it easy to enable multiple at the same time.
+        MenuMessage::Hide.send();
+
+        false
+    }
+}
+
+struct CsaMenuInfo {
+    name: String,
+    state: CsaState,
+    warning: Option<String>,
+}
+
+impl CsaMenuInfo {
+    fn new(script: &Script) -> Option<CsaMenuInfo> {
+        if let Script::Csa { script, state } = script {
+            Some(CsaMenuInfo {
+                name: script.name.clone(),
+                state: *state,
+                warning: script.compat_issue.as_ref().map(|issue| issue.to_string()),
+            })
         } else {
-            true
+            None
         }
+    }
+}
+
+impl menu::RowData for CsaMenuInfo {
+    fn title(&self) -> String {
+        self.name.clone()
+    }
+
+    fn detail(&self) -> menu::RowDetail {
+        let issues_str = if let Some(warning) = self.warning.as_deref() {
+            warning
+        } else {
+            "No issues detected."
+        };
+
+        let info_str = format!("{} Tap to cycle script mode. ", issues_str);
+
+        if self.warning.is_some() {
+            menu::RowDetail::Warning(info_str)
+        } else {
+            menu::RowDetail::Info(info_str)
+        }
+    }
+
+    fn value(&self) -> &str {
+        match self.state {
+            CsaState::EnabledNormally => "Enabled",
+            CsaState::Disabled => "Disabled",
+            CsaState::Forced => "Forced",
+        }
+    }
+
+    fn tint(&self) -> Option<(u8, u8, u8)> {
+        if let CsaState::Disabled = self.state {
+            None
+        } else {
+            Some(crate::gui::colours::GREEN)
+        }
+    }
+
+    fn handle_tap(&mut self) -> bool {
+        // How we switch modes depends on the script's properties. If there are no errors,
+        //  the only available modes are "Enabled" and "Disabled" (in that order). If there
+        //  are errors, the modes are "Disabled" and "Forced".
+        let new_state = if self.warning.is_none() {
+            match self.state {
+                CsaState::EnabledNormally => CsaState::Disabled,
+                CsaState::Disabled => CsaState::EnabledNormally,
+                CsaState::Forced => {
+                    log::warn!("Error-free scripts should never be in 'Forced' mode. Returning to 'Disabled'.");
+                    CsaState::Disabled
+                }
+            }
+        } else {
+            match self.state {
+                CsaState::EnabledNormally => {
+                    log::warn!("Scripts with errors should never be 'EnabledNormally'. Returning to 'Disabled'.");
+                    CsaState::Disabled
+                }
+                CsaState::Disabled => CsaState::Forced,
+                CsaState::Forced => CsaState::Disabled,
+            }
+        };
+
+        self.state = new_state;
+
+        for script in SCRIPTS.lock().unwrap().iter_mut() {
+            if let Script::Csa { script, state } = script {
+                if script.name != self.name {
+                    continue;
+                }
+
+                if script.name != self.name {
+                    continue;
+                }
+
+                *state = new_state;
+                script.game_script.active = if let CsaState::Disabled = new_state {
+                    false
+                } else {
+                    true
+                };
+            }
+        }
+
+        true
     }
 }
 
@@ -612,16 +682,17 @@ pub fn tab_data_csa() -> menu::TabData {
     let mut errs = 0usize;
 
     for script in SCRIPTS.lock().unwrap().iter() {
-        let (cleo_script, err_inc) = match script {
-            Script::Running { script, enabled: _ } => (script, &mut errs),
-            Script::Invoked(_) => continue,
+        let (cleo_script, err_inc) = if let Script::Csa { script, state: _ } = script {
+            (script, &mut errs)
+        } else {
+            continue;
         };
 
         if cleo_script.compat_issue.is_some() {
             *err_inc += 1;
         }
 
-        if let Some(info) = MenuInfo::new(script) {
+        if let Some(info) = CsaMenuInfo::new(script) {
             row_data.push(Box::new(info) as Box<dyn menu::RowData>)
         }
     }
@@ -641,19 +712,17 @@ pub fn tab_data_csi() -> menu::TabData {
     let mut errs = 0usize;
 
     for script in SCRIPTS.lock().unwrap().iter() {
-        let (cleo_script, err_inc) = match script {
-            Script::Running {
-                script: _,
-                enabled: _,
-            } => continue,
-            Script::Invoked(s) => (s, &mut errs),
+        let (cleo_script, err_inc) = if let Script::Csi(s) = script {
+            (s, &mut errs)
+        } else {
+            continue;
         };
 
         if cleo_script.compat_issue.is_some() {
             *err_inc += 1;
         }
 
-        if let Some(info) = MenuInfo::new(script) {
+        if let Some(info) = CsiMenuInfo::new(script) {
             row_data.push(Box::new(info) as Box<dyn menu::RowData>)
         }
     }
