@@ -1,6 +1,8 @@
 //! Modifies the game's script system to run CLEO scripts alongside vanilla scripts, and provides
 //! an API for interfacing with the script system.
 
+use once_cell::sync::Lazy;
+
 use crate::{
     call_original,
     check::{self, CompatIssue},
@@ -9,6 +11,7 @@ use crate::{
     targets, touch,
 };
 use std::{
+    collections::HashMap,
     hash::{Hash, Hasher},
     sync::Mutex,
 };
@@ -311,11 +314,21 @@ impl CleoScript {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, serde::Serialize, serde::Deserialize)]
 enum CsaState {
     EnabledNormally,
     Disabled,
     Forced,
+}
+
+impl CsaState {
+    fn active(&self) -> bool {
+        if let CsaState::Disabled = self {
+            false
+        } else {
+            true
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -398,14 +411,10 @@ fn load_script(path: &impl AsRef<std::path::Path>) -> eyre::Result<CleoScript> {
 }
 
 pub fn load_running_script(path: &impl AsRef<std::path::Path>) -> eyre::Result<()> {
-    let script = load_script(path)?;
+    let mut script = load_script(path)?;
 
-    // fixme: CSA state loading doesn't take into account previous user settings.
-    let state = if script.compat_issue.is_none() {
-        CsaState::EnabledNormally
-    } else {
-        CsaState::Disabled
-    };
+    let state = get_csa_state(&script);
+    script.game_script.active = state.active();
 
     SCRIPTS.lock().unwrap().push(Script::Csa { script, state });
 
@@ -426,8 +435,68 @@ fn script_update() {
     call_original!(targets::script_tick);
 }
 
+static SAVED_STATES: Lazy<Mutex<HashMap<u64, CsaState>>> = Lazy::new(|| Mutex::new(HashMap::new()));
+
+fn load_csa_states() {
+    let bytes = match std::fs::read(crate::resources::get_documents_path("cleo_csa_states.bin")) {
+        Ok(bytes) => bytes,
+        Err(err) => {
+            log::warn!("Unable to read CSA states: {}", err);
+            return;
+        }
+    };
+
+    let deserialised = match bincode::deserialize::<HashMap<u64, CsaState>>(&bytes) {
+        Ok(deserialised) => deserialised,
+        Err(err) => {
+            log::error!("Error while deserialising CSA states: {}", err);
+            return;
+        }
+    };
+
+    *SAVED_STATES.lock().unwrap() = deserialised;
+
+    log::info!("CSA states loaded successfully.");
+}
+
+fn save_csa_states() {
+    let mut states = SAVED_STATES.lock().unwrap();
+    states.clear();
+
+    for script in SCRIPTS.lock().unwrap().iter() {
+        if let Script::Csa { script, state } = script {
+            states.insert(script.hash, *state);
+        }
+    }
+
+    let bytes = bincode::serialize(&states as &HashMap<u64, CsaState>).unwrap();
+
+    if let Err(err) = std::fs::write(
+        crate::resources::get_documents_path("cleo_csa_states.bin"),
+        bytes,
+    ) {
+        log::error!("Error while saving CSA script states: {}", err);
+    } else {
+        log::info!("CSA script states saved successfully.");
+    }
+}
+
+fn get_csa_state(script: &CleoScript) -> CsaState {
+    // If there is a state saved for the script, we use it (even if there are issues with the script).
+    // This allows the user to judge whether or not they want to ignore the errors in a script.
+    if let Some(state) = SAVED_STATES.lock().unwrap().get(&script.hash) {
+        *state
+    } else if script.compat_issue.is_some() {
+        CsaState::Disabled
+    } else {
+        CsaState::EnabledNormally
+    }
+}
+
 fn script_reset() {
     call_original!(targets::reset_before_start);
+
+    load_csa_states();
 
     let mut scripts = SCRIPTS.lock().unwrap();
 
@@ -438,11 +507,8 @@ fn script_reset() {
                 script.reset();
             }
             Script::Csa { script, state } => {
-                script.game_script.active = if let CsaState::Disabled = state {
-                    false
-                } else {
-                    true
-                };
+                *state = get_csa_state(script);
+                script.game_script.active = state.active();
 
                 script.reset();
             }
@@ -651,6 +717,8 @@ impl menu::RowData for CsaMenuInfo {
                 };
             }
         }
+
+        save_csa_states();
 
         true
     }
