@@ -156,7 +156,69 @@ impl CleoScript {
             return;
         }
 
-        while !self.update_once() {}
+        // Create a shared map for offset encounters. This does not need to be shared (and it gets cleared
+        //  every time this function runs), but a shared map removes the requirement for a new map to be
+        //  created every update, and also means that there is enough capacity for most updates to go without
+        //  extending the map. The shared map reduces the time taken for each script update by about 40%.
+        static mut OFFSET_MAP_SHARED: once_cell::unsync::Lazy<HashMap<usize, usize>> =
+            once_cell::unsync::Lazy::new(|| HashMap::new());
+
+        // Clear the offset map and obtain a reference to it.
+        let offset_encounters = unsafe {
+            OFFSET_MAP_SHARED.clear();
+            &mut OFFSET_MAP_SHARED
+        };
+
+        let mut previous_offset = 0usize;
+
+        loop {
+            let (offset, jumped_backwards) = {
+                let offset = self.find_ip_offset();
+                let jumped_backwards = offset < previous_offset;
+                previous_offset = offset;
+
+                (offset, jumped_backwards)
+            };
+
+            let encounters = if let Some(encounters) = offset_encounters.get_mut(&offset) {
+                encounters
+            } else {
+                offset_encounters.insert(offset, 1);
+                offset_encounters.get_mut(&offset).unwrap()
+            };
+
+            *encounters += 1;
+
+            if *encounters >= 5 && jumped_backwards {
+                // We've found a single offset in this run of instructions at least five times, and just
+                //  jumped backwards to get to it. This must mean we are in some kind of loop.
+                //
+                // Loops are fine most of the time, but if they run for a long time and don't have any
+                //  'wait' instructions, they cause the rest of the game to stop for a long period.
+                // This can cause a little bit of lag at best, and obvious stuttering at worst.
+                //
+                // Since we don't get a chance to break up these loops naturally (because there are
+                //  no 'wait' instructions, remember?) we need to force them to stop every now and then
+                //  in order to let other scripts (and the rest of the game) get a chance to work.
+                //
+                // Interrupting a loop after a jump is one of the better ways of doing this, because
+                //  it is the point least likely to sit between two instructions that work best running
+                //  together. No solution is perfect, but we have to find some place to break the flow up.
+                // A backwards jump is also a good place to break because it suggests we're at the start
+                //  of the loop body.
+                break;
+            }
+
+            let can_interrupt = self.update_once();
+
+            if can_interrupt {
+                break;
+            }
+        }
+    }
+
+    fn find_ip_offset(&self) -> usize {
+        self.game_script.ip as usize - self.game_script.base_ip as usize
     }
 
     fn update_once(&mut self) -> bool {
@@ -388,7 +450,12 @@ impl Script {
                 }
             };
 
+            let start = std::time::Instant::now();
             script.update();
+            let end = std::time::Instant::now();
+            let time_taken = end - start;
+
+            log::trace!("update for {} took {:#?}", script.name, time_taken);
         }
     }
 }
