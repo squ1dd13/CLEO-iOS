@@ -395,6 +395,48 @@ impl TabButton {
     }
 }
 
+fn set_game_timer_paused(want_pause: bool) {
+    // Previously, opening and closing the CLEO menu inside the pause menu would unpause the game, because we use
+    //  the same mechanism as the pause menu for pausing the game (so when CLEO unpaused the game, it undid the pause
+    //  menu's pausing). To stop this being possible, we use PAUSED_ALREADY to say whether the game was paused when
+    //  CLEO first tried to pause it (on opening the menu). Then, when CLEO tries to unpause the game, it only happens
+    //  if the game was not paused already. This means that users can't unpause the game when the game itself wants to
+    //  be paused.
+    static mut PAUSED_ALREADY: bool = false;
+
+    let var_ptr = crate::hook::slide::<*mut bool>(0x1007d3b34);
+
+    if want_pause {
+        let currently_paused: bool = crate::hook::get_global(0x1007d3b34);
+
+        if currently_paused {
+            unsafe {
+                PAUSED_ALREADY = true;
+            }
+
+            return;
+        }
+
+        unsafe {
+            PAUSED_ALREADY = false;
+            *var_ptr = true;
+        }
+    } else {
+        // We want to unpause.
+
+        if unsafe { PAUSED_ALREADY } {
+            // Don't do anything, because the game was paused when we found it.
+            log::info!("Game was paused when found, so not unpausing.");
+            return;
+        }
+
+        // The game wasn't paused, so we can unpause it.
+        unsafe {
+            *var_ptr = false;
+        }
+    }
+}
+
 impl Menu {
     fn new(tab_data: Vec<TabData>) -> Menu {
         let frame: CGRect = unsafe {
@@ -473,7 +515,7 @@ impl Menu {
     }
 
     fn add_to_window(&mut self) {
-        crate::hook::slide::<fn()>(0x10026ca5c)();
+        set_game_timer_paused(true);
 
         unsafe {
             let application: *mut Object = msg_send![class!(UIApplication), sharedApplication];
@@ -517,7 +559,7 @@ impl Menu {
             let _: () = msg_send![self.close_button, removeFromSuperview];
         }
 
-        crate::hook::slide::<fn()>(0x10026ca6c)();
+        set_game_timer_paused(false);
     }
 
     fn get_module_tab_data() -> Vec<TabData> {
