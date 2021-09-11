@@ -450,12 +450,7 @@ impl Script {
                 }
             };
 
-            let start = std::time::Instant::now();
             script.update();
-            let end = std::time::Instant::now();
-            let time_taken = end - start;
-
-            log::trace!("update for {} took {:#?}", script.name, time_taken);
         }
     }
 }
