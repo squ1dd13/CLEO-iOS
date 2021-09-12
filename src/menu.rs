@@ -43,8 +43,9 @@ struct TabState {
 }
 
 struct Tab {
-    name: String,
-    warning: Option<String>,
+    // We don't use the name or warning, but we may in the future.
+    _name: String,
+    _warning: Option<String>,
     scroll_view: *mut Object,
     warning_label: Option<*mut Object>,
     rows: Vec<Row>,
@@ -123,12 +124,6 @@ impl MenuMessage {
                 self
             );
         }
-    }
-
-    /// Attempts to clone the default sender in order to create a sender that can be used
-    /// without needing to wait for other threads to finish using the default one.
-    pub fn clone_sender() -> Option<Sender<Self>> {
-        Some(MESSAGE_SENDER.get()?.lock().ok()?.clone())
     }
 
     /// Directly send this message using the specified sender.
@@ -339,8 +334,8 @@ impl Tab {
         });
 
         let mut tab = Tab {
-            name: data.name,
-            warning: data.warning,
+            _name: data.name,
+            _warning: data.warning,
             scroll_view,
             warning_label,
             rows,

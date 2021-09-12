@@ -146,6 +146,11 @@ fn install_panic_hook() {
         } else {
             log::error!("\n\npanic: {}\n\nbacktrace:\n{:?}", message, backtrace);
         }
+
+        log::error!(
+            "lovely homemade stack trace:\n\n{}",
+            crate::hook::generate_backtrace()
+        );
     }));
 }
 

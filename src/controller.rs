@@ -44,7 +44,7 @@ pub struct ControllerState {
 }
 
 impl ControllerState {
-    pub fn has_input(&self) -> bool {
+    pub fn _has_input(&self) -> bool {
         // eq: CControllerState::CheckForInput(...)
         crate::hook::slide::<fn(*const ControllerState) -> bool>(0x100244118)(self)
     }
@@ -52,7 +52,7 @@ impl ControllerState {
 
 static UPDATE_COUNTER: AtomicU16 = AtomicU16::new(0);
 
-pub fn request_update() {
+pub fn _request_update() {
     // Set the update counter really high so the next call to update_pads triggers a menu update.
     UPDATE_COUNTER.store(1000, std::sync::atomic::Ordering::Relaxed);
 }

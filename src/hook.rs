@@ -86,26 +86,26 @@ fn get_hook_fn<FuncType>() -> fn(FuncType, FuncType, &mut Option<FuncType>) {
 
 pub enum Target<FuncType> {
     /// A function pointer.
-    Function(FuncType),
+    _Function(FuncType),
 
     /// A raw address, to which the ASLR offset for the current image will be applied.
     Address(usize),
 
     /// A raw address, to which the ASLR offset for the image given as the second parameter will be applied.
-    ForeignAddress(usize, u32),
+    _ForeignAddress(usize, u32),
 }
 
 impl<FuncType> Target<FuncType> {
     fn get_absolute(&self) -> usize {
         match self {
-            Target::Function(func) => unsafe { std::mem::transmute_copy(func) },
+            Target::_Function(func) => unsafe { std::mem::transmute_copy(func) },
 
             Target::Address(addr) => {
                 let aslr_offset = get_image_aslr_offset(0);
                 addr + aslr_offset
             }
 
-            Target::ForeignAddress(addr, image) => {
+            Target::_ForeignAddress(addr, image) => {
                 let aslr_offset = get_image_aslr_offset(*image);
                 addr + aslr_offset
             }
@@ -204,7 +204,7 @@ pub fn is_german_game() -> bool {
 
 pub fn generate_backtrace() -> String {
     // Generate a resolved backtrace. The symbol names aren't always correct, but we
-    //  should still display them because they are helpful for Rust at least.
+    //  should still display them because they are helpful for Rust functions.
     let resolved = backtrace::Backtrace::new();
     let slide = get_image_aslr_offset(0) as u64;
 
