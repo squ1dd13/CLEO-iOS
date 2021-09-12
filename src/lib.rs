@@ -105,6 +105,8 @@ mod targets {
     );
 
     create_soft_target!(reset_cheats, 0x1001a8194, fn());
+
+    create_soft_target!(load_stage_one, 0x1002f8778, fn(usize) -> bool);
 }
 
 fn initialise() {

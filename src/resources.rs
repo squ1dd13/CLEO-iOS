@@ -277,7 +277,8 @@ pub fn get_documents_path(resource_name: &str) -> PathBuf {
     path
 }
 
-pub fn init() {
+fn game_init_stage_one(dat_ptr: usize) -> bool {
+    log::info!("Init stage one. Setting up CLEO directory...");
     let cleo_path = find_cleo_dir_path();
 
     log::info!("Creating 'Replace' folder...");
@@ -306,4 +307,10 @@ pub fn init() {
             log::warn!("Failed to load resource: {}", err);
         }
     }
+
+    crate::call_original!(crate::targets::load_stage_one, dat_ptr)
+}
+
+pub fn init() {
+    crate::targets::load_stage_one::install(game_init_stage_one);
 }
