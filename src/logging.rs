@@ -90,20 +90,16 @@ impl Logger {
                 .unwrap_or("unknown")
                 .split("::")
                 .last()
-                .unwrap()
+                .unwrap_or("unknown")
                 .to_string(),
             msg_type,
             string: format!("{}", record.args()),
             time: Local::now().format("%Y-%m-%d %H:%M:%S%.3f").to_string(),
         };
 
-        MSG_SENDER
-            .get()
-            .unwrap() // We know that this method can only run after MSG_SENDER is set.
-            .lock()
-            .unwrap() // We want to panic if lock() fails.
-            .send(message)
-            .unwrap(); // We also want to panic if send() fails.
+        if let Some(Err(err)) = MSG_SENDER.get().map(|s| s.lock().map(|s| s.send(message))) {
+            log::error!("error in log sender chain: {}", err);
+        }
     }
 }
 
@@ -168,6 +164,8 @@ pub fn init() {
     //  impact of writing to files/sockets in normal game code.
     std::thread::spawn(|| {
         let (sender, receiver) = std::sync::mpsc::channel();
+
+        // fixme: MSG_SENDER may be being set too late for some launches.
         MSG_SENDER.set(Mutex::new(sender)).unwrap();
 
         // Only attempt to connect over UDP if we're in debug mode.
