@@ -578,19 +578,6 @@ fn script_reset() {
     }
 }
 
-// #[derive(Debug)]
-// pub enum ScriptState {
-//     Disabled,
-//     TempEnabled,
-//     AlwaysEnabled,
-// }
-
-// #[derive(Debug)]
-// pub enum ScriptStateMenu {
-//     Csi(bool),
-//     Csa(ScriptState),
-// }
-
 pub struct CsiMenuInfo {
     name: String,
     state: bool,
