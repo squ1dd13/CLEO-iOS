@@ -20,6 +20,8 @@ struct StoredSettings {
     sixty_fps: bool,
     show_fps: bool,
     save_cheats: bool,
+    no_ceiling: bool,
+    interrupt_loops: bool,
 }
 
 impl StoredSettings {
@@ -28,6 +30,8 @@ impl StoredSettings {
             sixty_fps: Arc::new(AtomicBool::new(self.sixty_fps)),
             show_fps: Arc::new(AtomicBool::new(self.show_fps)),
             save_cheats: Arc::new(AtomicBool::new(self.save_cheats)),
+            no_ceiling: Arc::new(AtomicBool::new(self.no_ceiling)),
+            interrupt_loops: Arc::new(AtomicBool::new(self.interrupt_loops)),
             dirty: AtomicBool::new(true),
         }
     }
@@ -37,6 +41,8 @@ impl StoredSettings {
             sixty_fps: settings.sixty_fps.load(Ordering::SeqCst),
             show_fps: settings.show_fps.load(Ordering::SeqCst),
             save_cheats: settings.save_cheats.load(Ordering::SeqCst),
+            no_ceiling: settings.no_ceiling.load(Ordering::SeqCst),
+            interrupt_loops: settings.interrupt_loops.load(Ordering::SeqCst),
         }
     }
 }
@@ -47,6 +53,8 @@ impl Default for StoredSettings {
             sixty_fps: true,
             show_fps: false,
             save_cheats: false,
+            no_ceiling: true,
+            interrupt_loops: true,
         }
     }
 }
@@ -55,6 +63,8 @@ pub struct Settings {
     pub sixty_fps: Arc<AtomicBool>,
     pub show_fps: Arc<AtomicBool>,
     pub save_cheats: Arc<AtomicBool>,
+    pub no_ceiling: Arc<AtomicBool>,
+    pub interrupt_loops: Arc<AtomicBool>,
     dirty: AtomicBool,
 }
 
@@ -169,14 +179,24 @@ pub fn tab_data() -> menu::TabData {
             settings.sixty_fps.clone(),
         ),
         OptionInfo::new(
+            "Save Cheat States",
+            "Preserve the states of toggleable cheats between game loads/launches. Default is Off.",
+            settings.save_cheats.clone(),
+        ),
+        OptionInfo::new(
+            "Remove Height Limit",
+            "Remove the limit on how high you can fly. Default is On.",
+            settings.no_ceiling.clone(),
+        ),
+        OptionInfo::new(
             "Show FPS",
             "Display the current framerate at the top of the screen. Default is Off.",
             settings.show_fps.clone(),
         ),
         OptionInfo::new(
-            "Save Cheat States",
-            "Preserve the states of toggleable cheats between game loads/launches. Default is Off.",
-            settings.save_cheats.clone(),
+            "Interrupt Script Loops",
+            "Reduce lag by detecting and interrupting long loops in scripts. Default is On.",
+            settings.interrupt_loops.clone(),
         ),
     ];
 

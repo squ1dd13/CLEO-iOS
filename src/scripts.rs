@@ -8,12 +8,13 @@ use crate::{
     check::{self, CompatIssue},
     hook,
     menu::{self, MenuMessage, TabData},
+    settings::Settings,
     targets, touch,
 };
 use std::{
     collections::HashMap,
     hash::{Hash, Hasher},
-    sync::Mutex,
+    sync::{atomic::Ordering, Mutex},
 };
 
 #[repr(C, align(8))]
@@ -153,6 +154,11 @@ impl CleoScript {
 
         if self.game_script.wakeup_time > game_time {
             // Don't wake up yet.
+            return;
+        }
+
+        if !Settings::shared().interrupt_loops.load(Ordering::SeqCst) {
+            while !self.update_once() {}
             return;
         }
 

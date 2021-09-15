@@ -10,12 +10,12 @@ use std::os::raw::c_char;
 mod cheats;
 mod check;
 mod controller;
+mod extra;
 mod gui;
 mod hook;
 mod loader;
 mod logging;
 mod menu;
-mod render;
 mod resources;
 mod scripts;
 mod settings;
@@ -105,6 +105,12 @@ mod targets {
     );
 
     create_soft_target!(reset_cheats, 0x1001a8194, fn());
+
+    create_soft_target!(
+        height_above_ceiling,
+        0x1004801e0,
+        fn(usize, f32, usize) -> f32
+    );
 }
 
 fn initialise() {
@@ -116,7 +122,7 @@ fn initialise() {
     menu::init();
     touch::init();
     text::init();
-    render::init();
+    extra::init();
     scripts::init();
     cheats::init();
     controller::init();
