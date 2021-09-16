@@ -457,6 +457,8 @@ pub fn check_bytecode(bytes: &[u8]) -> eyre::Result<Option<CompatIssue>, String>
         log::info!("Finished disassembly");
     }
 
+    log::info!("Checking for bad opcodes...");
+
     // The order of instruction_map.iter() is not guaranteed to be the same every time we run,
     //  and sometimes the order change means that a different one of several errors in the script
     //  is found and presented to the user. To prevent confusion caused by different messages being
@@ -479,6 +481,8 @@ pub fn check_bytecode(bytes: &[u8]) -> eyre::Result<Option<CompatIssue>, String>
 
         max_issue = max_issue.max(issue);
     }
+
+    log::info!("Finished checking opcodes. Max issue: {:?}", max_issue);
 
     Ok(max_issue)
 }

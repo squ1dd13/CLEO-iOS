@@ -306,4 +306,6 @@ pub fn init() {
             log::warn!("Failed to load resource: {}", err);
         }
     }
+
+    log::info!("Finished loading resources.");
 }
