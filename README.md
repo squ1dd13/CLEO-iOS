@@ -56,7 +56,6 @@ Each option has a description which includes the default value of that setting.
 **If you have trouble using any part of the CLEO menu,
 especially if due to something like
 dyslexia or colourblindness, please mention it on Discord.**
-CLEO should be accessible to everyone.
 
 ## Scripts
 
