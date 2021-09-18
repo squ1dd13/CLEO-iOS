@@ -798,7 +798,7 @@ impl menu::RowData for CsaMenuInfo {
 
 fn gen_warning_string(count: usize) -> Option<String> {
     const NUMBERS: &[&str] = &[
-        "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine",
+        "one", "two", "three", "four", "five", "six", "seven", "eight", "nine",
     ];
 
     if count == 0 {
@@ -806,12 +806,12 @@ fn gen_warning_string(count: usize) -> Option<String> {
     }
 
     Some(format!(
-        "{} of these scripts {} potentially incompatible with iOS. {} highlighted in orange.\nSee below for further details.",
+        "Problems identified with {} script{}. {} highlighted in orange.\nSee below for further details.",
         NUMBERS
             .get(count - 1)
             .map(|s| s.to_string())
             .unwrap_or_else(|| count.to_string()),
-        if count == 1 { "is" } else { "are" },
+            if count == 1 { "" } else { "s" },
         if count == 1 { "This script is" } else { "These scripts are" },
     ))
 }
