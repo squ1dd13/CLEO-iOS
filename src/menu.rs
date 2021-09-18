@@ -147,7 +147,7 @@ impl Row {
             let _: () = msg_send![button, setTitleEdgeInsets: edge_insets];
 
             let label: *mut Object = msg_send![button, titleLabel];
-            let font = gui::get_font("ChaletComprime-CologneSixty", 25.0);
+            let font = gui::get_font("ChaletComprime-CologneSixty", ROW_TOP_FONT_SIZE);
             let _: () = msg_send![label, setFont: font];
 
             let value_frame = CGRect::new(
@@ -176,7 +176,7 @@ impl Row {
             let detail_label: *mut Object = msg_send![class!(UILabel), alloc];
             let detail_label: *mut Object = msg_send![detail_label, initWithFrame: detail_frame];
 
-            let font = gui::get_font("ChaletComprime-CologneSixty", 19.0);
+            let font = gui::get_font("ChaletComprime-CologneSixty", ROW_DETAIL_FONT_SIZE);
             let _: () = msg_send![detail_label, setFont: font];
             let _: () = msg_send![detail_label, setAdjustsFontSizeToFitWidth: true];
             let _: () = msg_send![detail_label, setTextAlignment: 0u64];
@@ -235,14 +235,22 @@ impl Row {
 
 // Previously, we used multipliers for all of the element sizes. This produced good results on
 //  smaller devices, but on iPads, many things were too big and the menu as a whole looked strange.
-// The values seen here are loosely based on the values from an iPhone 8 using the old system.
-const ROW_HEIGHT: f64 = 85.;
-const TAB_BUTTON_HEIGHT: f64 = 65.;
-const CLOSE_BUTTON_HEIGHT: f64 = 35.;
+// Now we just hardcode the same values for all displays.
+
+const ROW_HEIGHT: f64 = 57.;
+const ROW_TOP_FONT_SIZE: f64 = 21.;
+const ROW_DETAIL_FONT_SIZE: f64 = 15.;
+
+const TAB_BUTTON_HEIGHT: f64 = 50.;
+const TAB_NAME_FONT_SIZE: f64 = 26.;
+
+const CLOSE_BUTTON_HEIGHT: f64 = 30.;
+const CLOSE_BTN_FONT_SIZE: f64 = 23.;
 
 // Some elements are still proportional to others. The height of the warning label is proportional
 //  to the height of the tab view as a whole.
 const WARNING_HEIGHT_FRAC: f64 = 0.1;
+const WARNING_LBL_FONT_SIZE: f64 = 10.;
 
 impl Tab {
     fn new(data: TabData, tab_frame: gui::CGRect, state: TabState) -> Tab {
@@ -319,7 +327,7 @@ impl Tab {
             let label: *mut Object = msg_send![label, initWithFrame: warning_frame];
 
             let colour = gui::colours::get(gui::colours::ORANGE, 1.);
-            let font = gui::get_font("HelveticaNeue-Bold", 25.);
+            let font = gui::get_font("HelveticaNeue-Bold", WARNING_LBL_FONT_SIZE);
             let _: () = msg_send![label, setTextColor: colour];
             let _: () = msg_send![label, setFont: font];
             let _: () = msg_send![label, setText: create_ns_string(warning)];
@@ -367,7 +375,8 @@ impl TabButton {
             let _: () = msg_send![btn, setTitle: create_ns_string(title) forState: 0u64];
 
             let label: *mut Object = msg_send![btn, titleLabel];
-            let _: () = msg_send![label, setFont: gui::get_font("PricedownGTAVInt", 30.0)];
+            let _: () =
+                msg_send![label, setFont: gui::get_font("PricedownGTAVInt", TAB_NAME_FONT_SIZE)];
 
             add_button_handler(btn, ButtonTag::new_tab(index));
 
@@ -495,7 +504,8 @@ impl Menu {
             ];
 
             let label: *mut Object = msg_send![btn, titleLabel];
-            let _: () = msg_send![label, setFont: gui::get_font("PricedownGTAVInt", 27.0)];
+            let _: () =
+                msg_send![label, setFont: gui::get_font("PricedownGTAVInt", CLOSE_BTN_FONT_SIZE)];
 
             add_button_handler(btn, ButtonTag::new_close());
 
