@@ -5,7 +5,7 @@ use once_cell::sync::Lazy;
 
 use crate::{
     call_original,
-    check::{self, CompatIssue},
+    check::{self, ScriptIssue},
     hook,
     menu::{self, MenuMessage, TabData},
     settings::Settings,
@@ -86,43 +86,26 @@ impl GameScript {
 
 /// Wrapper for game-compatible script structures that allows use with both game code and CLEO code.
 #[derive(Debug)]
-struct CleoScript {
+pub struct CleoScript {
     game_script: GameScript,
 
     /// The source of the script's data. This is kept with the game script because the pointers in the
     /// game script are to positions within this vector, so the vector can only be safely dropped once
     /// those pointers are not needed anymore.
-    _bytes: Vec<u8>,
+    pub bytes: Vec<u8>,
 
     /// The name shown to the user in the menu.
-    name: String,
+    pub name: String,
 
-    /// A potential incompatibility that the script has. There may be several of these, but the `check`
-    /// module only returns the first that is found.
-    compat_issue: Option<check::CompatIssue>,
+    /// A problem found with the script. Multiple may be reported during checking, but only one is kept.
+    pub issue: Option<check::ScriptIssue>,
 
     /// A hash of the script's bytes. This hash can be used to identify the script.
-    hash: u64,
+    pub hash: u64,
 }
 
 impl CleoScript {
     fn new(bytes: Vec<u8>, name: String) -> CleoScript {
-        let compat_issue = match check::check_bytecode(&bytes) {
-            Ok(v) => v,
-            Err(err) => {
-                log::error!("check_bytecode failed: {}", err);
-
-                // It wouldn't be safe to assume that the script is valid because the check failed.
-                Some(CompatIssue::CheckFailed)
-            }
-        };
-
-        if let Some(issue) = &compat_issue {
-            log::warn!("Compatibility issue: {}", issue);
-        } else {
-            log::info!("No compatibility issues detected.");
-        }
-
         let hash = {
             let mut hasher = std::collections::hash_map::DefaultHasher::new();
             bytes.hash(&mut hasher);
@@ -131,9 +114,9 @@ impl CleoScript {
 
         CleoScript {
             game_script: GameScript::new(bytes.as_ptr().cast(), false),
-            _bytes: bytes,
+            bytes,
             name,
-            compat_issue,
+            issue: None,
             hash,
         }
     }
@@ -409,36 +392,23 @@ enum Script {
     Csa { script: CleoScript, state: CsaState },
 }
 
-impl PartialEq for Script {
-    fn eq(&self, other: &Self) -> bool {
-        match (self, other) {
-            (Script::Csi(l0), Script::Csi(r0)) => l0.hash == r0.hash,
-            (
-                Script::Csa {
-                    script: l_script,
-                    state: _,
-                },
-                Script::Csa {
-                    script: r_script,
-                    state: _,
-                },
-            ) => l_script.hash == r_script.hash,
-            _ => false,
+impl Script {
+    pub fn get_cleo_script_mut(&mut self) -> &mut CleoScript {
+        match self {
+            Script::Csi(script) => script,
+            Script::Csa { script, state: _ } => script,
+        }
+    }
+
+    pub fn get_cleo_script(&self) -> &CleoScript {
+        match self {
+            Script::Csi(script) => script,
+            Script::Csa { script, state: _ } => script,
         }
     }
 }
 
-impl std::cmp::Eq for Script {}
-
-impl std::hash::Hash for Script {
-    fn hash<H: Hasher>(&self, state: &mut H) {
-        state.write_u64(match self {
-            Script::Csi(script) => script.hash,
-            Script::Csa { script, state: _ } => script.hash,
-        });
-    }
-}
-
+// hack: Scripts should be properly thread-safe.
 unsafe impl Sync for Script {}
 unsafe impl Send for Script {}
 
@@ -481,10 +451,13 @@ fn load_script(path: &impl AsRef<std::path::Path>) -> eyre::Result<CleoScript> {
 pub fn load_running_script(path: &impl AsRef<std::path::Path>) -> eyre::Result<()> {
     let mut script = load_script(path)?;
 
-    let state = get_csa_state(&script);
-    script.game_script.active = state.active();
+    // Set the script to inactive until we've checked it.
+    script.game_script.active = false;
 
-    SCRIPTS.lock().unwrap().push(Script::Csa { script, state });
+    SCRIPTS.lock().unwrap().push(Script::Csa {
+        script,
+        state: CsaState::Disabled,
+    });
 
     Ok(())
 }
@@ -533,7 +506,15 @@ fn save_csa_states() {
 
     for script in SCRIPTS.lock().unwrap().iter() {
         if let Script::Csa { script, state } = script {
-            states.insert(script.hash, *state);
+            if let Some(ScriptIssue::Duplicate(orig_name)) = &script.issue {
+                log::info!(
+                    "Not saving state for duplicate '{}' of script '{}'.",
+                    script.name,
+                    orig_name
+                );
+            } else {
+                states.insert(script.hash, *state);
+            }
         }
     }
 
@@ -553,8 +534,15 @@ fn get_csa_state(script: &CleoScript) -> CsaState {
     // If there is a state saved for the script, we use it (even if there are issues with the script).
     // This allows the user to judge whether or not they want to ignore the errors in a script.
     if let Some(state) = SAVED_STATES.lock().unwrap().get(&script.hash) {
-        *state
-    } else if script.compat_issue.is_some() {
+        if let Some(ScriptIssue::Duplicate(_)) = script.issue {
+            // If the script is a duplicate of another, then matching by hash won't work (because it would
+            //  enable all versions of the script if the user enabled a single one), so we ignore saved states
+            //  for versions marked as duplicates.
+            CsaState::Disabled
+        } else {
+            *state
+        }
+    } else if script.issue.is_some() {
         CsaState::Disabled
     } else {
         CsaState::EnabledNormally
@@ -584,6 +572,35 @@ fn script_reset() {
     }
 }
 
+fn scripts_init() {
+    log::info!("Scanning scripts.");
+
+    // Create a new scope so that SCRIPTS isn't locked for longer than necessary.
+    {
+        let mut scripts = SCRIPTS.lock().unwrap();
+
+        crate::check::check_all(
+            scripts
+                .iter_mut()
+                .map(|script| script.get_cleo_script_mut())
+                .collect(),
+        );
+
+        // Add the states to CSA scripts. We have to do this after script checking is complete, because
+        //  `get_csa_state` produces different states for scripts with issues.
+        for script in scripts.iter_mut() {
+            if let Script::Csa { script, state } = script {
+                *state = get_csa_state(&script);
+                script.game_script.active = state.active();
+            }
+        }
+    }
+
+    log::info!("Finished scanning scripts. Allowing game to continue with script loading.");
+
+    call_original!(crate::targets::game_load_scripts);
+}
+
 pub struct CsiMenuInfo {
     name: String,
     state: bool,
@@ -601,7 +618,7 @@ impl CsiMenuInfo {
         Some(CsiMenuInfo {
             name: script.name.clone(),
             state: script.game_script.active,
-            warning: script.compat_issue.as_ref().map(|issue| issue.to_string()),
+            warning: script.issue.as_ref().map(|issue| issue.to_string()),
         })
     }
 
@@ -683,7 +700,7 @@ impl CsaMenuInfo {
             Some(CsaMenuInfo {
                 name: script.name.clone(),
                 state: *state,
-                warning: script.compat_issue.as_ref().map(|issue| issue.to_string()),
+                warning: script.issue.as_ref().map(|issue| issue.to_string()),
             })
         } else {
             None
@@ -811,7 +828,7 @@ pub fn tab_data_csa() -> menu::TabData {
             continue;
         };
 
-        if cleo_script.compat_issue.is_some() {
+        if cleo_script.issue.is_some() {
             *err_inc += 1;
         }
 
@@ -841,7 +858,7 @@ pub fn tab_data_csi() -> menu::TabData {
             continue;
         };
 
-        if cleo_script.compat_issue.is_some() {
+        if cleo_script.issue.is_some() {
             *err_inc += 1;
         }
 
@@ -862,4 +879,5 @@ pub fn tab_data_csi() -> menu::TabData {
 pub fn init() {
     targets::script_tick::install(script_update);
     targets::reset_before_start::install(script_reset);
+    targets::game_load_scripts::install(scripts_init);
 }
