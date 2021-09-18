@@ -10,7 +10,7 @@ use std::os::raw::c_char;
 mod cheats;
 mod check;
 mod controller;
-mod extra;
+mod extras;
 mod gui;
 mod hook;
 mod loader;
@@ -122,7 +122,7 @@ fn initialise() {
     menu::init();
     touch::init();
     text::init();
-    extra::init();
+    extras::init();
     scripts::init();
     cheats::init();
     controller::init();

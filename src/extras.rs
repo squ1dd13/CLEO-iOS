@@ -147,13 +147,13 @@ fn set_loading_messages(msg_1: *const c_char, msg_2: *const c_char) {
     }
 }
 
-fn height_above_ceiling(veh: usize, f: f32, flight_model: usize) -> f32 {
-    if Settings::shared().no_ceiling.load(Ordering::SeqCst) {
-        -1.0
-    } else {
-        call_original!(targets::height_above_ceiling, veh, f, flight_model)
-    }
-}
+// fn height_above_ceiling(veh: usize, f: f32, flight_model: usize) -> f32 {
+//     if Settings::shared().no_ceiling.load(Ordering::SeqCst) {
+//         -1.0
+//     } else {
+//         call_original!(targets::height_above_ceiling, veh, f, flight_model)
+//     }
+// }
 
 pub fn init() {
     targets::idle::install(idle);
@@ -161,5 +161,5 @@ pub fn init() {
     targets::write_fragment_shader::install(write_fragment_shader);
     targets::display_fps::install(display_fps);
     targets::loading_messages::install(set_loading_messages);
-    targets::height_above_ceiling::install(height_above_ceiling);
+    // targets::height_above_ceiling::install(height_above_ceiling);
 }

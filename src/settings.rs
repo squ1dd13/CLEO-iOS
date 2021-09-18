@@ -183,11 +183,11 @@ pub fn tab_data() -> menu::TabData {
             "Preserve the states of toggleable cheats between game loads/launches. Default is Off.",
             settings.save_cheats.clone(),
         ),
-        OptionInfo::new(
-            "Remove Height Limit",
-            "Remove the limit on how high you can fly. Default is On.",
-            settings.no_ceiling.clone(),
-        ),
+        // OptionInfo::new(
+        //     "Remove Height Limit",
+        //     "Remove the limit on how high you can fly. Default is On.",
+        //     settings.no_ceiling.clone(),
+        // ),
         OptionInfo::new(
             "Show FPS",
             "Display the current framerate at the top of the screen. Default is Off.",
