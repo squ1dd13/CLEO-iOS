@@ -718,14 +718,13 @@ impl menu::RowData for CsaMenuInfo {
             warning
         } else {
             "No issues detected."
-        };
-
-        let info_str = format!("{} Tap to cycle script mode. ", issues_str);
+        }
+        .to_string();
 
         if self.warning.is_some() {
-            menu::RowDetail::Warning(info_str)
+            menu::RowDetail::Warning(issues_str)
         } else {
-            menu::RowDetail::Info(info_str)
+            menu::RowDetail::Info(issues_str)
         }
     }
 
