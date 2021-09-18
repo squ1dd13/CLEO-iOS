@@ -214,7 +214,7 @@ CLEO
      └── timecyc.dat
 ```
 
-It's that simple! If later decide we want to go back to the original version of the file,
+It's that simple! If we later decide we want to go back to the original version of the file,
 we can just **delete `timecyc.dat` from the `Replace` folder**, and the game will go back to
 using **its own version of the file**. **You don't need to back up files if you are replacing
 them with `Replace`.**
