@@ -135,18 +135,24 @@ fn legal_splash_did_load(this: *mut Object, sel: Sel) {
         let background_colour: *const Object = msg_send![class!(UIColor), blackColor];
         let _: () = msg_send![background_view, setBackgroundColor: background_colour];
 
-        let exempt = {
+        let state_label = {
             let font: *mut Object = msg_send![class!(UIFont), fontWithName: create_ns_string("GTALICENSE-REGULAR") size: 23.0];
             let text_colour: *const Object =
                 msg_send![class!(UIColor), colorWithRed: 0.77 green: 0.089 blue: 0.102 alpha: 1.0];
 
-            let exempt_label: *mut Object = create_label(bounds, "SA EXEMPT", font, text_colour, 1);
-            let _: () = msg_send![exempt_label, sizeToFit];
+            let state_label: *mut Object = create_label(
+                bounds,
+                &format!("RELEASE {}", env!("CARGO_PKG_VERSION")),
+                font,
+                text_colour,
+                1,
+            );
+            let _: () = msg_send![state_label, sizeToFit];
 
-            exempt_label
+            state_label
         };
 
-        let exempt_frame: CGRect = msg_send![exempt, frame];
+        let state_frame: CGRect = msg_send![state_label, frame];
 
         let text = {
             let font: *mut Object = msg_send![class!(UIFont), fontWithName: create_ns_string("GTALICENSE-REGULAR") size: 70.0];
@@ -157,7 +163,7 @@ fn legal_splash_did_load(this: *mut Object, sel: Sel) {
                 CGRect {
                     origin: CGPoint {
                         x: 0.0,
-                        y: exempt_frame.size.height,
+                        y: state_frame.size.height,
                     },
                     ..bounds
                 },
@@ -234,11 +240,11 @@ fn legal_splash_did_load(this: *mut Object, sel: Sel) {
 
         // Calculate the gap between the elements and the edge of the plate on the top and bottom.
         let y_gap =
-            (backing_size.height - (text_frame.size.height + exempt_frame.size.height)) / 2.0;
+            (backing_size.height - (text_frame.size.height + state_frame.size.height)) / 2.0;
 
-        let exempt_centre = CGPoint {
+        let state_centre = CGPoint {
             x: backing_size.width / 2.0,
-            y: (exempt_frame.size.height / 2.0) + y_gap,
+            y: (state_frame.size.height / 2.0) + y_gap,
         };
 
         let text_centre = CGPoint {
@@ -246,7 +252,7 @@ fn legal_splash_did_load(this: *mut Object, sel: Sel) {
             y: backing_size.height - ((text_frame.size.height / 2.0) + y_gap),
         };
 
-        let _: () = msg_send![exempt, setCenter: exempt_centre];
+        let _: () = msg_send![state_label, setCenter: state_centre];
         let _: () = msg_send![text, setCenter: text_centre];
 
         if !crate::hook::is_german_game() {
@@ -255,8 +261,8 @@ fn legal_splash_did_load(this: *mut Object, sel: Sel) {
             call_original!(targets::legal_splash_german, this, sel);
         }
 
-        let _: () = msg_send![backing, addSubview: exempt];
-        let _: () = msg_send![exempt, release];
+        let _: () = msg_send![backing, addSubview: state_label];
+        let _: () = msg_send![state_label, release];
         let _: () = msg_send![backing, addSubview: text];
         let _: () = msg_send![text, release];
         let _: () = msg_send![background_view, addSubview: backing_outer];
