@@ -40,35 +40,30 @@ pub fn set_kv(key: &str, value: &str) -> bool {
 }
 
 fn generate_numberplate(chars: *mut u8, length: i32) -> bool {
-    static mut PLATE_TICK: u8 = 0;
-
     let tick = unsafe {
-        PLATE_TICK += 1;
-
-        if PLATE_TICK > 5 {
-            PLATE_TICK = 0;
-        }
-
+        static mut PLATE_TICK: u8 = 0;
+        PLATE_TICK = (PLATE_TICK + 1) % 6;
         PLATE_TICK
     };
 
-    if (tick == 3 || tick == 5) && length == 8 {
-        // ;)
-        const CUSTOM_3: &[u8] = b"CLEO IOS";
-        const CUSTOM_5: &[u8] = b"SQUI DDY";
+    if length == 8 {
+        let custom_plate = match tick {
+            2 => Some(b"EULEN JA"),
+            4 => Some(b"SQUI DDY"),
+            0 => Some(b"CLEO IOS"),
+            _ => None,
+        };
 
-        let custom = if tick == 3 { CUSTOM_3 } else { CUSTOM_5 };
-
-        for (i, c) in custom.iter().enumerate() {
+        if let Some(custom) = custom_plate {
             unsafe {
-                chars.add(i).write(*c);
+                chars.copy_from(custom.as_ptr(), custom.len());
             }
-        }
 
-        true
-    } else {
-        call_original!(targets::gen_plate, chars, length)
+            return true;
+        }
     }
+
+    call_original!(targets::gen_plate, chars, length)
 }
 
 pub fn load_fxt(path: &impl AsRef<std::path::Path>) -> eyre::Result<()> {
