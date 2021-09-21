@@ -439,7 +439,7 @@ impl Display for ScriptIssue {
             Self::NotImpl => f.write_str("Uses features unavailable on iOS."),
             Self::AndroidSpecific => f.write_str("Uses some Android-only code."),
             Self::Duplicate(orig_name) => write!(f, "Duplicate of '{}'.", orig_name),
-            Self::CheckFailed => f.write_str("Compatibility check failed."),
+            Self::CheckFailed => f.write_str("Unable to complete script check."),
         }
     }
 }

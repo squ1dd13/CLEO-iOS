@@ -34,17 +34,17 @@ and your mods will remain in place.
 ## Menu
 
 The CLEO menu (or just "the menu") is used to **control scripts, cheats and CLEO's own
-settings**.
+options**.
 
 You can **access it by swiping down on the screen**. The menu is available
 everywhere in the GTA app, but if you aren't in a game then you can only access the
-CLEO settings from it.
+CLEO options from it.
 
-The Settings tab contains a few options. Some of these options change how the game
+The Options tab contains a few settings. Some change how the game
 behaves, while others change how CLEO behaves.
 
 <p align="center">
-  <img src="images/settings.png" width="70%" title="The Settings tab">
+  <img src="images/tab_options.png" width="70%" title="The Options tab">
 </p>
 
 Options that are **enabled are green and show "On"** on the right-hand
@@ -78,7 +78,7 @@ dyslexia or colourblindness, please mention it on Discord.**
 **A "CSI" script** (any script with the `.csi` file extension) is a script that **will not run unless you tell it to**.
 
 <p align="center">
-  <img src="images/csi-tab.png" width="70%" title="The CSI script tab.">
+  <img src="images/tab_csi.png" width="70%" title="The CSI script tab.">
 </p>
 
 CLEO searches for these scripts and presents them in the CSI tab in the menu. Each script displays
@@ -93,12 +93,18 @@ running will be shown in green, while scripts that aren't will be shown in white
 There is a third colour: orange. **An orange tint indicates that there is an issue with a script.**
 When CLEO detects that a script may cause issues such as a game crash, it warns you about the risk at the top of the menu, and highlights the potentially unstable script (or scripts) in orange.
 
+There are several reasons why a script could be orange:
+
+- It uses code that **only works on Android** (because the Android game is
+  32-bit and the iOS game is 64-bit);
+- It uses features which **aren't yet implemented on iOS**; or
+- It is a **duplicate of another script**.
+
+A single script **may have multiple issues**, but **only one** will ever be
+shown.
+
 **This system is not 100% perfect. You should still exercise caution when using scripts**, even
 if they aren't orange.
-
-<p align="center">
-  <img src="images/csi-warning.png" width="70%" title="'Dodgy Script' is shown as using 'some Android-only code'.">
-</p>
 
 When you see a script highlighted in orange, it **doesn't mean that it won't run**, but it does mean
 that there is **something about the script that could cause problems**. There are some scripts which
@@ -118,7 +124,7 @@ a separate tab for CSA scripts. This tab allows you to **turn certain scripts of
 use them**.
 
 <p align="center">
-  <img src="images/csa-all.png" width="70%" title="The CSA menu.">
+  <img src="images/tab_csa.png" width="70%" title="The CSA menu.">
 </p>
 
 The CSA script shares many features with the CSI menu: **scripts that are enabled are green, scripts which are disabled are white, and those with errors are orange**.
@@ -225,11 +231,11 @@ The menu has a **Cheats tab which contains a list of cheats**, each displaying i
 description.
 
 <p align="center">
-  <img src="images/cheats.png" width="70%" title="The cheat menu.">
+  <img src="images/tab_cheats.png" width="70%" title="The cheat menu.">
 </p>
 
-If you look at the above image, you'll notice that there are **three different colours of
-cheat displayed**. There are **actually four colours**, and they **represent the cheat status**:
+If you look at the above image, you'll notice that there are **four different colours of
+cheat displayed**. These **represent the cheat status**:
 
 - **White** – This means a cheat is **"Off"**. A cheat that looks like this is **not affecting the game**.
 - **Blue** – The cheat is **"Queued On"**. This means that it will be **activated when you leave the
