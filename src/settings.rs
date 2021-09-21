@@ -201,7 +201,7 @@ pub fn tab_data() -> menu::TabData {
     ];
 
     menu::TabData {
-        name: "Settings".to_string(),
+        name: "Options".to_string(),
         warning: None,
         row_data: option_info
             .into_iter()
