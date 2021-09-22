@@ -27,8 +27,6 @@ mod update;
 mod targets {
     use super::*;
 
-    create_soft_target!(game_load_scripts, 0x1001cff00, fn());
-
     create_soft_target!(script_tick, 0x1001d0f40, fn());
 
     create_soft_target!(
@@ -111,6 +109,8 @@ mod targets {
         0x1004801e0,
         fn(usize, f32, usize) -> f32
     );
+
+    create_soft_target!(init_stage_three, 0x1002f9b20, fn(usize));
 }
 
 fn initialise() {

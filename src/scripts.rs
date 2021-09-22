@@ -572,33 +572,29 @@ fn script_reset() {
     }
 }
 
-fn scripts_init() {
+fn init_stage_three(p: usize) {
     log::info!("Scanning scripts.");
 
-    // Create a new scope so that SCRIPTS isn't locked for longer than necessary.
-    {
-        let mut scripts = SCRIPTS.lock().unwrap();
+    let mut scripts = SCRIPTS.lock().unwrap();
 
-        crate::check::check_all(
-            scripts
-                .iter_mut()
-                .map(|script| script.get_cleo_script_mut())
-                .collect(),
-        );
+    crate::check::check_all(
+        scripts
+            .iter_mut()
+            .map(|script| script.get_cleo_script_mut())
+            .collect(),
+    );
 
-        // Add the states to CSA scripts. We have to do this after script checking is complete, because
-        //  `get_csa_state` produces different states for scripts with issues.
-        for script in scripts.iter_mut() {
-            if let Script::Csa { script, state } = script {
-                *state = get_csa_state(&script);
-                script.game_script.active = state.active();
-            }
+    // Add the states to CSA scripts. We have to do this after script checking is complete, because
+    //  `get_csa_state` produces different states for scripts with issues.
+    for script in scripts.iter_mut() {
+        if let Script::Csa { script, state } = script {
+            *state = get_csa_state(&script);
+            script.game_script.active = state.active();
         }
     }
 
-    log::info!("Finished scanning scripts. Allowing game to continue with script loading.");
-
-    call_original!(crate::targets::game_load_scripts);
+    log::info!("Finished scanning scripts. Allowing game to continue loading.");
+    call_original!(crate::targets::init_stage_three, p);
 }
 
 pub struct CsiMenuInfo {
@@ -878,5 +874,5 @@ pub fn tab_data_csi() -> menu::TabData {
 pub fn init() {
     targets::script_tick::install(script_update);
     targets::reset_before_start::install(script_reset);
-    targets::game_load_scripts::install(scripts_init);
+    targets::init_stage_three::install(init_stage_three);
 }
