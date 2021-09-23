@@ -2,10 +2,13 @@
 
 use crate::gui::{self, create_ns_string, CGPoint, CGRect, CGSize};
 use objc::{class, msg_send, runtime::Object, sel, sel_impl};
-use once_cell::sync::OnceCell;
-use std::sync::{
-    mpsc::{self, Sender},
-    Arc, Mutex,
+use once_cell::{sync::OnceCell, unsync::Lazy};
+use std::{
+    collections::HashMap,
+    sync::{
+        mpsc::{self, Sender},
+        Arc, Mutex,
+    },
 };
 
 pub enum RowDetail {
@@ -441,6 +444,9 @@ fn set_game_timer_paused(want_pause: bool) {
     }
 }
 
+// hack: Using names for TabState structures will not work if the tab changes
+static mut TAB_STATES: Lazy<HashMap<String, TabState>> = Lazy::new(HashMap::new);
+
 impl Menu {
     fn new(tab_data: Vec<TabData>) -> Menu {
         let frame: CGRect = unsafe {
@@ -465,16 +471,17 @@ impl Menu {
         );
 
         // Move all the tab data into Tab structures.
-        // todo: Use saved TabState structures rather than making plain ones.
         let tabs = tab_data.into_iter().enumerate().map(|(tab_index, data)| {
-            let tab = Tab::new(
-                data,
-                tab_frame,
-                TabState {
+            let state = unsafe {
+                // We remove the existing state from the map if it exists, because we need to move it into
+                //  the Tab we're about to create. It will be returned to the map when the menu is closed.
+                TAB_STATES.remove(&data.name).unwrap_or(TabState {
                     selected: false,
                     scroll_y: 0.,
-                },
-            );
+                })
+            };
+
+            let tab = Tab::new(data, tab_frame, state);
 
             for (row_index, row) in tab.rows.iter().enumerate() {
                 add_button_handler(row.button, ButtonTag::new_row(tab_index, row_index));
@@ -554,6 +561,17 @@ impl Menu {
             }
 
             for tab in self.tabs.iter() {
+                let content_offset: CGPoint = msg_send![tab.scroll_view, contentOffset];
+
+                // todo: Add tab selection state to TAB_STATES when menu is removed.
+                TAB_STATES.insert(
+                    tab._name.clone(),
+                    TabState {
+                        selected: false,
+                        scroll_y: content_offset.y,
+                    },
+                );
+
                 let _: () = msg_send![tab.scroll_view, removeFromSuperview];
 
                 if let Some(label) = tab.warning_label {
