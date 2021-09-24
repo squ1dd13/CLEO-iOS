@@ -402,6 +402,7 @@ impl TabButton {
     }
 }
 
+// bug: The pause-reset system sometimes allows the game to unpause within the pause menu (unless that's a game bug).
 fn set_game_timer_paused(want_pause: bool) {
     // Previously, opening and closing the CLEO menu inside the pause menu would unpause the game, because we use
     //  the same mechanism as the pause menu for pausing the game (so when CLEO unpaused the game, it undid the pause
@@ -444,7 +445,8 @@ fn set_game_timer_paused(want_pause: bool) {
     }
 }
 
-// hack: Using names for TabState structures will not work if the tab changes
+// hack: Using names for TabState structures will not work if the tab changes its contents.
+// todo: Remember the selected tab.
 static mut TAB_STATES: Lazy<HashMap<String, TabState>> = Lazy::new(HashMap::new);
 
 impl Menu {
