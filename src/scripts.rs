@@ -84,7 +84,7 @@ impl GameScript {
     }
 }
 
-/// Wrapper for game-compatible script structures that allows use with both game code and CLEO code.
+/// A wrapper for game-compatible script structures that allows use with both game code and CLEO code.
 #[derive(Debug)]
 pub struct CleoScript {
     game_script: GameScript,
@@ -195,6 +195,7 @@ impl CleoScript {
                 //  together. No solution is perfect, but we have to find some place to break the flow up.
                 // A backwards jump is also a good place to break because it suggests we're at the start
                 //  of the loop body.
+                // bug: The script interrupt system stops some scripts working properly.
                 break;
             }
 
