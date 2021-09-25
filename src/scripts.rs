@@ -106,19 +106,22 @@ pub struct CleoScript {
 
 impl CleoScript {
     fn new(bytes: Vec<u8>, name: String) -> CleoScript {
-        let hash = {
-            let mut hasher = std::collections::hash_map::DefaultHasher::new();
-            bytes.hash(&mut hasher);
-            hasher.finish()
-        };
-
-        CleoScript {
+        let mut script = CleoScript {
             game_script: GameScript::new(bytes.as_ptr().cast(), false),
             bytes,
             name,
             issue: None,
-            hash,
-        }
+            hash: 0,
+        };
+
+        script.hash = script.generate_hash();
+        script
+    }
+
+    fn generate_hash(&self) -> u64 {
+        let mut hasher = std::collections::hash_map::DefaultHasher::new();
+        self.bytes.hash(&mut hasher);
+        hasher.finish()
     }
 
     fn reset(&mut self) {
@@ -427,6 +430,7 @@ impl Script {
                 }
             };
 
+            // bug: Memory corruption caused by some scripts can make reading the bytes vector impossible.
             script.update();
         }
     }
