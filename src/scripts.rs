@@ -20,7 +20,7 @@ use std::{
 #[repr(C, align(8))]
 #[derive(Debug)]
 struct GameScript {
-    // Do not use these; scripts should never be linked.
+    // Do not use these: scripts should never be linked.
     next: usize,
     previous: usize,
 
