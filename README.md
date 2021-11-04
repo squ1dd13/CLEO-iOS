@@ -2,11 +2,13 @@
 
 <!-- I love badges :D -->
 
-[![Discord](https://img.shields.io/discord/767478053139775528?color=7289DA&label=DISCORD&style=for-the-badge)](https://discord.gg/cXwkTUasJU) ![Downloads](https://img.shields.io/github/downloads/squ1dd13/CLEO-iOS/total?style=for-the-badge) ![Licence](https://img.shields.io/github/license/squ1dd13/CLEO-iOS?style=for-the-badge)
+[![Discord](https://img.shields.io/discord/767478053139775528?color=7289DA&label=DISCORD&style=for-the-badge)](https://discord.gg/cXwkTUasJU) [![Patreon](https://img.shields.io/endpoint.svg?url=https%3A%2F%2Fshieldsio-patreon.vercel.app%2Fapi%3Fusername%3Dsqu1dd13%26type%3Dpatrons&style=for-the-badge)](https://patreon.com/squ1dd13) ![Downloads](https://img.shields.io/github/downloads/squ1dd13/CLEO-iOS/total?style=for-the-badge) ![Licence](https://img.shields.io/github/license/squ1dd13/CLEO-iOS?style=for-the-badge)
 
-_**Note:** This branch (`main`) is for the current version of CLEO iOS, which is written in Rust. For the original C++ version, see the [`c++` branch](https://github.com/Squ1dd13/CLEO-iOS/tree/c+%2B)._
+**[Support me and the project on Patreon](https://www.patreon.com/squ1dd13)**
 
-**[Join the Discord server for support, info and script suggestions.](https://discord.gg/cXwkTUasJU)**
+**[Join the Discord server for support, info and script suggestions](https://discord.gg/cXwkTUasJU)**
+
+_**Note:** This branch (`main`) is for the main version of CLEO iOS, which is written in Rust. For the original C++ version, see the [`c++` branch](https://github.com/Squ1dd13/CLEO-iOS/tree/c+%2B)._
 
 ## Features
 
