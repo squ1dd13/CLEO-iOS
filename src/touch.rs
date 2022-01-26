@@ -32,6 +32,7 @@ pub enum TouchType {
     Move = 3,
 }
 
+// BUG: `get_zone` doesn't work properly for coordinate pairs with 0 in them.
 fn get_zone(x: f32, y: f32) -> Option<i8> {
     let (w, h) = get_screen_size();
 
