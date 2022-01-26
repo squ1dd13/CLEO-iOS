@@ -1,0 +1,7 @@
+target/
+Cargo.lock
+deb/*.deb
+.vscode
+Changes.md
+README-*.md
+images/*_nxt.*

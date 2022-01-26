@@ -53,7 +53,7 @@ fn get_target_version() -> eyre::Result<VersionNumber> {
         return VersionNumber::new(stored_version.trim());
     }
 
-    const RELEASE_URL: &str = "https://api.github.com/repos/Squ1dd13/CLEO-iOS/releases/latest";
+    const RELEASE_URL: &str = "https://api.github.com/repos/squ1dd13/CLEO-iOS/releases/latest";
 
     let client = reqwest::blocking::Client::new();
     let mut response = client
@@ -179,7 +179,7 @@ fn show_update_prompt(screen: *mut u8) {
         let menu = hook::slide::<fn(u64) -> u64>(0x1004f9be0)(0x80);
 
         let on_yes = |_: u64| {
-            const GITHUB_URL: &str = "https://github.com/Squ1dd13/CLEO-iOS/releases/latest";
+            const GITHUB_URL: &str = "https://github.com/squ1dd13/CLEO-iOS/releases/latest";
 
             let url: *const Object = msg_send![
                 class!(NSURL),

@@ -1,7 +1,7 @@
 [package]
 name = "cleo"
 version = "2.1.2"
-authors = ["Squ1dd13 <squ1dd13dev@gmail.com>"]
+authors = ["squ1dd13 <squ1dd13dev@gmail.com>"]
 edition = "2018"
 description = "CLEO SA for iOS"
 publish = false
