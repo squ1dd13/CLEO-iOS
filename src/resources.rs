@@ -120,7 +120,7 @@ impl ModResource {
             return Some(ModResource::FileReplacement(path.to_path_buf()));
         }
 
-        let first_component = relative_to_cleo.iter().next().map(|first| Path::new(first));
+        let first_component = relative_to_cleo.iter().next().map(Path::new);
 
         let is_in_archive = first_component
             .and_then(std::path::Path::extension)

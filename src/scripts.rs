@@ -153,7 +153,7 @@ impl CleoScript {
         //  created every update, and also means that there is enough capacity for most updates to go without
         //  extending the map. The shared map reduces the time taken for each script update by about 40%.
         static mut OFFSET_MAP_SHARED: once_cell::unsync::Lazy<HashMap<usize, usize>> =
-            once_cell::unsync::Lazy::new(|| HashMap::new());
+            once_cell::unsync::Lazy::new(HashMap::new);
 
         // Clear the offset map and obtain a reference to it.
         let offset_encounters = unsafe {
@@ -378,11 +378,7 @@ enum CsaState {
 
 impl CsaState {
     fn active(&self) -> bool {
-        if let CsaState::Disabled = self {
-            false
-        } else {
-            true
-        }
+        !matches!(self, CsaState::Disabled)
     }
 }
 
@@ -593,7 +589,7 @@ fn init_stage_three(p: usize) {
     //  `get_csa_state` produces different states for scripts with issues.
     for script in scripts.iter_mut() {
         if let Script::Csa { script, state } = script {
-            *state = get_csa_state(&script);
+            *state = get_csa_state(script);
             script.game_script.active = state.active();
         }
     }
@@ -782,11 +778,7 @@ impl menu::RowData for CsaMenuInfo {
                 }
 
                 *state = new_state;
-                script.game_script.active = if let CsaState::Disabled = new_state {
-                    false
-                } else {
-                    true
-                };
+                script.game_script.active = !matches!(new_state, CsaState::Disabled);
             }
         }
 
