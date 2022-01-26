@@ -312,7 +312,7 @@ fn reset_cheats() {
             }
 
             // Ensure that all the bytes are valid.
-            for byte in loaded_bytes.iter() {
+            for byte in &loaded_bytes {
                 if byte != &0 && byte != &1 {
                     log::error!("Invalid cheat save: found non-Boolean byte.");
                     return;

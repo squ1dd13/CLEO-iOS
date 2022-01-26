@@ -291,7 +291,7 @@ impl Tab {
             .map(make_row)
             .collect();
 
-        for row in rows.iter() {
+        for row in &rows {
             unsafe {
                 let _: () = msg_send![row.button, addSubview: row.value_label];
                 let _: () = msg_send![row.button, addSubview: row.detail_label];
@@ -535,11 +535,11 @@ impl Menu {
             let application: *mut Object = msg_send![class!(UIApplication), sharedApplication];
             let key_window: *mut Object = msg_send![application, keyWindow];
 
-            for tab_button in self.tab_buttons.iter() {
+            for tab_button in &self.tab_buttons {
                 let _: () = msg_send![key_window, addSubview: tab_button.view];
             }
 
-            for tab in self.tabs.iter() {
+            for tab in &self.tabs {
                 let _: () = msg_send![key_window, addSubview: tab.scroll_view];
 
                 if let Some(label) = tab.warning_label {
@@ -558,11 +558,11 @@ impl Menu {
 
     fn remove(self) {
         unsafe {
-            for tab_button in self.tab_buttons.iter() {
+            for tab_button in &self.tab_buttons {
                 let _: () = msg_send![tab_button.view, removeFromSuperview];
             }
 
-            for tab in self.tabs.iter() {
+            for tab in &self.tabs {
                 let content_offset: CGPoint = msg_send![tab.scroll_view, contentOffset];
 
                 // todo: Add tab selection state to TAB_STATES when menu is removed.
@@ -607,8 +607,8 @@ impl Menu {
     }
 
     fn reload_rows(&mut self) {
-        for tab in self.tabs.iter_mut() {
-            for row in tab.rows.iter_mut() {
+        for tab in &mut self.tabs {
+            for row in &mut tab.rows {
                 row.load();
             }
         }

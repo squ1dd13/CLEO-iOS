@@ -294,7 +294,7 @@ impl Instr {
 
         let mut args = Vec::with_capacity(cmd.params.len());
 
-        for param in cmd.params.iter() {
+        for param in &cmd.params {
             args.push(param.read(reader)?);
         }
 
@@ -366,7 +366,7 @@ fn disassemble(
     let mut new_offsets: Vec<u64> = Vec::new();
 
     while !cur_offsets.is_empty() {
-        for offset in cur_offsets.iter() {
+        for offset in &cur_offsets {
             if instrs.contains_key(offset) {
                 continue;
             }
@@ -521,7 +521,7 @@ fn scan_bytecode(bytes: &[u8]) -> eyre::Result<Option<ScriptIssue>, String> {
     //  all of the instructions rather than being able to stop at the first issue.
     let mut max_issue = None;
 
-    for (_, instr) in instruction_map.iter() {
+    for instr in instruction_map.values() {
         let issue = match instr.opcode {
             0x0dd5 | 0x0dd6 | 0x0de1..=0x0df6 => Some(ScriptIssue::NotImpl),
             0x0dd0..=0x0ddb | 0x0dde => Some(ScriptIssue::AndroidSpecific),

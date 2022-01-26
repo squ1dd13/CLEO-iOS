@@ -289,7 +289,7 @@ pub fn init() {
     log::info!("Finding and loading resources...");
     let all_resources = ModResource::flatten_dir(&cleo_path).unwrap();
 
-    for resource in all_resources.iter() {
+    for resource in &all_resources {
         log::info!("Attempting to load {}.", resource);
 
         let load_error = match resource {

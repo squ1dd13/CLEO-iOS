@@ -51,7 +51,7 @@ impl Message {
         let serialized = serialized.unwrap();
 
         let mut len_bytes = Vec::from(u32::to_le_bytes((serialized.len() as u32) + 4));
-        len_bytes.extend(serialized.iter());
+        len_bytes.extend(&serialized);
 
         Some(len_bytes)
     }
