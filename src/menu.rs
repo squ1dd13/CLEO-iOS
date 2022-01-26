@@ -45,15 +45,6 @@ struct TabState {
     scroll_y: f64,
 }
 
-struct Tab {
-    // We don't use the name or warning, but we may in the future.
-    _name: String,
-    _warning: Option<String>,
-    scroll_view: *mut Object,
-    warning_label: Option<*mut Object>,
-    rows: Vec<Row>,
-}
-
 struct TabButton {
     view: *mut Object,
 }
@@ -94,12 +85,6 @@ impl ButtonTag {
             _pad: [0u8; 2],
         }
     }
-}
-
-struct Menu {
-    tabs: Vec<Tab>,
-    tab_buttons: Vec<TabButton>,
-    close_button: *mut Object,
 }
 
 static MESSAGE_SENDER: OnceCell<Mutex<Sender<MenuMessage>>> = OnceCell::new();
@@ -254,6 +239,15 @@ const CLOSE_BTN_FONT_SIZE: f64 = 23.;
 //  to the height of the tab view as a whole.
 const WARNING_HEIGHT_FRAC: f64 = 0.1;
 const WARNING_LBL_FONT_SIZE: f64 = 10.;
+
+struct Tab {
+    // We don't use the name or warning, but we may in the future.
+    _name: String,
+    _warning: Option<String>,
+    scroll_view: *mut Object,
+    warning_label: Option<*mut Object>,
+    rows: Vec<Row>,
+}
 
 impl Tab {
     fn new(data: TabData, tab_frame: gui::CGRect, state: TabState) -> Tab {
@@ -448,6 +442,12 @@ fn set_game_timer_paused(want_pause: bool) {
 // hack: Using names for TabState structures will not work if the tab changes its contents.
 // todo: Remember the selected tab.
 static mut TAB_STATES: Lazy<HashMap<String, TabState>> = Lazy::new(HashMap::new);
+
+struct Menu {
+    tabs: Vec<Tab>,
+    tab_buttons: Vec<TabButton>,
+    close_button: *mut Object,
+}
 
 impl Menu {
     fn new(tab_data: Vec<TabData>) -> Menu {
