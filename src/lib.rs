@@ -13,6 +13,7 @@ mod controller;
 mod extras;
 mod gui;
 mod hook;
+mod js;
 mod loader;
 mod logging;
 mod menu;
@@ -124,6 +125,7 @@ fn initialise() {
     text::init();
     extras::init();
     scripts::init();
+    js::init();
     cheats::init();
     controller::init();
     resources::init();
