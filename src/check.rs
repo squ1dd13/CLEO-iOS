@@ -58,6 +58,7 @@ impl std::fmt::Display for Pointer {
 #[allow(dead_code)]
 #[derive(Debug, Clone)]
 pub enum Value {
+    // fixme: This should be i32, because that's what the game expects and what will be encoded in scripts.
     Integer(i64),
     Real(f32),
     String(String),

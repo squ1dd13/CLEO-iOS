@@ -105,7 +105,7 @@ pub struct CleoScript {
 }
 
 impl CleoScript {
-    fn new(bytes: Vec<u8>, name: String) -> CleoScript {
+    pub fn new(bytes: Vec<u8>, name: String) -> CleoScript {
         let mut script = CleoScript {
             game_script: GameScript::new(bytes.as_ptr().cast(), false),
             bytes,
@@ -124,6 +124,15 @@ impl CleoScript {
         hasher.finish()
     }
 
+    // hack: This shouldn't exist.
+    pub fn set_active(&mut self, active: bool) {
+        self.game_script.active = active;
+    }
+
+    pub fn reset_ip(&mut self) {
+        self.game_script.ip = self.game_script.base_ip;
+    }
+
     fn reset(&mut self) {
         let base_ip = self.game_script.base_ip;
         let active = self.game_script.active;
@@ -131,15 +140,26 @@ impl CleoScript {
         self.game_script = GameScript::new(base_ip, active);
     }
 
-    fn update(&mut self) {
-        if !self.game_script.active {
-            return;
+    pub fn wants_update(&self) -> bool {
+        self.game_script.active && {
+            let game_time: u32 = hook::get_global(0x1007d3af8);
+            game_time >= self.game_script.wakeup_time
         }
+    }
 
-        let game_time: u32 = hook::get_global(0x1007d3af8);
+    fn update(&mut self) {
+        // if !self.game_script.active {
+        //     return;
+        // }
 
-        if self.game_script.wakeup_time > game_time {
-            // Don't wake up yet.
+        // let game_time: u32 = hook::get_global(0x1007d3af8);
+
+        // if self.game_script.wakeup_time > game_time {
+        //     // Don't wake up yet.
+        //     return;
+        // }
+
+        if !self.wants_update() {
             return;
         }
 
@@ -214,7 +234,9 @@ impl CleoScript {
         self.game_script.ip as usize - self.game_script.base_ip as usize
     }
 
-    fn update_once(&mut self) -> bool {
+    // fixme: This should be private.
+    // todo: Invert return value of update_once so that it returns whether the script should continue rather than whether it should stop.
+    pub fn update_once(&mut self) -> bool {
         let opcode = {
             let op_as_written = unsafe {
                 let op = self.game_script.ip.read();
@@ -428,6 +450,23 @@ impl Script {
 
             // bug: Memory corruption caused by some scripts can make reading the bytes vector impossible.
             script.update();
+        }
+
+        // hack: This is very bad.
+        static mut JS_MGR: Option<crate::js::ScriptManager> = None;
+
+        unsafe {
+            if JS_MGR.is_none() {
+                JS_MGR = Some(
+                    crate::js::ScriptManager::load().expect("Unable to create JS ScriptManager"),
+                );
+            }
+
+            JS_MGR
+                .as_mut()
+                .unwrap()
+                .update_all()
+                .expect("JS script update failed");
         }
     }
 }
