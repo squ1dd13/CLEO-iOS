@@ -26,9 +26,6 @@ struct Runtime {
 impl Runtime {
     /// Creates the runtime in which all the JS scripts are executed.
     fn new() -> Result<Runtime> {
-        log::info!("Creating JS runtime");
-        let cleo_script = std::str::from_utf8(include_bytes!("cleo.js"))?;
-
         let mut runtime = Runtime {
             context: Context::new(),
         };
@@ -37,17 +34,6 @@ impl Runtime {
 
         runtime.add_func("print", Self::js_print);
         runtime.add_func("addGxtString", Self::add_gxt);
-
-        // Run cleo.js to set up anything that scripts may need to use.
-        if let Err(err) = runtime.context.eval(cleo_script) {
-            return Err(anyhow::format_err!(
-                "Error while evaluating cleo.js: {}",
-                match err.to_string(&mut runtime.context) {
-                    Ok(s) => s.to_string(),
-                    Err(_) => "Unable to convert error message to string!".to_string(),
-                }
-            ));
-        }
 
         Ok(runtime)
     }
@@ -121,7 +107,9 @@ impl Runtime {
     }
 }
 
-struct JsScript {
+struct Script {
+    name: String,
+
     /// A fake script that we use when interacting with game code.
     puppet: crate::scripts::CleoScript,
     runtime: Runtime,
@@ -138,8 +126,8 @@ struct JsScript {
     continue_flag: Option<bool>,
 }
 
-impl JsScript {
-    fn new(src_bytes: &[u8]) -> Result<JsScript> {
+impl Script {
+    fn new(name: String, src_bytes: &[u8]) -> Result<Script> {
         // todo: Check for script mode comment.
 
         let mut runtime = Runtime::new()?;
@@ -148,7 +136,8 @@ impl JsScript {
             .parse_all()
             .map_err(|e| anyhow::format_err!("Syntax error: {}", e.to_string()))?;
 
-        Ok(JsScript {
+        Ok(Script {
+            name,
             puppet: todo!(),
             runtime,
             statements,
@@ -170,7 +159,8 @@ impl JsScript {
             // Execute the next statement.
             if let Err(err) = run_result {
                 return Err(anyhow::format_err!(
-                    "Script runtime error: {:?}",
+                    "Runtime error in script '{}': {:?}",
+                    self.name,
                     err.to_string(&mut self.runtime.context)
                 ));
             }
@@ -195,6 +185,8 @@ impl JsScript {
             }
 
             if self.next_index >= self.statements.items().len() {
+                log::info!("Script {} finished executing.", self.name);
+
                 // No more statements left, so we're done executing.
                 self.execution_ended = true;
                 break;
@@ -205,7 +197,30 @@ impl JsScript {
     }
 }
 
+pub struct ScriptManager {
+    scripts: Vec<Script>,
+}
+
+impl ScriptManager {
+    pub fn load() -> Result<ScriptManager> {
+        let cleo_script = include_bytes!("cleo.js");
+
+        Ok(ScriptManager {
+            scripts: vec![Script::new("cleo.js".into(), cleo_script)?],
+        })
+    }
+
+    pub fn update_all(&mut self) -> Result<()> {
+        for script in self.scripts.iter_mut() {
+            script.run_block()?;
+        }
+
+        Ok(())
+    }
+}
+
 pub fn init() {
+
     // let _ = Runtime::new().expect("Unable to initialise JavaScript runtime");
 }
 
