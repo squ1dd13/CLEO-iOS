@@ -11,12 +11,17 @@ use byteorder::WriteBytesExt;
 
 use crate::check::Value;
 
-// todo: Create fake scripts that use JS behind the scenes but that the game can interact with as normal.
-// Three stages to running an instruction:
-//  1: Setting up the fake script to allow the game to use it.
-//  2: Processing a single instruction.
-//  3: Taking anything the game has done with the fake script and using it to influence the JS script's state.
-// These steps should be repeated for every instruction within a block.
+/*
+
+    Current system limitations:
+        - Just about everything
+        - `scmCall` is only useable from top-level code because it's implemented as a special execution case and not a real function
+        - Loading and updating JS scripts requires unsafe code in the `scripts` module
+        - Internals from `scripts` and `check` have been exposed simply for use in the `js` module
+            todo: Adapt (or rewrite) the current `scripts` module to allow different types of script that all implement a trait
+            todo: Move all scripting-related modules into `scripts` module (in a folder)
+
+*/
 
 struct Runtime {
     context: Context,
