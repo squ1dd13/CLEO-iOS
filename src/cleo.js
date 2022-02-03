@@ -1,9 +1,9 @@
-print("Yay! JavaScript in CLEO!");
+// cleo:mode = running
 
-let x = 2;
+print("cleo.js loaded successfully!");
 
-if (x == 2) {
-    print("x is two");
-} else {
-    print("x is not two");
-}
+const gxtKey = "JS_MSG";
+addGxtString(gxtKey, "Hello from JavaScript!");
+
+// Text.Print(key: gxt_key, time: int, flag: int)
+scmCall(0x00BB, gxtKey, 2000, 0);

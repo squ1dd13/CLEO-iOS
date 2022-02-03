@@ -57,7 +57,7 @@ impl std::fmt::Display for Pointer {
 
 #[allow(dead_code)]
 #[derive(Debug, Clone)]
-enum Value {
+pub enum Value {
     Integer(i64),
     Real(f32),
     String(String),

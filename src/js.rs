@@ -1,9 +1,23 @@
 use anyhow::Result;
 use boa::{
+    builtins::function::NativeFunction,
+    exec::Executable,
     object::{FunctionBuilder, ObjectInitializer},
     property::{Attribute, PropertyDescriptor},
-    Context, JsResult, JsValue,
+    syntax::ast::node::StatementList,
+    Context, JsResult, JsString, JsValue,
 };
+
+use crate::check::Value;
+
+// todo: Create fake scripts that use JS behind the scenes but that the game can interact with as normal.
+// Three stages to running an instruction:
+//  1: Setting up the fake script to allow the game to use it.
+//  2: Processing a single instruction.
+//  3: Taking anything the game has done with the fake script and using it to influence the JS script's state.
+// These steps should be repeated for every instruction within a block.
+
+// todo: Parse JS and run statement-by-statement until a non-continuing instruction is executed.
 
 struct Runtime {
     context: Context,
@@ -15,43 +29,193 @@ impl Runtime {
         log::info!("Creating JS runtime");
         let cleo_script = std::str::from_utf8(include_bytes!("cleo.js"))?;
 
-        let mut context = Context::new();
+        let mut runtime = Runtime {
+            context: Context::new(),
+        };
 
-        let function = FunctionBuilder::native(&mut context, Self::js_print).build();
-        context.register_global_property("print", function, Attribute::READONLY);
+        runtime.context.set_strict_mode_global();
 
-        if let Err(err) = context.eval(cleo_script) {
+        runtime.add_func("print", Self::js_print);
+        runtime.add_func("addGxtString", Self::add_gxt);
+
+        // Run cleo.js to set up anything that scripts may need to use.
+        if let Err(err) = runtime.context.eval(cleo_script) {
             return Err(anyhow::format_err!(
                 "Error while evaluating cleo.js: {}",
-                match err.to_string(&mut context) {
+                match err.to_string(&mut runtime.context) {
                     Ok(s) => s.to_string(),
                     Err(_) => "Unable to convert error message to string!".to_string(),
                 }
             ));
         }
 
-        Ok(Runtime { context })
+        Ok(runtime)
     }
 
-    fn js_print(func: &JsValue, args: &[JsValue], context: &mut Context) -> JsResult<JsValue> {
+    fn add_func(&mut self, name: impl AsRef<str>, func: NativeFunction) {
+        let function = FunctionBuilder::native(&mut self.context, func).build();
+        self.context
+            .register_global_property(name.as_ref(), function, Attribute::READONLY);
+    }
+
+    fn js_print(_func: &JsValue, args: &[JsValue], context: &mut Context) -> JsResult<JsValue> {
         if args.is_empty() {
             return context.throw_error("No values passed to print!");
         }
 
         log::info!("Script: {}", args[0].to_string(context)?);
 
-        Ok(JsValue::undefined())
+        Ok(JsValue::Undefined)
+    }
+
+    fn add_gxt(_func: &JsValue, args: &[JsValue], context: &mut Context) -> JsResult<JsValue> {
+        if args.len() != 2 {
+            return context.throw_error("addGxtString expects two arguments.");
+        }
+
+        crate::text::set_kv(
+            args[0].to_string(context)?.as_str(),
+            args[1].to_string(context)?.as_str(),
+        );
+
+        Ok(JsValue::Undefined)
+    }
+
+    fn run_instr(func: &JsValue, args: &[JsValue], context: &mut Context) -> JsResult<JsValue> {
+        let mut args = args.iter();
+
+        let opcode = args
+            .next()
+            .unwrap()
+            .as_number()
+            .expect("Opcode must be a number");
+
+        let params: Vec<Value> = match args.map(Self::get_scm_value).collect::<Option<Vec<_>>>() {
+            Some(p) => p,
+            None => return context.throw_error("Unable to convert JavaScript values to SCM"),
+        };
+
+        Ok(JsValue::Undefined)
+    }
+
+    fn get_scm_value(value: &JsValue) -> Option<Value> {
+        Some(match value {
+            JsValue::Boolean(value) => Value::Integer(if *value { 1 } else { 0 }),
+            JsValue::String(value) => Value::String(value.to_string()),
+            JsValue::Rational(value) => Value::Real(*value as f32),
+            JsValue::Integer(value) => Value::Integer(*value as i64),
+
+            JsValue::Null
+            | JsValue::Undefined
+            | JsValue::BigInt(_)
+            | JsValue::Object(_)
+            | JsValue::Symbol(_) => {
+                log::error!(
+                    "Cannot convert value of type {} to SCM value!",
+                    value.type_of().to_string()
+                );
+
+                return None;
+            }
+        })
+    }
+}
+
+struct JsScript {
+    /// A fake script that we use when interacting with game code.
+    puppet: crate::scripts::CleoScript,
+    runtime: Runtime,
+
+    statements: StatementList,
+    next_index: usize,
+
+    execution_ended: bool,
+
+    /// Flag (set when script instructions run) that decides whether or not the next
+    /// instruction should also run in this execution block.
+    /// Stays as `None` until an instruction runs, after which an appropriate value
+    /// will be set.
+    continue_flag: Option<bool>,
+}
+
+impl JsScript {
+    fn new(src_bytes: &[u8]) -> Result<JsScript> {
+        // todo: Check for script mode comment.
+
+        let mut runtime = Runtime::new()?;
+
+        let statements = boa::syntax::Parser::new(src_bytes, false)
+            .parse_all()
+            .map_err(|e| anyhow::format_err!("Syntax error: {}", e.to_string()))?;
+
+        Ok(JsScript {
+            puppet: todo!(),
+            runtime,
+            statements,
+            next_index: 0,
+            execution_ended: false,
+            continue_flag: None,
+        })
+    }
+
+    /// Executes one instruction. This includes executing any JavaScript statements leading
+    /// up to the instruction function call.
+    fn run_single(&mut self) -> Result<()> {
+        let statements = self.statements.items();
+
+        // fixme: We have no way of telling if an instruction has been executed, so run_single currently executes the entire script.
+        while self.continue_flag.is_none() && self.next_index < statements.len() {
+            let run_result = statements[self.next_index].run(&mut self.runtime.context);
+
+            // Execute the next statement.
+            if let Err(err) = run_result {
+                return Err(anyhow::format_err!(
+                    "Script runtime error: {:?}",
+                    err.to_string(&mut self.runtime.context)
+                ));
+            }
+
+            self.next_index += 1;
+        }
+
+        Ok(())
+    }
+
+    /// Run a block of instructions.
+    fn run_block(&mut self) -> Result<()> {
+        if self.execution_ended {
+            return Ok(());
+        }
+
+        loop {
+            self.run_single()?;
+
+            if let Some(false) = self.continue_flag {
+                break;
+            }
+
+            if self.next_index >= self.statements.items().len() {
+                // No more statements left, so we're done executing.
+                self.execution_ended = true;
+                break;
+            }
+        }
+
+        Ok(())
     }
 }
 
 pub fn init() {
-    let _ = Runtime::new().expect("Unable to initialise JavaScript runtime");
+    // let _ = Runtime::new().expect("Unable to initialise JavaScript runtime");
 }
 
 /*
-    JavaScript interface for internal opcode stuff:
-      - Provide JS functions in cleo.js with normal calling interfaces
-      - Pass arguments and opcode to Rust function
-      - Arguments are converted to appropriate C values and placed into the game's argument memory
-      - The instruction implementation should be run as normal
+    Script mode should be given using a comment (preferably at the top of the file).
+
+    CSI:
+        // cleo:mode = invoked
+        Look for "//cleo:mode=invoked" after removing all spaces
+    CSA:
+        // cleo:mode = running
+        Look for "//cleo:mode=running" after removing all spaces
 */
