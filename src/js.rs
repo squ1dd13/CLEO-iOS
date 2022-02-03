@@ -2,12 +2,12 @@ use anyhow::Result;
 use boa::{
     builtins::function::NativeFunction,
     exec::Executable,
-    object::{FunctionBuilder, ObjectInitializer},
-    property::{Attribute, PropertyDescriptor},
+    object::FunctionBuilder,
+    property::Attribute,
     syntax::ast::{node::StatementList, Node},
-    Context, JsResult, JsString, JsValue,
+    Context, JsResult, JsValue,
 };
-use byteorder::{ByteOrder, WriteBytesExt};
+use byteorder::WriteBytesExt;
 
 use crate::check::Value;
 
