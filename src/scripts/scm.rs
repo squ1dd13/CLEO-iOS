@@ -260,10 +260,7 @@ fn load_all_commands() -> eyre::Result<HashMap<u16, Command>, Box<bincode::Error
 
 struct Instr {
     opcode: u16,
-    name: String,
-
     offset: u64,
-
     bool_inverted: bool,
     args: Vec<Value>,
 }
@@ -301,7 +298,6 @@ impl Instr {
 
         Ok(Instr {
             opcode,
-            name: cmd.name.clone(),
             offset,
             bool_inverted,
             args,
@@ -332,6 +328,12 @@ impl Instr {
             }
         }
     }
+
+    fn name(&self) -> Option<&'static str> {
+        get_commands()
+            .get(&self.opcode)
+            .map(|cmd| cmd.name.as_str())
+    }
 }
 
 impl Display for Instr {
@@ -342,7 +344,7 @@ impl Display for Instr {
             self.offset,
             self.opcode,
             if self.bool_inverted { "!" } else { "" },
-            self.name,
+            self.name().unwrap_or("<no name>"),
             self.args
                 .iter()
                 .map(Value::to_string)
