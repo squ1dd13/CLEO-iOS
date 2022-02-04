@@ -254,7 +254,7 @@ struct Command {
 }
 
 fn load_all_commands() -> eyre::Result<HashMap<u16, Command>, Box<bincode::ErrorKind>> {
-    let commands_bin = include_bytes!("../commands.bin");
+    let commands_bin = include_bytes!("commands.bin");
     bincode::deserialize(commands_bin)
 }
 
@@ -445,7 +445,7 @@ impl Display for ScriptIssue {
     }
 }
 
-pub fn check_all(mut scripts: Vec<&mut crate::scripts::CleoScript>) {
+pub fn check_all(mut scripts: Vec<&mut super::run::CleoScript>) {
     // Sort the scripts so we have a defined order for identifying duplicates. (The first script once sorted
     //  will not be marked as a duplicate, but any scripts after it which have the same hash will be.)
     scripts.sort_by_cached_key(|script| script.name.clone());

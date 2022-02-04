@@ -9,7 +9,7 @@ use boa::{
 };
 use byteorder::WriteBytesExt;
 
-use crate::check::Value;
+use super::scm::Value;
 
 /*
 
@@ -98,7 +98,7 @@ struct Script {
     name: String,
 
     /// A fake script that we use when interacting with game code.
-    puppet: crate::scripts::CleoScript,
+    puppet: super::run::CleoScript,
     runtime: Runtime,
 
     statements: StatementList,
@@ -118,7 +118,7 @@ impl Script {
         // todo: Check for script mode comment.
 
         // Create a script containing 1K of zeros (which are just NOP instructions).
-        let mut puppet = crate::scripts::CleoScript::new(vec![0u8; 1024], name.clone());
+        let mut puppet = super::run::CleoScript::new(vec![0u8; 1024], name.clone());
         puppet.set_active(true);
 
         // Parse the JavaScript bytes.
