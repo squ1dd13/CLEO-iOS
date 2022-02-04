@@ -1,3 +1,4 @@
+mod base;
 mod js;
 mod run;
 mod scm;
