@@ -1,6 +1,6 @@
 //! Provides a touch interface and accompanying logic to allow the user to interact with scripts, cheats and settings.
 
-use crate::gui::{self, create_ns_string, CGPoint, CGRect, CGSize};
+use super::gui::{self, create_ns_string, CGPoint, CGRect, CGSize};
 use objc::{class, msg_send, runtime::Object, sel, sel_impl};
 use once_cell::{sync::OnceCell, unsync::Lazy};
 use std::{

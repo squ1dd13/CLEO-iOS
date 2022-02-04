@@ -8,19 +8,16 @@ use objc::runtime::Sel;
 use std::os::raw::c_char;
 
 mod cheats;
-mod controller;
 mod extras;
-mod gui;
 mod hook;
 mod loader;
 mod logging;
-mod menu;
 mod resources;
 mod scripts;
 mod settings;
 mod stream;
 mod text;
-mod touch;
+mod ui;
 mod update;
 
 mod targets {
@@ -31,7 +28,7 @@ mod targets {
     create_soft_target!(
         process_touch,
         0x1004e831c,
-        fn(f32, f32, f64, f32, touch::TouchType)
+        fn(f32, f32, f64, f32, ui::TouchType)
     );
 
     create_soft_target!(
@@ -114,17 +111,13 @@ mod targets {
 
 fn initialise() {
     stream::init();
-    update::init();
     loader::init();
     settings::init();
-    gui::init();
-    menu::init();
-    touch::init();
+    ui::init();
     text::init();
     extras::init();
     scripts::init();
     cheats::init();
-    controller::init();
     resources::init();
 }
 

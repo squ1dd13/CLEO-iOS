@@ -3,9 +3,9 @@
 use std::sync::atomic::{AtomicBool, Ordering};
 
 use crate::{
-    call_original, gui, hook,
-    menu::{self, RowData, TabData},
+    call_original, hook,
     settings::Settings,
+    ui::{self, RowData, TabData},
 };
 use lazy_static::lazy_static;
 use log::error;
@@ -187,8 +187,8 @@ impl RowData for CheatData {
         .into()
     }
 
-    fn detail(&self) -> menu::RowDetail {
-        menu::RowDetail::Info(self.cheat.description.into())
+    fn detail(&self) -> ui::RowDetail {
+        ui::RowDetail::Info(self.cheat.description.into())
     }
 
     fn value(&self) -> &str {
@@ -221,12 +221,12 @@ impl RowData for CheatData {
 
         if self.cheat.is_in_queue() {
             if will_be_active {
-                Some(gui::colours::BLUE)
+                Some(ui::colours::BLUE)
             } else {
-                Some(gui::colours::RED)
+                Some(ui::colours::RED)
             }
         } else if will_be_active {
-            Some(gui::colours::GREEN)
+            Some(ui::colours::GREEN)
         } else {
             None
         }

@@ -10,11 +10,11 @@ pub fn load_running_script(path: &impl AsRef<std::path::Path>) -> eyre::Result<(
     run::load_running_script(path)
 }
 
-pub fn tab_data_csa() -> crate::menu::TabData {
+pub fn tab_data_csa() -> crate::ui::TabData {
     run::tab_data_csa()
 }
 
-pub fn tab_data_csi() -> crate::menu::TabData {
+pub fn tab_data_csi() -> crate::ui::TabData {
     run::tab_data_csi()
 }
 

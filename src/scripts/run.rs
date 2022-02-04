@@ -6,9 +6,9 @@ use once_cell::sync::Lazy;
 use super::scm::ScriptIssue;
 use crate::{
     call_original, hook,
-    menu::{self, MenuMessage, TabData},
     settings::Settings,
-    targets, touch,
+    targets,
+    ui::{self, MenuMessage, TabData},
 };
 use std::{
     collections::HashMap,
@@ -317,7 +317,7 @@ impl CleoScript {
                 // This isn't really an issue, since to get to this point the user must have ignored the warnings
                 //  about this script being incompatible with iOS.
                 // FIXME: If a script behaves badly, we should return to the main menu without saving (as the whole game state has become invalid).
-                crate::gui::exit_to_homescreen();
+                crate::ui::exit_to_homescreen();
 
                 true
             }
@@ -354,7 +354,7 @@ impl CleoScript {
 
                 let zone = unsafe { *hook::slide::<*const u32>(0x1007ad690).add(1) } as usize;
 
-                let state = if let Some(state) = touch::query_zone(zone) {
+                let state = if let Some(state) = ui::touch::query_zone(zone) {
                     state
                 } else {
                     log::warn!("Returning invalid touch state for zone {}", zone);
@@ -371,7 +371,7 @@ impl CleoScript {
 
                 let zone = unsafe { *hook::slide::<*const u32>(0x1007ad690) as usize };
 
-                let out = if let Some(state) = touch::query_zone(zone) {
+                let out = if let Some(state) = ui::touch::query_zone(zone) {
                     state as i32
                 } else {
                     log::warn!("Returning invalid touch state for zone {}", zone);
@@ -672,12 +672,12 @@ impl CsiMenuInfo {
     }
 }
 
-impl menu::RowData for CsiMenuInfo {
+impl ui::RowData for CsiMenuInfo {
     fn title(&self) -> String {
         self.name.clone()
     }
 
-    fn detail(&self) -> menu::RowDetail {
+    fn detail(&self) -> ui::RowDetail {
         let issues_str = if let Some(warning) = self.warning.as_deref() {
             warning
         } else {
@@ -691,9 +691,9 @@ impl menu::RowData for CsiMenuInfo {
         };
 
         if self.warning.is_some() {
-            menu::RowDetail::Warning(info_str)
+            ui::RowDetail::Warning(info_str)
         } else {
-            menu::RowDetail::Info(info_str)
+            ui::RowDetail::Info(info_str)
         }
     }
 
@@ -707,7 +707,7 @@ impl menu::RowData for CsiMenuInfo {
 
     fn tint(&self) -> Option<(u8, u8, u8)> {
         if self.state {
-            Some(crate::gui::colours::GREEN)
+            Some(ui::colours::GREEN)
         } else {
             None
         }
@@ -743,12 +743,12 @@ impl CsaMenuInfo {
     }
 }
 
-impl menu::RowData for CsaMenuInfo {
+impl ui::RowData for CsaMenuInfo {
     fn title(&self) -> String {
         self.name.clone()
     }
 
-    fn detail(&self) -> menu::RowDetail {
+    fn detail(&self) -> ui::RowDetail {
         let issues_str = if let Some(warning) = self.warning.as_deref() {
             warning
         } else {
@@ -757,9 +757,9 @@ impl menu::RowData for CsaMenuInfo {
         .to_string();
 
         if self.warning.is_some() {
-            menu::RowDetail::Warning(issues_str)
+            ui::RowDetail::Warning(issues_str)
         } else {
-            menu::RowDetail::Info(issues_str)
+            ui::RowDetail::Info(issues_str)
         }
     }
 
@@ -775,7 +775,7 @@ impl menu::RowData for CsaMenuInfo {
         if let CsaState::Disabled = self.state {
             None
         } else {
-            Some(crate::gui::colours::GREEN)
+            Some(ui::colours::GREEN)
         }
     }
 
@@ -846,7 +846,7 @@ fn gen_warning_string(count: usize) -> Option<String> {
     ))
 }
 
-pub fn tab_data_csa() -> menu::TabData {
+pub fn tab_data_csa() -> ui::TabData {
     let mut row_data = vec![];
 
     let mut errs = 0usize;
@@ -863,7 +863,7 @@ pub fn tab_data_csa() -> menu::TabData {
         }
 
         if let Some(info) = CsaMenuInfo::new(script) {
-            row_data.push(Box::new(info) as Box<dyn menu::RowData>)
+            row_data.push(Box::new(info) as Box<dyn ui::RowData>)
         }
     }
 
@@ -876,7 +876,7 @@ pub fn tab_data_csa() -> menu::TabData {
     }
 }
 
-pub fn tab_data_csi() -> menu::TabData {
+pub fn tab_data_csi() -> ui::TabData {
     let mut row_data = vec![];
 
     let mut errs = 0usize;
@@ -893,7 +893,7 @@ pub fn tab_data_csi() -> menu::TabData {
         }
 
         if let Some(info) = CsiMenuInfo::new(script) {
-            row_data.push(Box::new(info) as Box<dyn menu::RowData>)
+            row_data.push(Box::new(info) as Box<dyn ui::RowData>)
         }
     }
 

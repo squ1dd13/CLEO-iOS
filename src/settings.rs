@@ -8,8 +8,8 @@ use std::sync::{
 use once_cell::sync::OnceCell;
 
 use crate::{
-    menu::{self, RowData, RowDetail},
     resources,
+    ui::{self, RowData, RowDetail},
 };
 
 static SETTINGS: OnceCell<Settings> = OnceCell::new();
@@ -126,12 +126,12 @@ impl OptionInfo {
     }
 }
 
-impl crate::menu::RowData for OptionInfo {
+impl ui::RowData for OptionInfo {
     fn title(&self) -> String {
         self.title.into()
     }
 
-    fn detail(&self) -> crate::menu::RowDetail {
+    fn detail(&self) -> ui::RowDetail {
         RowDetail::Info(self.desc.into())
     }
 
@@ -145,7 +145,7 @@ impl crate::menu::RowData for OptionInfo {
 
     fn tint(&self) -> Option<(u8, u8, u8)> {
         if self.value.load(Ordering::SeqCst) {
-            Some(crate::gui::colours::GREEN)
+            Some(ui::colours::GREEN)
         } else {
             None
         }
@@ -169,7 +169,7 @@ impl Drop for OptionInfo {
     }
 }
 
-pub fn tab_data() -> menu::TabData {
+pub fn tab_data() -> ui::TabData {
     let settings = Settings::shared();
 
     let option_info = vec![
@@ -200,7 +200,7 @@ pub fn tab_data() -> menu::TabData {
         ),
     ];
 
-    menu::TabData {
+    ui::TabData {
         name: "Options".to_string(),
         warning: None,
         row_data: option_info
