@@ -204,7 +204,7 @@ fn create_archive_dirs() {
     // The layout of file replacements can be difficult to explain, especially with the added
     //  complication of replacing files within IMG archives being a different process. In order
     //  to make things easier, we create all the folders for replacement IMG contents for the user.
-    let game_dir = loader::get_game_path().expect("Unable to get game path.");
+    let game_dir = super::get_game_path().expect("Unable to get game path.");
 
     for entry in game_dir.read_dir().expect("Unable to read game directory.") {
         let entry = if let Err(err) = entry {
@@ -297,9 +297,9 @@ pub fn init() {
             ModResource::InvokedScript(path) => scripts::load_invoked_script(path).err(),
             ModResource::LanguageFile(path) => text::load_fxt(path).err(),
             ModResource::StreamReplacement(archive_name, path) => {
-                stream::load_replacement(archive_name, &path).err()
+                super::stream::load_replacement(archive_name, &path).err()
             }
-            ModResource::FileReplacement(path) => loader::load_replacement(&path).err(),
+            ModResource::FileReplacement(path) => super::loader::load_replacement(&path).err(),
         };
 
         if let Some(err) = load_error {

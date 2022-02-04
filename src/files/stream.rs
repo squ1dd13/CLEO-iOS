@@ -330,7 +330,7 @@ fn stream_open(path: *const c_char, _: bool) -> i32 {
 
 fn get_archive_path(path: &str) -> Option<(String, String)> {
     let path = path.to_lowercase();
-    let absolute = std::path::Path::new(&crate::loader::find_absolute_path(&path)?).to_owned();
+    let absolute = std::path::Path::new(&super::loader::find_absolute_path(&path)?).to_owned();
 
     Some((
         absolute.display().to_string(),

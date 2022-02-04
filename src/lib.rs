@@ -9,13 +9,11 @@ use std::os::raw::c_char;
 
 mod cheats;
 mod extras;
+mod files;
 mod hook;
-mod loader;
 mod logging;
-mod resources;
 mod scripts;
 mod settings;
-mod stream;
 mod text;
 mod ui;
 mod update;
@@ -110,15 +108,13 @@ mod targets {
 }
 
 fn initialise() {
-    stream::init();
-    loader::init();
+    files::init();
     settings::init();
     ui::init();
     text::init();
     extras::init();
     scripts::init();
     cheats::init();
-    resources::init();
 }
 
 #[ctor]

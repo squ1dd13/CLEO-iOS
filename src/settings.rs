@@ -8,7 +8,7 @@ use std::sync::{
 use once_cell::sync::OnceCell;
 
 use crate::{
-    resources,
+    files,
     ui::{self, RowData, RowDetail},
 };
 
@@ -75,7 +75,7 @@ impl Settings {
     }
 
     fn load_shared() {
-        let path = resources::get_documents_path("cleo_settings.json");
+        let path = files::get_documents_path("cleo_settings.json");
 
         let settings = Self::load_path(path).unwrap_or_else(|err| {
             log::error!("Failed to load settings from JSON: {:?}", err);
@@ -99,7 +99,7 @@ impl Settings {
 
         // fixme: Settings::save should be non-blocking.
         Ok(serde_json::to_writer_pretty(
-            std::fs::File::create(resources::get_documents_path("cleo_settings.json"))?,
+            std::fs::File::create(files::get_documents_path("cleo_settings.json"))?,
             &StoredSettings::from_settings(self),
         )?)
     }

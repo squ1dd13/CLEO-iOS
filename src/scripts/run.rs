@@ -518,7 +518,7 @@ fn script_update() {
 static SAVED_STATES: Lazy<Mutex<HashMap<u64, CsaState>>> = Lazy::new(|| Mutex::new(HashMap::new()));
 
 fn load_csa_states() {
-    let bytes = match std::fs::read(crate::resources::get_documents_path("cleo_csa_states.bin")) {
+    let bytes = match std::fs::read(crate::files::get_documents_path("cleo_csa_states.bin")) {
         Ok(bytes) => bytes,
         Err(err) => {
             log::warn!("Unable to read CSA states: {}", err);
@@ -560,7 +560,7 @@ fn save_csa_states() {
     let bytes = bincode::serialize(&states as &HashMap<u64, CsaState>).unwrap();
 
     if let Err(err) = std::fs::write(
-        crate::resources::get_documents_path("cleo_csa_states.bin"),
+        crate::files::get_documents_path("cleo_csa_states.bin"),
         bytes,
     ) {
         log::error!("Error while saving CSA script states: {}", err);

@@ -1,7 +1,7 @@
 //! Interfaces with the GitHub API to determine if a CLEO update is available, and manages
 //! the version cache.
 
-use crate::{call_original, hook, resources, text};
+use crate::{call_original, files, hook, text};
 use objc::{runtime::Object, *};
 use std::{
     io::{Read, Write},
@@ -20,7 +20,7 @@ fn should_request_release() -> anyhow::Result<bool> {
     //  that as the target version. If the version does not match or exceed that target,
     //  we can tell the user that an update is available.
 
-    let check_file_path = resources::get_documents_path("update_checked");
+    let check_file_path = files::get_documents_path("update_checked");
 
     // If the check file doesn't exist, assume it was never created and that we therefore
     //  have never requested a release.
@@ -43,7 +43,7 @@ fn should_request_release() -> anyhow::Result<bool> {
 }
 
 fn get_target_version() -> anyhow::Result<VersionNumber> {
-    let file_path = resources::get_documents_path("update_checked");
+    let file_path = files::get_documents_path("update_checked");
     let should_fetch = should_request_release()?;
 
     if !should_fetch {

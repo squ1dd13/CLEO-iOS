@@ -138,7 +138,7 @@ fn do_cheats() {
 
         std::thread::spawn(|| {
             if let Err(err) = std::fs::write(
-                crate::resources::get_documents_path("cleo_saved_cheats.u8"),
+                crate::files::get_documents_path("cleo_saved_cheats.u8"),
                 cheat_state_bytes,
             ) {
                 log::error!("Error while saving cheat states: {}", err);
@@ -296,7 +296,7 @@ fn reset_cheats() {
 
     log::info!("Loading saved cheats.");
 
-    let path = crate::resources::get_documents_path("cleo_saved_cheats.u8");
+    let path = crate::files::get_documents_path("cleo_saved_cheats.u8");
 
     if !path.exists() {
         log::info!("No saved cheats file found.");

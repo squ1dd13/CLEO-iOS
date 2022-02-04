@@ -175,7 +175,7 @@ pub fn init() {
             None
         };
 
-        let mut file = File::create(crate::resources::get_log_path()).unwrap();
+        let mut file = File::create(crate::files::get_log_path()).unwrap();
 
         loop {
             let msg = receiver.recv().unwrap();
