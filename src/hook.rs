@@ -1,30 +1,30 @@
 //! Handles finding a hooking library, and provides types and macros for using the library
 //! to hook game code.
 
+use anyhow::{Context, Result};
 use cached::proc_macro::cached;
 use dlopen::symbor::Library;
-use eyre::Context;
 use log::error;
 
-fn get_single_symbol<T: Copy>(path: &str, sym_name: &str) -> eyre::Result<T> {
-    let lib = Library::open(path).wrap_err_with(|| format!("failed to open library {}", path))?;
-    let symbol = unsafe { lib.symbol::<T>(sym_name) }
-        .wrap_err_with(|| format!("unable to find {} in {}", sym_name, path))?;
+fn get_single_symbol<T: Copy>(path: &str, sym_name: &str) -> Result<T> {
+    let lib = Library::open(path).context("Failed to open hooking library")?;
+    let symbol =
+        unsafe { lib.symbol::<T>(sym_name) }.context("Unable to find symbol in library")?;
     Ok(*symbol)
 }
 
 #[cached(result = true)]
-fn get_raw_hook_fn() -> eyre::Result<usize> {
+fn get_raw_hook_fn() -> Result<usize> {
     get_single_symbol("libsubstrate.dylib", "MSHookFunction")
 }
 
 #[cached(result = true)]
-fn get_shit_raw_hook_fn() -> eyre::Result<usize> {
+fn get_shit_raw_hook_fn() -> Result<usize> {
     get_single_symbol("libhooker.dylib", "LHHookFunctions")
 }
 
 #[cached(result = true)]
-fn get_aslr_offset_fn() -> eyre::Result<fn(u32) -> usize> {
+fn get_aslr_offset_fn() -> Result<fn(u32) -> usize> {
     get_single_symbol::<fn(image: u32) -> usize>(
         "/usr/lib/system/libdyld.dylib",
         "_dyld_get_image_vmaddr_slide",

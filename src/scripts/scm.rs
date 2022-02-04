@@ -85,7 +85,7 @@ impl std::fmt::Display for Value {
 }
 
 impl Value {
-    fn read(reader: &mut impl io::Read) -> eyre::Result<Value> {
+    fn read(reader: &mut impl io::Read) -> anyhow::Result<Value> {
         let id = reader.read_u8()?;
 
         Ok(match id {
@@ -232,7 +232,7 @@ struct Param {
 }
 
 impl Param {
-    fn read(&self, reader: &mut impl io::Read) -> eyre::Result<Value> {
+    fn read(&self, reader: &mut impl io::Read) -> anyhow::Result<Value> {
         let value = Value::read(reader)?;
 
         if let ParamType::Pointer = self.param_type {
@@ -253,7 +253,7 @@ struct Command {
     params: Vec<Param>,
 }
 
-fn load_all_commands() -> eyre::Result<HashMap<u16, Command>, Box<bincode::ErrorKind>> {
+fn load_all_commands() -> anyhow::Result<HashMap<u16, Command>, Box<bincode::ErrorKind>> {
     let commands_bin = include_bytes!("commands.bin");
     bincode::deserialize(commands_bin)
 }
@@ -266,7 +266,7 @@ struct Instr {
 }
 
 impl Instr {
-    fn read(commands: &HashMap<u16, Command>, reader: &mut Cursor<&[u8]>) -> eyre::Result<Instr> {
+    fn read(commands: &HashMap<u16, Command>, reader: &mut Cursor<&[u8]>) -> anyhow::Result<Instr> {
         let offset = reader.position();
 
         let (opcode, bool_inverted) = {
@@ -358,7 +358,7 @@ fn disassemble(
     commands: &HashMap<u16, Command>,
     reader: &mut Cursor<&[u8]>,
     instrs: &mut HashMap<u64, Instr>,
-) -> eyre::Result<()> {
+) -> anyhow::Result<()> {
     let start = std::time::Instant::now();
 
     // Start with offset 0 (the beginning of the script).
@@ -380,8 +380,9 @@ fn disassemble(
                 Ok(instr) => instr,
                 Err(err) => {
                     // Log the error and continue - we can't guarantee that the game would go down
-                    //  this invalid path, so the script could still run fine (this is the basis
-                    //  of many script obfuscation methods).
+                    // this invalid path, so the script could still run fine (this is the basis
+                    // of many script obfuscation methods - disassemblers will go down every path,
+                    // but the game won't, so invalid code will stop disassembly but not execution).
                     log::warn!("Encountered error at {:#x}: {}", *offset, err);
 
                     continue;
@@ -497,7 +498,7 @@ pub fn check_all(mut scripts: Vec<&mut super::run::CleoScript>) {
     }
 }
 
-fn scan_bytecode(bytes: &[u8]) -> eyre::Result<Option<ScriptIssue>, String> {
+fn scan_bytecode(bytes: &[u8]) -> anyhow::Result<Option<ScriptIssue>, String> {
     // Even though we don't particularly care about the offsets, we need a HashMap so that `disassemble` can
     //  easily check if it's visited an offset before (to avoid infinite loops).
     let mut instruction_map = HashMap::new();

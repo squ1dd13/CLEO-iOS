@@ -66,7 +66,7 @@ fn generate_numberplate(chars: *mut u8, length: i32) -> bool {
     call_original!(targets::gen_plate, chars, length)
 }
 
-pub fn load_fxt(path: &impl AsRef<std::path::Path>) -> eyre::Result<()> {
+pub fn load_fxt(path: &impl AsRef<std::path::Path>) -> anyhow::Result<()> {
     // todo: Remove the regex so we don't need the crate anymore.
     let comment_pattern: regex::Regex = regex::Regex::new(r"//|#").unwrap();
 

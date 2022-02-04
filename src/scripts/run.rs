@@ -474,7 +474,7 @@ lazy_static::lazy_static! {
     static ref SCRIPTS: Mutex<Vec<Script>> = Mutex::new(vec![]);
 }
 
-fn load_script(path: &impl AsRef<std::path::Path>) -> eyre::Result<CleoScript> {
+fn load_script(path: &impl AsRef<std::path::Path>) -> anyhow::Result<CleoScript> {
     log::info!("Loading script {}", path.as_ref().display());
     Ok(CleoScript::new(
         std::fs::read(path)?,
@@ -487,7 +487,7 @@ fn load_script(path: &impl AsRef<std::path::Path>) -> eyre::Result<CleoScript> {
     ))
 }
 
-pub fn load_running_script(path: &impl AsRef<std::path::Path>) -> eyre::Result<()> {
+pub fn load_running_script(path: &impl AsRef<std::path::Path>) -> anyhow::Result<()> {
     let mut script = load_script(path)?;
 
     // Set the script to inactive until we've checked it.
@@ -501,7 +501,7 @@ pub fn load_running_script(path: &impl AsRef<std::path::Path>) -> eyre::Result<(
     Ok(())
 }
 
-pub fn load_invoked_script(path: &impl AsRef<std::path::Path>) -> eyre::Result<()> {
+pub fn load_invoked_script(path: &impl AsRef<std::path::Path>) -> anyhow::Result<()> {
     SCRIPTS
         .lock()
         .unwrap()

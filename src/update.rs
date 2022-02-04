@@ -8,12 +8,12 @@ use std::{
     sync::Mutex,
 };
 
-fn get_current_version() -> eyre::Result<VersionNumber> {
+fn get_current_version() -> anyhow::Result<VersionNumber> {
     // This is why the Rust and .deb packages need the same version.
     VersionNumber::new(env!("CARGO_PKG_VERSION"))
 }
 
-fn should_request_release() -> eyre::Result<bool> {
+fn should_request_release() -> anyhow::Result<bool> {
     // In order to not hit the GitHub API rate limit, we don't request the latest
     //  version of CLEO every time we check for updates. Instead, we store the version
     //  number we find when we do check GitHub, and then for the next 5 hours we treat
@@ -42,7 +42,7 @@ fn should_request_release() -> eyre::Result<bool> {
     Ok(false)
 }
 
-fn get_target_version() -> eyre::Result<VersionNumber> {
+fn get_target_version() -> anyhow::Result<VersionNumber> {
     let file_path = resources::get_documents_path("update_checked");
     let should_fetch = should_request_release()?;
 
@@ -99,7 +99,7 @@ pub fn was_update_found() -> bool {
     false
 }
 
-fn is_update_available() -> eyre::Result<bool> {
+fn is_update_available() -> anyhow::Result<bool> {
     // Find the current version of CLEO we're on.
     let current = get_current_version()?;
 
@@ -127,7 +127,7 @@ pub fn start_update_check() {
 struct VersionNumber(Vec<u8>);
 
 impl VersionNumber {
-    fn new(string: impl AsRef<str>) -> eyre::Result<VersionNumber> {
+    fn new(string: impl AsRef<str>) -> anyhow::Result<VersionNumber> {
         let parts = string.as_ref().split('.');
         let mut number = VersionNumber(vec![]);
 
@@ -140,9 +140,9 @@ impl VersionNumber {
         Ok(number)
     }
 
-    fn is_newer_than(self: &VersionNumber, other: &VersionNumber) -> eyre::Result<bool> {
+    fn is_newer_than(self: &VersionNumber, other: &VersionNumber) -> anyhow::Result<bool> {
         if self.0.len() != other.0.len() {
-            return Err(eyre::eyre!(
+            return Err(anyhow::format_err!(
                 "version numbers differ in component count ({:?} and {:?})",
                 self.0,
                 other.0

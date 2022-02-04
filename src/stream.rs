@@ -359,7 +359,7 @@ fn with_replacements<T>(with: &mut impl FnMut(&mut ArchiveReplacements) -> T) ->
 }
 
 // fixme: Loading archives causes a visible delay during loading.
-fn load_archive_into_database(path: &str, img_id: i32) -> eyre::Result<()> {
+fn load_archive_into_database(path: &str, img_id: i32) -> anyhow::Result<()> {
     // We use a BufReader because we do many small reads.
     let mut file = std::io::BufReader::new(std::fs::File::open(path)?);
 
@@ -502,7 +502,7 @@ impl ArchiveFileReplacement {
     }
 }
 
-pub fn load_replacement(image_name: &str, path: &impl AsRef<Path>) -> eyre::Result<()> {
+pub fn load_replacement(image_name: &str, path: &impl AsRef<Path>) -> anyhow::Result<()> {
     with_replacements(&mut |replacements| {
         let size = path.as_ref().metadata()?.len();
 

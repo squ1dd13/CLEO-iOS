@@ -69,7 +69,7 @@ pub struct Settings {
 }
 
 impl Settings {
-    fn load_path(path: std::path::PathBuf) -> eyre::Result<Settings> {
+    fn load_path(path: std::path::PathBuf) -> anyhow::Result<Settings> {
         let stored: StoredSettings = serde_json::from_reader(std::fs::File::open(path)?)?;
         Ok(stored.into_settings())
     }
@@ -88,7 +88,7 @@ impl Settings {
         }
     }
 
-    fn save(&self) -> eyre::Result<()> {
+    fn save(&self) -> anyhow::Result<()> {
         // Only save if the settings have changed.
         if !self.dirty.load(Ordering::SeqCst) {
             log::info!("Settings have not changed since last save.");
