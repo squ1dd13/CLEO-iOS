@@ -1,4 +1,4 @@
-//! Provides facilities for examining scripts to determine their compatibility with iOS.
+//! Provides assembly, disassembly and safety checking for SCM code.
 
 use byteorder::{LittleEndian, ReadBytesExt};
 use once_cell::sync::OnceCell;
@@ -25,10 +25,10 @@ impl std::fmt::Display for Variable {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Copy, Clone)]
 pub struct Array;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Copy, Clone)]
 pub struct Pointer(i64);
 
 impl Pointer {
