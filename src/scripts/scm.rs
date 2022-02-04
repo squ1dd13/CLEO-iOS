@@ -8,7 +8,7 @@ use std::fmt::Display;
 use std::io::{self, Cursor, Error, ErrorKind, Seek};
 
 #[derive(Debug, Clone)]
-struct Variable {
+pub struct Variable {
     value: i64,
     location: Location,
 }
@@ -26,10 +26,10 @@ impl std::fmt::Display for Variable {
 }
 
 #[derive(Debug, Clone)]
-struct Array;
+pub struct Array;
 
 #[derive(Debug, Clone)]
-struct Pointer(i64);
+pub struct Pointer(i64);
 
 impl Pointer {
     fn from_i64(i: i64) -> Pointer {
