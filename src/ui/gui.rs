@@ -142,7 +142,15 @@ fn legal_splash_did_load(this: *mut Object, sel: Sel) {
 
             let state_label: *mut Object = create_label(
                 bounds,
-                &format!("RELEASE {}", env!("CARGO_PKG_VERSION")),
+                &format!(
+                    "{} {}",
+                    if cfg!(feature = "debug") {
+                        "BETA"
+                    } else {
+                        "RELEASE"
+                    },
+                    env!("CARGO_PKG_VERSION")
+                ),
                 font,
                 text_colour,
                 1,
