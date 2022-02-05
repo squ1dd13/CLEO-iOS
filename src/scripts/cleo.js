@@ -1,24 +1,29 @@
 // cleo:mode = running
 
+function wait(time) {
+    scmCall(0x0001, time);
+}
+
+function showBottomText(key, time) {
+    scmCall(0x00bb, key, time, 0);
+}
+
 print("cleo.js loaded successfully!");
 
 const gxtKey = "JS_MSG";
 addGxtString(gxtKey, "Hello from JavaScript!");
 
-// wait [time: int]
-scmCall(0x0001, 10000);
+// Wait 10 seconds so we know the game is definitely ready.
+wait(10_000);
 
-// Text.Print(key: gxt_key, time: int, flag: int)
-scmCall(0x00BB, gxtKey, 2000, 0);
+// Show the message for 3 seconds.
+showBottomText(gxtKey, 3_000);
 
-scmCall(0x0001, 2010);
+// Wait until the text has stopped showing.
+wait(3_000);
 
-const someValue = 0;
+// Change the message.
+addGxtString(gxtKey, "This is the second message.");
 
-if (someValue == 0) {
-    addGxtString(gxtKey, "someValue == 0");
-    scmCall(0x00BB, gxtKey, 7000, 0);
-} else {
-    addGxtString(gxtKey, "someValue != 0");
-    scmCall(0x00BB, gxtKey, 5000, 0);
-}
+// Show the second message for another 3 seconds.
+showBottomText(gxtKey, 3_000);
