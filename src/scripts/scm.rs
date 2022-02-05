@@ -1,6 +1,6 @@
 //! Provides assembly, disassembly and safety checking for SCM code.
 
-use byteorder::{LittleEndian, ReadBytesExt};
+use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 use once_cell::sync::OnceCell;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -11,6 +11,15 @@ use std::io::{self, Cursor, Error, ErrorKind, Seek};
 pub struct Variable {
     value: i64,
     location: Location,
+}
+
+impl Variable {
+    pub fn new_local(value: i64) -> Variable {
+        Variable {
+            value,
+            location: Location::Local,
+        }
+    }
 }
 
 impl std::fmt::Display for Variable {
@@ -85,6 +94,51 @@ impl std::fmt::Display for Value {
 }
 
 impl Value {
+    pub fn into_basic(self) -> Value {
+        match self {
+            Value::Model(val) => Value::Integer(val),
+            Value::Pointer(val) => Value::Integer(val.0),
+            other => other,
+        }
+    }
+
+    pub fn write(self, writer: &mut impl io::Write) -> anyhow::Result<()> {
+        match self.into_basic() {
+            Value::Integer(val) => {
+                // i32 type code.
+                writer.write_u8(0x01)?;
+                writer.write_i32::<byteorder::LittleEndian>(val as i32)?;
+            }
+            Value::Real(val) => {
+                writer.write_u8(0x06)?;
+                writer.write_f32::<byteorder::LittleEndian>(val)?;
+            }
+            Value::String(string) => {
+                // Variable-length string type code.
+                writer.write_u8(0x0e)?;
+                writer.write_u8(string.len() as u8)?;
+
+                for c in string.chars() {
+                    writer.write_u8(c as u8)?;
+                }
+            }
+            Value::Variable(Variable { value, location }) => {
+                // If we're compiling code for the game to run, it shouldn't matter that
+                // all variables are written as int/float, even if they are strings: the
+                // game doesn't check the type.
+                writer.write_u8(match location {
+                    Location::Global => 0x02,
+                    Location::Local => 0x03,
+                })?;
+
+                writer.write_u16::<LittleEndian>(value as u16)?;
+            }
+            _ => todo!(),
+        }
+
+        Ok(())
+    }
+
     fn read(reader: &mut impl io::Read) -> anyhow::Result<Value> {
         let id = reader.read_u8()?;
 
@@ -213,9 +267,6 @@ enum ParamType {
 
 #[derive(Debug, Deserialize, Serialize, Clone, Copy)]
 enum Location {
-    /// A value directly written in the instruction bytecode.
-    Immediate,
-
     /// A variable local to the script.
     Local,
 

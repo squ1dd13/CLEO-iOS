@@ -132,6 +132,10 @@ impl CleoScript {
         self.game_script.ip = self.game_script.base_ip;
     }
 
+    pub fn get_local_var(&self, index: usize) -> Option<u32> {
+        self.game_script.locals.get(index).copied()
+    }
+
     fn reset(&mut self) {
         let base_ip = self.game_script.base_ip;
         let active = self.game_script.active;

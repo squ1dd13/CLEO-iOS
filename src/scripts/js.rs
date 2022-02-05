@@ -23,6 +23,7 @@ impl Runtime {
 
         runtime.add_func("print", Self::js_print);
         runtime.add_func("addGxtString", Self::add_gxt);
+        runtime.add_func("scmVarVal", Self::scm_var_oper);
 
         Ok(runtime)
     }
@@ -42,7 +43,7 @@ impl Runtime {
             .iter()
             .map(|a| match a.to_string(context) {
                 Ok(s) => s.to_string(),
-                Err(e) => format!("<Unable to convert to string: err = {:?}", e),
+                Err(e) => format!("<unable to convert to string: err = {:?}>", e),
             })
             .collect::<Vec<_>>()
             .join(" ");
@@ -65,24 +66,96 @@ impl Runtime {
         Ok(JsValue::Undefined)
     }
 
-    fn get_scm_value(value: &JsValue) -> Option<Value> {
-        Some(match value {
+    fn scm_var_oper(_func: &JsValue, args: &[JsValue], context: &mut Context) -> JsResult<JsValue> {
+        if args.len() != 2 && args.len() != 3 {
+            return context.throw_error("Incorrect arg count.");
+        }
+
+        let index = match &args[0] {
+            JsValue::Integer(val) => *val,
+            other => {
+                return context.throw_error(format!(
+                    "Invalid variable index {:?} (expected integer)",
+                    other
+                ))
+            }
+        };
+
+        let is_global = match &args[1] {
+            JsValue::Boolean(val) => *val,
+            other => {
+                return context
+                    .throw_error(format!("Expected boolean, but found {:?} instead", other))
+            }
+        };
+
+        let exec_data = unsafe { &mut *ExecData::current().unwrap() };
+
+        if args.len() == 3 {
+            // 3 args, so we're setting the value.
+            let _value =
+                Self::get_scm_value(&args[2], context).map_err(|e| JsString::new(e.to_string()))?;
+
+            // if is_global {
+            //     exec_data.puppet.set_global_var(index, value);
+            // } else {
+            //     exec_data.puppet.set_local_var(index, value);
+            // }
+        } else {
+            // 2 args, so we're getting the value.
+            if is_global {
+                todo!();
+            } else {
+                let value = exec_data
+                    .puppet
+                    .get_local_var(index as usize)
+                    .ok_or_else(|| {
+                        JsString::new(format!("No value found for local variable {}", index))
+                    })?;
+
+                // fixme: We need a proper solution for returning values over `i32::MAX`.
+                if value > i32::MAX as u32 {
+                    return Err(JsValue::String(JsString::new(format!(
+                        "Value {} is too big to return as a JS integer",
+                        value
+                    ))));
+                }
+
+                return Ok(JsValue::Integer(value as i32));
+            }
+        }
+
+        Ok(JsValue::Undefined)
+    }
+
+    fn get_scm_value(value: &JsValue, context: &mut Context) -> Result<Value> {
+        Ok(match value {
             JsValue::Boolean(value) => Value::Integer(if *value { 1 } else { 0 }),
             JsValue::String(value) => Value::String(value.to_string()),
             JsValue::Rational(value) => Value::Real(*value as f32),
             JsValue::Integer(value) => Value::Integer(*value as i64),
+            JsValue::Object(obj)
+                if obj
+                    .has_property("canBeScm", context)
+                    .map_err(|e| js_val_to_err(e, context))? =>
+            {
+                Value::Variable(super::scm::Variable::new_local(
+                    obj.get("index", context)
+                        .map_err(|e| js_val_to_err(e, context))?
+                        .to_index(context)
+                        .map_err(|e| js_val_to_err(e, context))? as i64,
+                ))
+            }
 
             JsValue::Null
             | JsValue::Undefined
             | JsValue::BigInt(_)
             | JsValue::Object(_)
             | JsValue::Symbol(_) => {
-                log::error!(
+                return Err(anyhow::format_err!(
                     "Cannot convert value of type {} to SCM value!",
                     value.type_of().to_string()
-                );
-
-                return None;
+                ));
             }
         })
     }
@@ -168,14 +241,18 @@ impl Script {
     fn exec_instr_js(
         _func: &JsValue,
         args: &[JsValue],
-        _context: &mut Context,
+        context: &mut Context,
     ) -> JsResult<JsValue> {
         let exec_data = unsafe { &mut *ExecData::current().unwrap() };
-        Self::exec_instr(exec_data, args).map_err(|e| JsString::new(e.to_string()))?;
+        Self::exec_instr(exec_data, args, context).map_err(|e| JsString::new(e.to_string()))?;
         Ok(JsValue::Undefined)
     }
 
-    fn exec_instr(exec_data: &mut ExecData, js_call_args: &[JsValue]) -> Result<()> {
+    fn exec_instr(
+        exec_data: &mut ExecData,
+        js_call_args: &[JsValue],
+        context: &mut Context,
+    ) -> Result<()> {
         let mut args = js_call_args.iter();
 
         let opcode = args
@@ -185,15 +262,9 @@ impl Script {
             .expect("Opcode must be a number")
             .round() as u16;
 
-        let params: Vec<Value> = match args.map(Runtime::get_scm_value).collect::<Option<Vec<_>>>()
-        {
-            Some(p) => p,
-            None => {
-                return Err(anyhow::format_err!(
-                    "Unable to convert JS argument data to SCM format for instruction call"
-                ));
-            }
-        };
+        let params: Vec<Value> = args
+            .map(|arg| Runtime::get_scm_value(arg, context))
+            .collect::<Result<Vec<_>>>()?;
 
         // fixme: Much more data than just the IP should be reset for SCM calls.
         exec_data.puppet.reset_ip();
@@ -203,30 +274,7 @@ impl Script {
 
         // Write the parameter data to the puppet script's instruction space.
         for param in params {
-            match param {
-                Value::Integer(val) => {
-                    // i32 type code.
-                    instr_data.write_u8(0x01)?;
-                    instr_data.write_i32::<byteorder::LittleEndian>(val as i32)?;
-                }
-                Value::Real(_) => todo!(),
-                Value::String(string) => {
-                    // Variable-length string type code.
-                    instr_data.write_u8(0x0e)?;
-                    instr_data.write_u8(string.len() as u8)?;
-
-                    for c in string.chars() {
-                        instr_data.write_u8(c as u8)?;
-                    }
-                }
-                Value::Model(_) => todo!(),
-                // Value::Pointer(_) => todo!(),
-                Value::VarArgs(_) => todo!(),
-                Value::Buffer(_) => todo!(),
-                // Value::Variable(_) => todo!(),
-                // Value::Array(_) => todo!(),
-                _ => todo!(),
-            }
+            param.write(&mut instr_data)?;
         }
 
         let should_continue = !exec_data.puppet.update_once();
@@ -247,11 +295,9 @@ impl Script {
 
             // Execute the next statement.
             if let Err(err) = run_result {
-                return Err(anyhow::format_err!(
-                    "Runtime error in script '{}': {:?}",
-                    self.name,
-                    err.to_string(&mut self.runtime.context)
-                ));
+                return Err(
+                    js_val_to_err(err, &mut self.runtime.context).context(self.name.clone())
+                );
             }
 
             self.next_index += 1;
@@ -308,6 +354,13 @@ impl ScriptManager {
 
         Ok(())
     }
+}
+
+fn js_val_to_err(value: JsValue, context: &mut Context) -> anyhow::Error {
+    value
+        .to_string(context)
+        .map(|v| anyhow::format_err!("{}", v))
+        .unwrap_or(anyhow::format_err!("Unable to convert error to string"))
 }
 
 pub fn init() {
