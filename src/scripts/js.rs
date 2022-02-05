@@ -264,12 +264,7 @@ impl Script {
 
     /// Run a block of instructions.
     fn run_block(&mut self) -> Result<()> {
-        if !self.exec_data.puppet.wants_update() {
-            return Ok(());
-        }
-
-        if self.execution_ended {
-            log::info!("Execution already ended in {}.", self.name);
+        if !self.exec_data.puppet.wants_update() || self.execution_ended {
             return Ok(());
         }
 
