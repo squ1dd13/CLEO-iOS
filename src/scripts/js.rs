@@ -1,12 +1,10 @@
-use super::scm::Value;
+use std::pin::Pin;
+
+use super::{run::CleoScript, scm::Value};
 use anyhow::Result;
 use boa::{
-    builtins::function::NativeFunction,
-    exec::Executable,
-    object::FunctionBuilder,
-    property::Attribute,
-    syntax::ast::{node::StatementList, Node},
-    Context, JsResult, JsValue,
+    builtins::function::NativeFunction, exec::Executable, object::FunctionBuilder,
+    property::Attribute, syntax::ast::node::StatementList, Context, JsResult, JsString, JsValue,
 };
 use byteorder::WriteBytesExt;
 
@@ -101,17 +99,9 @@ impl Runtime {
     }
 }
 
-struct Script {
-    name: String,
-
+struct ExecData {
     /// A fake script that we use when interacting with game code.
-    puppet: super::run::CleoScript,
-    runtime: Runtime,
-
-    statements: StatementList,
-    next_index: usize,
-
-    execution_ended: bool,
+    puppet: CleoScript,
 
     /// Flag (set when script instructions run) that decides whether or not the next
     /// instruction should also run in this execution block.
@@ -120,31 +110,83 @@ struct Script {
     continue_flag: Option<bool>,
 }
 
+impl ExecData {
+    fn make_current(&mut self) {
+        *Self::current() = Some(self);
+    }
+
+    fn remove_as_current(&mut self) {
+        if let Some(prev_cur) = Self::current().take() {
+            if prev_cur != self {
+                panic!("Incorrect ExecData set as current");
+            }
+        } else {
+            panic!("`remove_as_current` called with no current ExecData set");
+        }
+    }
+
+    fn current() -> &'static mut Option<*mut ExecData> {
+        static mut CURRENT: Option<*mut ExecData> = None;
+
+        unsafe { &mut CURRENT }
+    }
+}
+
+struct Script {
+    name: String,
+
+    exec_data: Pin<Box<ExecData>>,
+
+    runtime: Runtime,
+
+    statements: StatementList,
+    next_index: usize,
+
+    execution_ended: bool,
+}
+
 impl Script {
     fn new(name: String, src_bytes: &[u8]) -> Result<Script> {
         // todo: Check for script mode comment.
 
         // Create a script containing 1K of zeros (which are just NOP instructions).
-        let mut puppet = super::run::CleoScript::new(vec![0u8; 1024], name.clone());
+        let mut puppet = CleoScript::new(vec![0u8; 1024], name.clone());
         puppet.set_active(true);
+
+        let exec_data = Box::pin(ExecData {
+            puppet,
+            continue_flag: None,
+        });
 
         // Parse the JavaScript bytes.
         let statements = boa::syntax::Parser::new(src_bytes, true)
             .parse_all()
             .map_err(|e| anyhow::format_err!("Syntax error: {}", e.to_string()))?;
 
+        let mut runtime = Runtime::new()?;
+        runtime.add_func("scmCall", Self::exec_instr_js);
+
         Ok(Script {
             name,
-            puppet,
-            runtime: Runtime::new()?,
+            exec_data,
+            runtime,
             statements,
             next_index: 0,
             execution_ended: false,
-            continue_flag: None,
         })
     }
 
-    fn exec_instr(&mut self, js_call_args: &[JsValue]) -> Result<()> {
+    fn exec_instr_js(
+        _func: &JsValue,
+        args: &[JsValue],
+        _context: &mut Context,
+    ) -> JsResult<JsValue> {
+        let exec_data = unsafe { &mut *ExecData::current().unwrap() };
+        Self::exec_instr(exec_data, args).map_err(|e| JsString::new(e.to_string()))?;
+        Ok(JsValue::Undefined)
+    }
+
+    fn exec_instr(exec_data: &mut ExecData, js_call_args: &[JsValue]) -> Result<()> {
         let mut args = js_call_args.iter();
 
         let opcode = args
@@ -165,9 +207,9 @@ impl Script {
         };
 
         // fixme: Much more data than just the IP should be reset for SCM calls.
-        self.puppet.reset_ip();
+        exec_data.puppet.reset_ip();
 
-        let mut instr_data = &mut self.puppet.bytes[..];
+        let mut instr_data = &mut exec_data.puppet.bytes[..];
         instr_data.write_u16::<byteorder::LittleEndian>(opcode)?;
 
         // Write the parameter data to the puppet script's instruction space.
@@ -198,8 +240,8 @@ impl Script {
             }
         }
 
-        let should_continue = !self.puppet.update_once();
-        self.continue_flag = Some(should_continue);
+        let should_continue = !exec_data.puppet.update_once();
+        exec_data.continue_flag = Some(should_continue);
 
         Ok(())
     }
@@ -207,43 +249,12 @@ impl Script {
     /// Executes one instruction. This includes executing any JavaScript statements leading
     /// up to the instruction function call.
     fn run_single(&mut self) -> Result<()> {
-        while self.continue_flag.is_none() && self.next_index < self.statements.items().len() {
-            match &self.statements.items()[self.next_index] {
-                Node::Call(call) if matches!(call.expr(), Node::Identifier(ident) if ident.as_ref() == "scmCall") =>
-                {
-                    log::info!("Found SCM call!");
+        self.exec_data.make_current();
 
-                    let converted_args = call
-                        .args()
-                        .iter()
-                        .map(|node| node.run(&mut self.runtime.context))
-                        .collect::<Result<Vec<_>, _>>();
+        let statements = self.statements.items();
 
-                    let args = match converted_args {
-                        Ok(args) => args,
-                        Err(e) => {
-                            let err_str = match e.to_string(&mut self.runtime.context) {
-                                Ok(s) => s.to_string(),
-                                Err(_) => "Unable to convert error string to String".to_string(),
-                            };
-
-                            return Err(anyhow::format_err!(
-                                "Error while converting SCM call arguments: {}",
-                                err_str
-                            ));
-                        }
-                    };
-
-                    self.exec_instr(&args)?;
-
-                    self.next_index += 1;
-                    continue;
-                }
-                _ => (),
-            };
-
-            let run_result =
-                self.statements.items()[self.next_index].run(&mut self.runtime.context);
+        while self.exec_data.continue_flag.is_none() && self.next_index < statements.len() {
+            let run_result = statements[self.next_index].run(&mut self.runtime.context);
 
             // Execute the next statement.
             if let Err(err) = run_result {
@@ -257,12 +268,14 @@ impl Script {
             self.next_index += 1;
         }
 
+        self.exec_data.remove_as_current();
+
         Ok(())
     }
 
     /// Run a block of instructions.
     fn run_block(&mut self) -> Result<()> {
-        if !self.puppet.wants_update() {
+        if !self.exec_data.puppet.wants_update() {
             return Ok(());
         }
 
@@ -274,7 +287,7 @@ impl Script {
         loop {
             self.run_single()?;
 
-            if let Some(false) = self.continue_flag.take() {
+            if let Some(false) = self.exec_data.continue_flag.take() {
                 break;
             }
 
