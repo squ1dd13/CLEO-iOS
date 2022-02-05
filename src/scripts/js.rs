@@ -8,17 +8,6 @@ use boa::{
 };
 use byteorder::WriteBytesExt;
 
-/*
-
-    Current system limitations:
-        - Just about everything
-        - `scmCall` is only useable from top-level code because it's implemented as a special execution case and not a real function
-        - Loading and updating JS scripts requires unsafe code in the `scripts` module
-        - Internals from `scripts` and `check` have been exposed simply for use in the `js` module
-            todo: Adapt (or rewrite) the current `scripts` module to allow different types of script that all implement a trait
-
-*/
-
 struct Runtime {
     context: Context,
 }
