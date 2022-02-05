@@ -1,3 +1,4 @@
+use super::scm::Value;
 use anyhow::Result;
 use boa::{
     builtins::function::NativeFunction,
@@ -9,8 +10,6 @@ use boa::{
 };
 use byteorder::WriteBytesExt;
 
-use super::scm::Value;
-
 /*
 
     Current system limitations:
@@ -19,7 +18,6 @@ use super::scm::Value;
         - Loading and updating JS scripts requires unsafe code in the `scripts` module
         - Internals from `scripts` and `check` have been exposed simply for use in the `js` module
             todo: Adapt (or rewrite) the current `scripts` module to allow different types of script that all implement a trait
-            todo: Move all scripting-related modules into `scripts` module (in a folder)
 
 */
 
@@ -53,7 +51,16 @@ impl Runtime {
             return context.throw_error("No values passed to print!");
         }
 
-        log::info!("Script: {}", args[0].to_string(context)?);
+        let out_str = args
+            .iter()
+            .map(|a| match a.to_string(context) {
+                Ok(s) => s.to_string(),
+                Err(e) => format!("<Unable to convert to string: err = {:?}", e),
+            })
+            .collect::<Vec<_>>()
+            .join(" ");
+
+        log::info!("Script: {}", out_str);
 
         Ok(JsValue::Undefined)
     }
