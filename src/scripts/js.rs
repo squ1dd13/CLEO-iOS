@@ -1,47 +1,21 @@
-use std::pin::Pin;
-
-use super::{run::CleoScript, scm::Value};
+use super::scm::Value;
 use anyhow::Result;
 use quick_js::{Context, JsValue};
 
-struct Runtime {}
+fn get_scm_value(value: &JsValue) -> Result<Value> {
+    Ok(match value {
+        JsValue::Bool(value) => Value::Integer(if *value { 1 } else { 0 }),
+        JsValue::String(value) => Value::String(value.to_string()),
+        JsValue::Float(value) => Value::Real(*value as f32),
+        JsValue::Int(value) => Value::Integer(*value as i64),
 
-impl Runtime {
-    fn new() -> Result<Runtime> {
-        let mut runtime = Runtime {
-            context: Context::new()?,
-        };
-
-        runtime.context.add_callback("print", |string: String| {
-            log::info!("Script message: {}", string);
-            JsValue::Undefined
-        });
-
-        runtime
-            .context
-            .add_callback("setGxtString", |key: String, value: String| {
-                crate::text::set_kv(&key, &value);
-                JsValue::Undefined
-            });
-
-        Ok(runtime)
-    }
-
-    fn get_scm_value(value: &JsValue, context: &mut Context) -> Result<Value> {
-        Ok(match value {
-            JsValue::Bool(value) => Value::Integer(if *value { 1 } else { 0 }),
-            JsValue::String(value) => Value::String(value.to_string()),
-            JsValue::Float(value) => Value::Real(*value as f32),
-            JsValue::Int(value) => Value::Integer(*value as i64),
-
-            _ => {
-                return Err(anyhow::format_err!(
-                    "Cannot convert value {:?} to SCM value!",
-                    value
-                ));
-            }
-        })
-    }
+        _ => {
+            return Err(anyhow::format_err!(
+                "Cannot convert value {:?} to any SCM equivalent",
+                value
+            ));
+        }
+    })
 }
 
 /// A value that identifies a particular variable accessible from a script.
@@ -49,6 +23,8 @@ enum VarHandle {
     Local(usize),
     Global(isize),
 }
+
+// fixme: `ReqMsg` and `RespMsg` should be defined in the control module, not here.
 
 /// Messages that can be sent to the SCM thread. Every message in `ReqMsg` should trigger
 /// the SCM thread to send back one of the responses in `RespMsg`, or `None` if no response

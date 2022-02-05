@@ -454,23 +454,6 @@ impl Script {
             // bug: Memory corruption caused by some scripts can make reading the bytes vector impossible.
             script.update();
         }
-
-        // hack: This is very bad.
-        static mut JS_MGR: Option<super::js::ScriptManager> = None;
-
-        unsafe {
-            if JS_MGR.is_none() {
-                JS_MGR = Some(
-                    super::js::ScriptManager::load().expect("Unable to create JS ScriptManager"),
-                );
-            }
-
-            JS_MGR
-                .as_mut()
-                .unwrap()
-                .update_all()
-                .expect("JS script update failed");
-        }
     }
 }
 
