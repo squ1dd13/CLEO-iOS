@@ -137,6 +137,8 @@ impl Script {
         Ok((script, ext_conn))
     }
 
+    /// Start evaluating the script's code in another thread. This method will return
+    /// immediately.
     fn launch(self) {
         std::thread::spawn(move || {
             // We have to create the JS context inside the new thread because we
