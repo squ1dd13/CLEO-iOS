@@ -1,4 +1,9 @@
-use super::scm::Value;
+use std::{
+    io,
+    sync::mpsc::{Receiver, SyncSender},
+};
+
+use super::{ctrl, scm::Value};
 use anyhow::Result;
 use quick_js::{Context, JsValue};
 
@@ -24,12 +29,10 @@ enum VarHandle {
     Global(isize),
 }
 
-// fixme: `ReqMsg` and `RespMsg` should be defined in the control module, not here.
-
-/// Messages that can be sent to the SCM thread. Every message in `ReqMsg` should trigger
-/// the SCM thread to send back one of the responses in `RespMsg`, or `None` if no response
+/// Messages that can be sent to the control thread. Every message in `ReqMsg` should trigger
+/// the control thread to send back one of the responses in `RespMsg`, or `None` if no response
 /// makes sense.
-enum ReqMsg {
+pub enum ReqMsg {
     /// Execute an SCM instruction, determined by an opcode, with the given arguments.
     /// Should trigger a response containing the Boolean return value of the instruction,
     /// which may or may not be relevant (depending on whether the instruction actually
@@ -41,11 +44,57 @@ enum ReqMsg {
 
     /// Set the value of the specified variable.
     SetVar(VarHandle, Value),
+
+    /// Report an error. This should generally be responded to with a kill message.
+    ReportErr(anyhow::Error),
 }
 
-enum RespMsg {
+pub enum RespMsg {
     /// Contains the value of a variable that was requested.
     Var(Value),
+
+    /// Tells the JS script to exit.
+    Kill,
+}
+
+/// A bidirectional connection between a JS script and the control thread.
+/// This structure should be held by the script.
+struct CtrlConn {
+    sender: SyncSender<ReqMsg>,
+    receiver: Receiver<Option<RespMsg>>,
+}
+
+impl CtrlConn {
+    /// Creates two channels for communication between the JS module and the control module.
+    /// Returns the endpoint for this module as well as the one created for the control module.
+    fn new() -> (CtrlConn, ctrl::JsConn) {
+        // Our channel to the control module must have a buffer size of zero so that it
+        // blocks when we send messages. This way, we can't carry on executing JavaScript
+        // while inline SCM code is being processed (which would be very bad).
+        let (to_ctrl, from_js) = std::sync::mpsc::sync_channel(0);
+        let (to_js, from_ctrl) = std::sync::mpsc::channel();
+
+        (
+            CtrlConn {
+                sender: to_ctrl,
+                receiver: from_ctrl,
+            },
+            ctrl::JsConn::new(to_js, from_js),
+        )
+    }
+
+    /// Sends the given message to the control thread, then waits for
+    /// a response to return. A return value of `None` does not indicate
+    /// failure; it simply means that there is no meaningful response.
+    fn send(&mut self, msg: ReqMsg) -> Option<RespMsg> {
+        self.sender
+            .send(msg)
+            .expect("Failed to send message to control thread");
+
+        self.receiver
+            .recv()
+            .expect("Unable to receive message from control thread")
+    }
 }
 
 /// A single JavaScript CLEO script. These scripts run on a separate thread from the SCM scripts used
@@ -55,11 +104,89 @@ struct Script {
     /// The name of the script, used to refer to it in the log.
     name: String,
 
-    /// The runtime in which this script's JavaScript code runs.
-    context: Context,
+    /// The script's connection to the control module.
+    conn: CtrlConn,
+
+    /// The source code of the script.
+    code: String,
 }
 
-impl Script {}
+impl Script {
+    /// Creates a new JavaScript-based script with the given name and code bytes.
+    /// Also returns the communication structure to be given to the control module to
+    /// allow it to manage the script.
+    fn new(name: String, bytes: &mut impl io::Read) -> Result<(Script, ctrl::JsConn)> {
+        let (conn, ext_conn) = CtrlConn::new();
+
+        let mut code = String::new();
+        bytes.read_to_string(&mut code)?;
+
+        let script = Script { name, conn, code };
+
+        Ok((script, ext_conn))
+    }
+
+    fn launch(mut self) {
+        std::thread::spawn(move || {
+            // We have to create the JS context inside the new thread because we
+            // can't pass it between threads.
+            let context = Context::builder()
+                .console(JsConsole::new())
+                .build()
+                .expect("Failed to initialise JS context");
+
+            if let Err(err) = context.eval(&self.code) {
+                // We can ignore the response message, because we're going to exit
+                // straight away regardless.
+                self.conn.send(ReqMsg::ReportErr(err.into()));
+            }
+        });
+    }
+}
+
+/// Backend for the `console` module that is available within JavaScript code.
+struct JsConsole {}
+
+impl JsConsole {
+    fn new() -> JsConsole {
+        JsConsole {}
+    }
+}
+
+impl quick_js::console::ConsoleBackend for JsConsole {
+    fn log(&self, level: quick_js::console::Level, values: Vec<JsValue>) {
+        use quick_js::console::Level::*;
+
+        // All JavaScript log messages are logged at the CLEO info level because an "error"
+        // at CLEO level is much more serious than an "error" inside a JavaScript script and
+        // we don't want to pollute the log file. We still show the level with a string, though.
+        let level_name = match level {
+            Trace => "trace",
+            Debug => "debug",
+            Log => "log",
+            Info => "info",
+            Warn => "warn",
+            Error => "error",
+        };
+
+        // Convert all of the values to `String`s and join them with spaces.
+        // If we can't convert a value using `into_string`, we just use the
+        // debug format instead.
+        let message = values
+            .into_iter()
+            .map(|v| {
+                // We have to clone here so we can use the original value again if
+                // we can't convert using `into_string`.
+                v.clone()
+                    .into_string()
+                    .unwrap_or_else(|| format!("{:?}", v))
+            })
+            .collect::<Vec<_>>()
+            .join(" ");
+
+        log::info!("JS log ({}): {}", level_name, message);
+    }
+}
 
 pub fn init() {}
 

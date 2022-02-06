@@ -499,7 +499,7 @@ impl Display for ScriptIssue {
     }
 }
 
-pub fn check_all(mut scripts: Vec<&mut super::ctrl::CleoScript>) {
+pub fn check_all(mut scripts: Vec<&mut super::game::CleoScript>) {
     // Sort the scripts so we have a defined order for identifying duplicates. (The first script once sorted
     //  will not be marked as a duplicate, but any scripts after it which have the same hash will be.)
     scripts.sort_by_cached_key(|script| script.name.clone());
