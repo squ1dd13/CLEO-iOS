@@ -8,14 +8,14 @@ pub enum FocusWish {
     MoveOn,
 }
 
-pub type GameTime = usize;
+pub type GameTime = u32;
 
 /// An item that should be unique for a script's content and which can therefore be
 /// used to identify scripts that are identical.
 #[derive(PartialEq)]
 pub enum Identity {
-    Scm(usize),
-    Js(usize),
+    Scm(u64),
+    Js(u64),
 }
 
 /// An entity that runs scripting code to affect the game state.
@@ -37,6 +37,10 @@ pub trait Script {
     /// (and without a gap in between) as they assume that the game state does not change
     /// from one instruction to the next.
     fn exec_block(&mut self) -> Result<()> {
+        if !self.is_ready() {
+            return Ok(());
+        }
+
         while let FocusWish::RetainFocus = self.exec_single()? {}
         Ok(())
     }

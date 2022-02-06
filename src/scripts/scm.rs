@@ -1,5 +1,6 @@
 //! Provides assembly, disassembly and safety checking for SCM code.
 
+use anyhow::Result;
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 use once_cell::sync::OnceCell;
 use serde::{Deserialize, Serialize};
@@ -102,7 +103,7 @@ impl Value {
         }
     }
 
-    pub fn write(self, writer: &mut impl io::Write) -> anyhow::Result<()> {
+    pub fn write(self, writer: &mut impl io::Write) -> Result<()> {
         match self.into_basic() {
             Value::Integer(val) => {
                 // i32 type code.
@@ -139,7 +140,7 @@ impl Value {
         Ok(())
     }
 
-    fn read(reader: &mut impl io::Read) -> anyhow::Result<Value> {
+    fn read(reader: &mut impl io::Read) -> Result<Value> {
         let id = reader.read_u8()?;
 
         Ok(match id {
@@ -283,7 +284,7 @@ struct Param {
 }
 
 impl Param {
-    fn read(&self, reader: &mut impl io::Read) -> anyhow::Result<Value> {
+    fn read(&self, reader: &mut impl io::Read) -> Result<Value> {
         let value = Value::read(reader)?;
 
         if let ParamType::Pointer = self.param_type {
@@ -304,7 +305,7 @@ struct Command {
     params: Vec<Param>,
 }
 
-fn load_all_commands() -> anyhow::Result<HashMap<u16, Command>, Box<bincode::ErrorKind>> {
+fn load_all_commands() -> Result<HashMap<u16, Command>, Box<bincode::ErrorKind>> {
     let commands_bin = include_bytes!("commands.bin");
     bincode::deserialize(commands_bin)
 }
@@ -317,7 +318,7 @@ struct Instr {
 }
 
 impl Instr {
-    fn read(commands: &HashMap<u16, Command>, reader: &mut Cursor<&[u8]>) -> anyhow::Result<Instr> {
+    fn read(commands: &HashMap<u16, Command>, reader: &mut Cursor<&[u8]>) -> Result<Instr> {
         let offset = reader.position();
 
         let (opcode, bool_inverted) = {
@@ -409,7 +410,7 @@ fn disassemble(
     commands: &HashMap<u16, Command>,
     reader: &mut Cursor<&[u8]>,
     instrs: &mut HashMap<u64, Instr>,
-) -> anyhow::Result<()> {
+) -> Result<()> {
     let start = std::time::Instant::now();
 
     // Start with offset 0 (the beginning of the script).
@@ -499,7 +500,7 @@ impl Display for ScriptIssue {
     }
 }
 
-pub fn check_all(mut scripts: Vec<&mut super::game::CleoScript>) {
+pub fn check_all(mut scripts: Vec<&mut super::game_old::CleoScript>) {
     // Sort the scripts so we have a defined order for identifying duplicates. (The first script once sorted
     //  will not be marked as a duplicate, but any scripts after it which have the same hash will be.)
     scripts.sort_by_cached_key(|script| script.name.clone());
@@ -549,7 +550,17 @@ pub fn check_all(mut scripts: Vec<&mut super::game::CleoScript>) {
     }
 }
 
-fn scan_bytecode(bytes: &[u8]) -> anyhow::Result<Option<ScriptIssue>, String> {
+// todo: Implement CompatReport
+/// A record of the problems found in a script.
+pub struct CompatReport {}
+
+impl CompatReport {
+    pub fn new(bytecode: &[u8]) -> Result<CompatReport> {
+        todo!()
+    }
+}
+
+fn scan_bytecode(bytes: &[u8]) -> Result<Option<ScriptIssue>, String> {
     // Even though we don't particularly care about the offsets, we need a HashMap so that `disassemble` can
     //  easily check if it's visited an offset before (to avoid infinite loops).
     let mut instruction_map = HashMap::new();
