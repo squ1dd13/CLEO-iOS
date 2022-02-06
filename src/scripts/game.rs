@@ -3,10 +3,9 @@ use super::{
     scm,
 };
 use anyhow::Result;
-use once_cell::sync::OnceCell;
 
 /// A script structure that manages a raw game script while providing a high-level interface.
-struct CleoScript {
+pub struct CleoScript {
     /// The game script that this script uses to execute code.
     game_script: GameScript,
 
@@ -23,7 +22,7 @@ struct CleoScript {
 type OpcodeFn = fn(&mut CleoScript, u16) -> Result<base::FocusWish>;
 
 impl CleoScript {
-    fn new(name: String, bytes: &mut impl std::io::Read) -> Result<CleoScript> {
+    pub fn new(name: String, bytes: &mut impl std::io::Read) -> Result<CleoScript> {
         // Expect 1k of bytecode.
         let mut bytecode = Vec::with_capacity(1000);
         bytes.read_to_end(&mut bytecode)?;
