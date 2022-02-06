@@ -27,7 +27,7 @@ fn get_scm_value(value: &JsValue) -> Result<Value> {
 }
 
 /// A value that identifies a particular variable accessible from a script.
-enum VarHandle {
+pub enum VarHandle {
     Local(usize),
     Global(isize),
 }

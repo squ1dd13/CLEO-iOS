@@ -1,6 +1,6 @@
 use anyhow::Result;
 
-enum FocusWish {
+pub enum FocusWish {
     /// The script needs to retain the focus and execute its next instruction.
     RetainFocus,
 
@@ -8,18 +8,18 @@ enum FocusWish {
     MoveOn,
 }
 
-type GameTime = usize;
+pub type GameTime = usize;
 
 /// An item that should be unique for a script's content and which can therefore be
 /// used to identify scripts that are identical.
 #[derive(PartialEq)]
-enum Identity {
+pub enum Identity {
     Scm(usize),
     Js(usize),
 }
 
 /// An entity that runs scripting code to affect the game state.
-trait Script {
+pub trait Script {
     /// Executes a single instruction from the script. Returns a `FocusWish` describing
     /// what the executing system should do next (continue with this script or move on).
     ///
