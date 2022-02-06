@@ -1,6 +1,9 @@
 use std::{
     io,
-    sync::mpsc::{Receiver, SyncSender},
+    sync::{
+        mpsc::{Receiver, SyncSender},
+        Arc, Mutex,
+    },
 };
 
 use super::{ctrl, scm::Value};
@@ -37,7 +40,7 @@ pub enum ReqMsg {
     /// Should trigger a response containing the Boolean return value of the instruction,
     /// which may or may not be relevant (depending on whether the instruction actually
     /// returns anything).
-    ExecBytecode(u16, Vec<Value>),
+    ExecInstr(u16, Vec<Value>),
 
     /// Trigger a response containing the value of the specified variable.
     GetVar(VarHandle),
@@ -59,9 +62,15 @@ pub enum RespMsg {
 
 /// A bidirectional connection between a JS script and the control thread.
 /// This structure should be held by the script.
+#[derive(Clone)]
 struct CtrlConn {
+    /// Sender for sending request messages to the control module.
     sender: SyncSender<ReqMsg>,
-    receiver: Receiver<Option<RespMsg>>,
+
+    /// Receiver for receiving responses from the control module.
+    /// This must be inside a `Mutex` so that this whole structure implements
+    /// the `Sync` trait.
+    receiver: Arc<Mutex<Receiver<Option<RespMsg>>>>,
 }
 
 impl CtrlConn {
@@ -77,7 +86,7 @@ impl CtrlConn {
         (
             CtrlConn {
                 sender: to_ctrl,
-                receiver: from_ctrl,
+                receiver: Arc::new(Mutex::new(from_ctrl)),
             },
             ctrl::JsConn::new(to_js, from_js),
         )
@@ -86,12 +95,14 @@ impl CtrlConn {
     /// Sends the given message to the control thread, then waits for
     /// a response to return. A return value of `None` does not indicate
     /// failure; it simply means that there is no meaningful response.
-    fn send(&mut self, msg: ReqMsg) -> Option<RespMsg> {
+    fn send(&self, msg: ReqMsg) -> Option<RespMsg> {
         self.sender
             .send(msg)
             .expect("Failed to send message to control thread");
 
         self.receiver
+            .lock()
+            .expect("Unable to lock receiver")
             .recv()
             .expect("Unable to receive message from control thread")
     }
@@ -126,7 +137,7 @@ impl Script {
         Ok((script, ext_conn))
     }
 
-    fn launch(mut self) {
+    fn launch(self) {
         std::thread::spawn(move || {
             // We have to create the JS context inside the new thread because we
             // can't pass it between threads.
@@ -135,9 +146,26 @@ impl Script {
                 .build()
                 .expect("Failed to initialise JS context");
 
+            let scm_conn = self.conn.clone();
+            let scm_call = move |opcode: i32, args: Vec<JsValue>| -> Result<JsValue> {
+                log::info!("SCM call");
+
+                // This simple conversion is not anywhere near what we really need.
+                let scm_args = args.iter().map(get_scm_value).collect::<Result<Vec<_>>>()?;
+                let _response = scm_conn.send(ReqMsg::ExecInstr(opcode as u16, scm_args));
+
+                // todo: Handle response (if kill)
+
+                Ok(JsValue::Undefined)
+            };
+
+            context
+                .add_callback("scmCall", scm_call)
+                .expect("Failed to add scmCall function");
+
             if let Err(err) = context.eval(&self.code) {
-                // We can ignore the response message, because we're going to exit
-                // straight away regardless.
+                // Report the error so the control module can handle it. We can ignore the
+                // response message, because we're going to exit straight away regardless.
                 self.conn.send(ReqMsg::ReportErr(err.into()));
             }
         });
