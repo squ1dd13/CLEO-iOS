@@ -104,11 +104,11 @@ impl base::Script for JsScript {
     }
 
     fn is_ready(&self) -> bool {
-        todo!()
+        self.puppet.is_ready()
     }
 
     fn wakeup_time(&self) -> base::GameTime {
-        todo!()
+        self.puppet.wakeup_time()
     }
 
     fn reset(&mut self) {
