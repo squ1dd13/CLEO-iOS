@@ -119,6 +119,14 @@ impl CleoScript {
     fn game_time() -> base::GameTime {
         crate::hook::get_global(0x1007d3af8)
     }
+
+    pub fn bytecode_mut(&mut self) -> &mut Vec<u8> {
+        &mut self.bytecode
+    }
+
+    pub fn bool_flag(&self) -> bool {
+        self.game_script.bool_flag
+    }
 }
 
 impl base::Script for CleoScript {

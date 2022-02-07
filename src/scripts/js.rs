@@ -31,7 +31,7 @@ pub enum VarHandle {
 /// makes sense.
 pub enum ReqMsg {
     /// Execute an SCM instruction, determined by an opcode, with the given arguments.
-    /// Should trigger a response containing the Boolean return value of the instruction,
+    /// Should trigger a response containing the boolean return value of the instruction,
     /// which may or may not be relevant (depending on whether the instruction actually
     /// returns anything).
     ExecInstr(u16, Vec<Value>),
@@ -56,6 +56,9 @@ pub enum RespMsg {
 
     /// Tells the JS script to exit.
     Exit,
+
+    /// Contains the boolean flag. Sent back after executing an instruction.
+    BoolFlag(bool),
 }
 
 /// A bidirectional connection between a JS script and the control thread.

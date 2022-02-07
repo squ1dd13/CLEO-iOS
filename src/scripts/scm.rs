@@ -103,16 +103,18 @@ impl Value {
         }
     }
 
-    pub fn write(self, writer: &mut impl io::Write) -> Result<()> {
-        match self.into_basic() {
+    pub fn write(self, writer: &mut impl io::Write) -> Result<usize> {
+        Ok(match self.into_basic() {
             Value::Integer(val) => {
                 // i32 type code.
                 writer.write_u8(0x01)?;
                 writer.write_i32::<byteorder::LittleEndian>(val as i32)?;
+                5
             }
             Value::Real(val) => {
                 writer.write_u8(0x06)?;
                 writer.write_f32::<byteorder::LittleEndian>(val)?;
+                5
             }
             Value::String(string) => {
                 // Variable-length string type code.
@@ -122,6 +124,8 @@ impl Value {
                 for c in string.chars() {
                     writer.write_u8(c as u8)?;
                 }
+
+                string.len() + 1
             }
             Value::Variable(Variable { value, location }) => {
                 // If we're compiling code for the game to run, it shouldn't matter that
@@ -133,11 +137,10 @@ impl Value {
                 })?;
 
                 writer.write_u16::<LittleEndian>(value as u16)?;
+                3
             }
             _ => todo!(),
-        }
-
-        Ok(())
+        })
     }
 
     fn read(reader: &mut impl io::Read) -> Result<Value> {
@@ -310,7 +313,7 @@ fn load_all_commands() -> Result<HashMap<u16, Command>, Box<bincode::ErrorKind>>
     bincode::deserialize(commands_bin)
 }
 
-struct Instr {
+pub struct Instr {
     opcode: u16,
     offset: u64,
     bool_inverted: bool,
@@ -318,6 +321,30 @@ struct Instr {
 }
 
 impl Instr {
+    pub fn new(opcode: u16, args: Vec<Value>) -> Instr {
+        Instr {
+            opcode,
+            offset: 0,
+            bool_inverted: false,
+            args,
+        }
+    }
+
+    pub fn write(self, dest: &mut impl std::io::Write) -> Result<usize> {
+        let compiled_opcode = self.opcode | if self.bool_inverted { 0x8000 } else { 0 };
+        dest.write_u16::<LittleEndian>(compiled_opcode)?;
+
+        // We track the length of the bytecode written so that the caller can keep
+        // track of offsets.
+        let mut byte_count = 2;
+
+        for arg in self.args {
+            byte_count += arg.write(dest)?;
+        }
+
+        Ok(byte_count)
+    }
+
     fn read(commands: &HashMap<u16, Command>, reader: &mut Cursor<&[u8]>) -> Result<Instr> {
         let offset = reader.position();
 

@@ -1,5 +1,6 @@
-use super::{base, game, js};
+use super::{base, game, js, scm};
 use anyhow::Result;
+use byteorder::WriteBytesExt;
 use crossbeam_channel::{Receiver, Sender};
 
 /// A connection between this module and a JavaScript-based script that allows us to
@@ -61,21 +62,37 @@ impl base::Script for JsScript {
             None => return Ok(base::FocusWish::MoveOn),
         };
 
+        use js::ReqMsg::*;
         let response = match request {
-            js::ReqMsg::ExecInstr(opcode, args) => {
-                // 0. Clear stuff that could affect instruction behaviour (flags, bytecode etc.)
-                // 1. Assemble the instruction
-                // 2. Put the bytecode into the puppet script
-                // 3. Execute a single instruction from the puppet script
-                todo!()
+            ExecInstr(opcode, args) => {
+                // Clear anything that could affect instruction behaviour and return the
+                // instruction pointer to the beginning of the script.
+                self.puppet.reset();
+
+                // Create a new instruction to compile and execute.
+                let instr = scm::Instr::new(opcode, args);
+                let byte_count = instr.write(&mut self.puppet.bytecode_mut())?;
+
+                // Execute the instruction we just assembled.
+                let focus_wish = self.puppet.exec_single()?;
+
+                // Clear the bytecode we created so that the next instruction is not mixed with old bytes.
+                self.puppet.bytecode_mut()[..byte_count].fill(0);
+
+                // Send back the boolean flag of the script. This could be considered the return
+                // value of the SCM instruction.
+                let bool_flag = self.puppet.bool_flag();
+                self.conn.send(Some(js::RespMsg::BoolFlag(bool_flag)));
+
+                return Ok(focus_wish);
             }
-            js::ReqMsg::GetVar(_) => todo!(),
-            js::ReqMsg::SetVar(_, _) => todo!(),
-            js::ReqMsg::ReportErr(err) => {
+            GetVar(_) => todo!(),
+            SetVar(_, _) => todo!(),
+            ReportErr(err) => {
                 self.conn.send(Some(js::RespMsg::Exit));
                 return Err(err);
             }
-            js::ReqMsg::JoinHandle(handle) => {
+            JoinHandle(handle) => {
                 self.join_handle = Some(handle);
                 None
             }
