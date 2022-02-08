@@ -1,7 +1,10 @@
+use std::sync::Mutex;
+
 use super::{base, game, js, scm};
 use anyhow::Result;
 use byteorder::WriteBytesExt;
 use crossbeam_channel::{Receiver, Sender};
+use once_cell::sync::{Lazy, OnceCell};
 
 /// A connection between this module and a JavaScript-based script that allows us to
 /// receive requests and send back responses.
@@ -147,8 +150,21 @@ struct ScriptRuntime {
 }
 
 impl ScriptRuntime {
-    fn new(scripts: Vec<Box<dyn base::Script>>) -> ScriptRuntime {
-        ScriptRuntime { scripts }
+    fn shared_mut<'rt>() -> std::sync::MutexGuard<'rt, ScriptRuntime> {
+        // Safety: This is safe because the scripts are never accessed from two threads at the same time.
+        // (Game code uses them on the same thread that our hooks run.)
+        unsafe impl Send for ScriptRuntime {}
+
+        static SHARED: OnceCell<Mutex<ScriptRuntime>> = OnceCell::new();
+
+        SHARED
+            .get_or_init(|| Mutex::new(ScriptRuntime { scripts: vec![] }))
+            .lock()
+            .unwrap()
+    }
+
+    fn add_script(&mut self, script: Box<dyn base::Script>) {
+        self.scripts.push(script);
     }
 
     /// Updates each script in turn.
@@ -166,4 +182,59 @@ impl ScriptRuntime {
             script.reset();
         }
     }
+
+    /// Removes all of the scripts from the runtime.
+    fn clear(&mut self) {
+        self.scripts.clear();
+    }
+
+    fn load_hook(ptr: usize) {
+        // todo: Script loading stuff.
+
+        /*
+            On load:
+              - Load all scripts from files. (Don't keep scripts between loads.)
+              - Check scripts for potential issues.
+              - Set script default states to sensible values based on checking outcomes.
+                - Enum with two variants: `State::Default(bool)` and `State::Overridden(bool)`
+                - Scripts with issues should be off by default.
+                - Other scripts on by default.
+              - Load custom script states from user settings.
+                - Overridden states should be saved with the path to the script (from the CLEO
+                  directory) and the hash of the script bytes.
+                - When loading, match states to scripts by hash. For scripts where there is another
+                  script with the same hash, match by both hash and path.
+        */
+
+        crate::call_original!(crate::targets::init_stage_three, ptr);
+    }
+
+    fn tick_hook() {
+        // Script system error handling is very important. Invalid script behaviour can corrupt the game state.
+        // At the very least we need to discard the game state by quitting to the main menu, but we should also
+        // ensure that the game does not save with this invalid state.
+        // todo: Prevent game saving and quit to main menu on script errors.
+
+        ScriptRuntime::shared_mut()
+            .update()
+            .expect("Script runtime error");
+
+        crate::call_original!(crate::targets::script_tick);
+    }
+
+    fn reset_hook() {
+        crate::call_original!(crate::targets::reset_before_start);
+
+        /*
+            On reset:
+              - Lazy scripts should be switched off
+              - Active scripts should be returned to their user-defined state (unless they have warnings attached)
+        */
+        ScriptRuntime::shared_mut().reset();
+    }
+}
+
+pub fn init() {
+    crate::targets::script_tick::install(ScriptRuntime::tick_hook);
+    crate::targets::reset_before_start::install(ScriptRuntime::reset_hook);
 }

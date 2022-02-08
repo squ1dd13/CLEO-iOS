@@ -182,6 +182,11 @@ macro_rules! call_original {
     }}
 }
 
+/// Hooks the function at a memory address. Does not provide a pointer to the original implementation.
+pub fn hook<T>(address: usize, replacement: T) {
+    crate::hook::Target::Address(address).hook_hard(replacement);
+}
+
 pub fn slide<T: Copy>(address: usize) -> T {
     unsafe {
         let addr_ptr: *const usize = &(address + crate::hook::get_image_aslr_offset(0));

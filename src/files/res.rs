@@ -15,7 +15,7 @@ use std::{
         x.csi       A script that is launched by the user from the CLEO menu.
         x.fxt       A file containing text definitions that are added to the game's localisation system for use by scripts.
 
-        x.img       A older containing replacements for the files inside the x.img archive in the game's folder.
+        x.img       A folder containing replacements for the files inside the x.img archive in the game's folder.
           example   A file that replaces the file named 'example' that is normally loaded from inside x.img.
 
         Replace     A folder containing replacements for game files.
@@ -275,6 +275,10 @@ pub fn get_documents_path(resource_name: &str) -> PathBuf {
     path.push(resource_name);
 
     path
+}
+
+pub fn res_iter() -> impl Iterator<Item = ModResource> {
+    fn flatten_dir(path: )
 }
 
 pub fn init() {
