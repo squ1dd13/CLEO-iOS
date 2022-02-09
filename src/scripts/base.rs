@@ -80,7 +80,7 @@ pub trait Script {
     /// Sets the script's state to the value given.
     fn set_state(&mut self, state: State);
 
-    /// Returns either an owned `String` or a reference to a string containing
-    /// the user-facing name of the script.
+    /// Returns either an owned `String` or a reference to a string containing the user-facing
+    /// name of the script.
     fn name(&self) -> std::borrow::Cow<'_, str>;
 }
