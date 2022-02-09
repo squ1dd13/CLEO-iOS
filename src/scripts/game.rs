@@ -73,12 +73,43 @@ impl CleoScript {
     }
 
     fn opcode_func(opcode: u16) -> Result<OpcodeFn> {
+        // fixme: Reduce requirement for so much unsafe code in opcode implementations - maybe use an iterator for arguments?
+
+        fn collect_value_args(script: &mut CleoScript, count: u32) {
+            crate::hook::slide::<fn(*mut CleoScript, u32)>(0x1001cf474)(&mut *script, count);
+        }
+
+        fn update_bool_flag(script: &mut CleoScript, value: bool) {
+            crate::hook::slide::<fn(*mut GameScript, bool)>(0x1001df890)(
+                &mut script.game_script,
+                value,
+            )
+        }
+
         Ok(match opcode {
             // This opcode terminates the script, but we have to re-implement it for CLEO
             // scripts so the game doesn't try to `free()` Rust-allocated memory.
             0x4e => |script, _| {
                 script.reset();
                 Ok(base::FocusWish::MoveOn)
+            },
+
+            // Checks if the user is touching a zone specified by the script.
+            0xe1 => |script, _| {
+                collect_value_args(script, 2);
+
+                let zone =
+                    unsafe { *crate::hook::slide::<*const u32>(0x1007ad690).add(1) } as usize;
+
+                let state = if let Some(state) = crate::ui::touch::query_zone(zone) {
+                    state
+                } else {
+                    log::warn!("Returning invalid touch state for zone {}", zone);
+                    false
+                };
+
+                update_bool_flag(script, state);
+                Ok(base::FocusWish::RetainFocus)
             },
 
             // 0xddc | 0xddd => |script, opcode| {
@@ -94,7 +125,7 @@ impl CleoScript {
 
             //     Ok(base::FocusWish::RetainFocus)
             // },
-            0xddc | 0xddd | 0xe1 | 0xde0 => {
+            0xddc | 0xddd | 0xde0 => {
                 return Err(anyhow::format_err!(
                     "Opcode {:#x} not yet implemented",
                     opcode
