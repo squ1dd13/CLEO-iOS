@@ -26,14 +26,13 @@ pub enum VarHandle {
     Global(isize),
 }
 
-/// Messages that can be sent to the control thread. Every message in `ReqMsg` should trigger
-/// the control thread to send back one of the responses in `RespMsg`, or `None` if no response
-/// makes sense.
+/// Messages that can be sent to the control thread. Every message in `ReqMsg` should trigger the
+/// control thread to send back one of the responses in `RespMsg`, or `None` if no response makes
+/// sense.
 pub enum ReqMsg {
-    /// Execute an SCM instruction, determined by an opcode, with the given arguments.
-    /// Should trigger a response containing the boolean return value of the instruction,
-    /// which may or may not be relevant (depending on whether the instruction actually
-    /// returns anything).
+    /// Execute an SCM instruction, determined by an opcode, with the given arguments. Should
+    /// trigger a response containing the boolean return value of the instruction, which may or may
+    /// not be relevant (depending on whether the instruction actually returns anything).
     ExecInstr(u16, Vec<Value>),
 
     /// Trigger a response containing the value of the specified variable.
@@ -61,16 +60,15 @@ pub enum RespMsg {
     BoolFlag(bool),
 }
 
-/// A bidirectional connection between a JS script and the control thread.
-/// This structure should be held by the script.
+/// A bidirectional connection between a JS script and the control thread. This structure should be
+/// held by the script.
 #[derive(Clone)]
 struct CtrlConn {
     /// Sender for sending request messages to the control module.
     sender: Sender<ReqMsg>,
 
-    /// Receiver for receiving responses from the control module.
-    /// This must be inside a `Mutex` so that this whole structure implements
-    /// the `Sync` trait.
+    /// Receiver for receiving responses from the control module. This must be inside a `Mutex` so
+    /// that this whole structure implements the `Sync` trait.
     receiver: Receiver<Option<RespMsg>>,
 }
 
@@ -78,9 +76,9 @@ impl CtrlConn {
     /// Creates two channels for communication between the JS module and the control module.
     /// Returns the endpoint for this module as well as the one created for the control module.
     fn new() -> (CtrlConn, ctrl::JsConn) {
-        // Our channel to the control module must have a buffer size of zero so that it
-        // blocks when we send messages. This way, we can't carry on executing JavaScript
-        // while inline SCM code is being processed (which would be very bad).
+        // Our channel to the control module must have a buffer size of zero so that it blocks when
+        // we send messages. This way, we can't carry on executing JavaScript while inline SCM code
+        // is being processed (which would be very bad).
         let (to_ctrl, from_js) = crossbeam_channel::bounded(0);
         let (to_js, from_ctrl) = crossbeam_channel::unbounded();
 
@@ -93,9 +91,9 @@ impl CtrlConn {
         )
     }
 
-    /// Sends the given message to the control thread, then waits for
-    /// a response to return. A return value of `None` does not indicate
-    /// failure; it simply means that there is no meaningful response.
+    /// Sends the given message to the control thread, then waits for a response to return. A
+    /// return value of `None` does not indicate failure; it simply means that there is no
+    /// meaningful response.
     fn send(&self, msg: ReqMsg) -> Option<RespMsg> {
         self.sender
             .send(msg)
@@ -107,9 +105,9 @@ impl CtrlConn {
     }
 }
 
-/// A single JavaScript CLEO script. These scripts run on a separate thread from the SCM scripts used
-/// by the game itself, but SCM instruction calls are compiled to bytecode which is executed on the
-/// SCM thread.
+/// A single JavaScript CLEO script. These scripts run on a separate thread from the SCM scripts
+/// used by the game itself, but SCM instruction calls are compiled to bytecode which is executed
+/// on the SCM thread.
 #[derive(Clone)]
 struct Script {
     /// The name of the script, used to refer to it in the log.
@@ -123,9 +121,8 @@ struct Script {
 }
 
 impl Script {
-    /// Creates a new JavaScript-based script with the given name and code bytes.
-    /// Also returns the communication structure to be given to the control module to
-    /// allow it to manage the script.
+    /// Creates a new JavaScript-based script with the given name and code bytes. Also returns the
+    /// communication structure to be given to the control module to allow it to manage the script.
     fn new(name: String, bytes: &mut impl io::Read) -> Result<(Script, ctrl::JsConn)> {
         let (conn, ext_conn) = CtrlConn::new();
 
@@ -139,12 +136,13 @@ impl Script {
 
     /// Start evaluating the script's code in another thread. This method will return immediately.
     fn launch(&mut self) {
-        // Clone this script so we don't have to recreate it if we need to run it again after it exits.
+        // Clone this script so we don't have to recreate it if we need to run it again after it
+        // exits.
         let script = self.clone();
 
         let join_handle = std::thread::spawn(move || {
-            // We have to create the JS context inside the new thread because we
-            // can't pass it between threads.
+            // We have to create the JS context inside the new thread because we can't pass it
+            // between threads.
             let context = Context::builder()
                 .console(JsConsole::new(script.name))
                 .build()
@@ -170,8 +168,8 @@ impl Script {
                 .expect("Failed to add scmCall function");
 
             if let Err(err) = context.eval(&script.code) {
-                // Report the error so the control module can handle it. We can ignore the
-                // response message, because we're going to exit straight away regardless.
+                // Report the error so the control module can handle it. We can ignore the response
+                // message, because we're going to exit straight away regardless.
                 script.conn.send(ReqMsg::ReportErr(err.into()));
             }
         });
@@ -195,9 +193,9 @@ impl quick_js::console::ConsoleBackend for JsConsole {
     fn log(&self, level: quick_js::console::Level, values: Vec<JsValue>) {
         use quick_js::console::Level::*;
 
-        // All JavaScript log messages are logged at the CLEO info level because an "error"
-        // at CLEO level is much more serious than an "error" inside a JavaScript script and
-        // we don't want to pollute the log file. We still show the level with a string, though.
+        // All JavaScript log messages are logged at the CLEO info level because an "error" at CLEO
+        // level is much more serious than an "error" inside a JavaScript script and we don't want
+        // to pollute the log file. We still show the level with a string, though.
         let level_name = match level {
             Trace => "trace",
             Debug => "debug",
@@ -207,14 +205,13 @@ impl quick_js::console::ConsoleBackend for JsConsole {
             Error => "error",
         };
 
-        // Convert all of the values to `String`s and join them with spaces.
-        // If we can't convert a value using `into_string`, we just use the
-        // debug format instead.
+        // Convert all of the values to `String`s and join them with spaces. If we can't convert a
+        // value using `into_string`, we just use the debug format instead.
         let message = values
             .into_iter()
             .map(|v| {
-                // We have to clone here so we can use the original value again if
-                // we can't convert using `into_string`.
+                // We have to clone here so we can use the original value again if we can't convert
+                // using `into_string`.
                 v.clone()
                     .into_string()
                     .unwrap_or_else(|| format!("{:?}", v))

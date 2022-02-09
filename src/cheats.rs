@@ -34,8 +34,8 @@ impl Cheat {
         let entry_address = 0x10065c358 + (self.index as usize * 8);
         let ptr = hook::slide::<*const *const u64>(entry_address);
 
-        // The array pointer shouldn't be null, but we check it just in case.
-        // The more important check is the second, which ensures that the function pointer is not 0.
+        // The array pointer shouldn't be null, but we check it just in case. The more important
+        // check is the second, which ensures that the function pointer is not 0.
         if ptr.is_null() || unsafe { *ptr }.is_null() {
             None
         } else {
@@ -88,20 +88,19 @@ impl Cheat {
     }
 }
 
-// (a, b) where a = "check b" and b = "save the cheat states". a is false when a save is in progress.
-// This is a weak system for avoiding two saves happening at the same time, but it works well enough.
-// Besides, it's practically impossible for a save to be triggered when one is already in progress because
-//  saving is very fast.
+// (a, b) where a = "check b" and b = "save the cheat states". a is false when a save is in
+// progress. This is a weak system for avoiding two saves happening at the same time, but it works
+// well enough. Besides, it's practically impossible for a save to be triggered when one is already
+// in progress because saving is very fast.
 static SAVE_FLAGS: Lazy<(AtomicBool, AtomicBool)> =
     Lazy::new(|| (AtomicBool::new(true), AtomicBool::new(false)));
 
-// CCheat::DoCheats is where cheat codes are checked and then cheats activated (indirectly),
-//  so we need to do our cheat stuff here to ensure that the cheats don't fuck up the game by
-//  doing stuff at weird times. The point in CGame::Process where DoCheats is called is where
-//  every other system in the game expects cheats to be activated.
-// Cheats that need textures to be loaded - such as weapon or vehicle cheats - can crash the
-//  game if they are executed on the wrong thread or at the wrong time, so it is very important
-//  that we get this right.
+// CCheat::DoCheats is where cheat codes are checked and then cheats activated (indirectly), so we
+// need to do our cheat stuff here to ensure that the cheats don't fuck up the game by doing stuff
+// at weird times. The point in CGame::Process where DoCheats is called is where every other system
+// in the game expects cheats to be activated. Cheats that need textures to be loaded - such as
+// weapon or vehicle cheats - can crash the game if they are executed on the wrong thread or at the
+// wrong time, so it is very important that we get this right.
 fn do_cheats() {
     if let Ok(waiting) = WAITING_CHEATS.lock().as_mut() {
         // Perform all queued cheat actions.
@@ -119,12 +118,13 @@ fn do_cheats() {
         // Ignore further requests to save the cheat states.
         SAVE_FLAGS.0.store(false, Ordering::SeqCst);
 
-        // We need to save the cheat states now. We only do this after the cheat functions have been called because
-        //  some will clear their "enabled" status when they run.
+        // We need to save the cheat states now. We only do this after the cheat functions have
+        // been called because some will clear their "enabled" status when they run.
         // todo: Check that saving cheats after execution is always a good idea.
 
-        // We just save an array of bytes in the order of the cheats, with each being 1 or 0 depending on the status of that cheat.
-        // We do this outside of our saving thread because we don't want the statuses to change while we're accessing them.
+        // We just save an array of bytes in the order of the cheats, with each being 1 or 0
+        // depending on the status of that cheat. We do this outside of our saving thread because
+        // we don't want the statuses to change while we're accessing them.
         let cheat_state_bytes: Vec<u8> = CHEATS
             .iter()
             .map(|cheat| {
@@ -261,7 +261,8 @@ pub fn tab_data() -> TabData {
 
         vec.sort_by_key(|cheat| {
             if cheat.code.is_empty() {
-                // Push cheats without codes to the end. If we don't do this, the cheat menu only shows "???" for the first few rows.
+                // Push cheats without codes to the end. If we don't do this, the cheat menu only
+                // shows "???" for the first few rows.
                 "ZZZZZ"
             } else {
                 cheat.code

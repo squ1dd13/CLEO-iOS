@@ -27,8 +27,8 @@ impl CleoScript {
         let mut bytecode = Vec::with_capacity(1000);
         bytes.read_to_end(&mut bytecode)?;
 
-        // It's unlikely that scripts will ever cause memory issues, but since the user may
-        // have a lot of scripts, we'll try to make them as small as is reasonable.
+        // It's unlikely that scripts will ever cause memory issues, but since the user may have a
+        // lot of scripts, we'll try to make them as small as is reasonable.
         bytecode.shrink_to_fit();
 
         // Analyse the bytecode so we can warn the user about any possible problems later.
@@ -58,8 +58,8 @@ impl CleoScript {
             // Each function handles 100 commands.
             let handler_index = opcode / 100;
 
-            // Multiply by two because the table alternates between null pointers and function pointers,
-            //  so each entry is actually 16 bytes (two pointers = 2 * 8).
+            // Multiply by two because the table alternates between null pointers and function
+            // pointers, so each entry is actually 16 bytes (two pointers = 2 * 8).
             let handler_offset = handler_index as usize * 2;
 
             unsafe { handler_table.add(handler_offset).read() }
@@ -87,8 +87,8 @@ impl CleoScript {
         }
 
         Ok(match opcode {
-            // This opcode terminates the script, but we have to re-implement it for CLEO
-            // scripts so the game doesn't try to `free()` Rust-allocated memory.
+            // This opcode terminates the script, but we have to re-implement it for CLEO scripts
+            // so the game doesn't try to `free()` Rust-allocated memory.
             0x4e => |script, _| {
                 script.reset();
                 Ok(base::FocusWish::MoveOn)
@@ -169,8 +169,9 @@ impl base::Script for CleoScript {
                 read
             };
 
-            // The lower 15 bits encode the actual opcode, while the 16th bit determines whether (1)
-            // or not (0) the return value of the Boolean instruction being executed should be inverted.
+            // The lower 15 bits encode the actual opcode, while the 16th bit determines whether
+            // (1) or not (0) the return value of the Boolean instruction being executed should be
+            // inverted.
             (opcode_written & 0x7fff, opcode_written & 0x8000 != 0)
         };
 

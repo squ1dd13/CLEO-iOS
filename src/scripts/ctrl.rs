@@ -8,8 +8,8 @@ use byteorder::WriteBytesExt;
 use crossbeam_channel::{Receiver, Sender};
 use once_cell::sync::{Lazy, OnceCell};
 
-/// A connection between this module and a JavaScript-based script that allows us to
-/// receive requests and send back responses.
+/// A connection between this module and a JavaScript-based script that allows us to receive
+/// requests and send back responses.
 pub struct JsConn {
     sender: Sender<Option<js::RespMsg>>,
     receiver: Receiver<js::ReqMsg>,
@@ -50,7 +50,8 @@ impl JsScript {
             puppet: game::CleoScript::new(
                 // No name required.
                 String::new(),
-                // A JS-based script should never have more than one instruction in it, so 1000 bytes is plenty of space.
+                // A JS-based script should never have more than one instruction in it, so 1000
+                // bytes is plenty of space.
                 &mut &vec![0; 1000][..],
             )?,
             join_handle: None,
@@ -81,7 +82,8 @@ impl base::Script for JsScript {
                 // Execute the instruction we just assembled.
                 let focus_wish = self.puppet.exec_single()?;
 
-                // Clear the bytecode we created so that the next instruction is not mixed with old bytes.
+                // Clear the bytecode we created so that the next instruction is not mixed with old
+                // bytes.
                 self.puppet.bytecode_mut()[..byte_count].fill(0);
 
                 // Send back the boolean flag of the script. This could be considered the return
@@ -117,14 +119,14 @@ impl base::Script for JsScript {
     }
 
     fn reset(&mut self) {
-        // We're not going to respond to any more requests from `exec_single` (since it's not
-        // going to be called again), so just tell the script to exit. Next time it sends a
-        // message and checks for a response, it'll get this message and exit.
+        // We're not going to respond to any more requests from `exec_single` (since it's not going
+        // to be called again), so just tell the script to exit. Next time it sends a message and
+        // checks for a response, it'll get this message and exit.
         self.conn.send(Some(js::RespMsg::Exit));
 
-        // The script may also report an error on exiting, and if it does, it'll hang while
-        // it waits for a reply. To stop that happening, we just send a message now that will
-        // be consumed when the error is reported, allowing the script to exit.
+        // The script may also report an error on exiting, and if it does, it'll hang while it
+        // waits for a reply. To stop that happening, we just send a message now that will be
+        // consumed when the error is reported, allowing the script to exit.
         self.conn.send(None);
 
         if let Some(join_handle) = self.join_handle.take() {

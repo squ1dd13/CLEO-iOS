@@ -444,7 +444,7 @@ fn disassemble(
     let mut cur_offsets: Vec<u64> = vec![0];
 
     // We only use this vector inside the `while` loop, but we create it here so fewer
-    //  allocations take place (since it keeps its buffer in between iterations).
+    // allocations take place (since it keeps its buffer in between iterations).
     let mut new_offsets: Vec<u64> = Vec::new();
 
     while !cur_offsets.is_empty() {
@@ -459,9 +459,9 @@ fn disassemble(
                 Ok(instr) => instr,
                 Err(err) => {
                     // Log the error and continue - we can't guarantee that the game would go down
-                    // this invalid path, so the script could still run fine (this is the basis
-                    // of many script obfuscation methods - disassemblers will go down every path,
-                    // but the game won't, so invalid code will stop disassembly but not execution).
+                    // this invalid path, so the script could still run fine (this is the basis of
+                    // many script obfuscation methods - disassemblers will go down every path, but
+                    // the game won't, so invalid code will stop disassembly but not execution).
                     log::warn!("Encountered error at {:#x}: {}", *offset, err);
 
                     continue;
@@ -506,13 +506,16 @@ pub enum ScriptIssue {
     /// CLEO does not yet implement a particular command that the script uses.
     NotImpl,
 
-    /// The script relies on Android-specific stuff such as hardcoded memory addresses or symbol names.
+    /// The script relies on Android-specific stuff such as hardcoded memory addresses or symbol
+    /// names.
     AndroidSpecific,
 
-    /// The script's bytecode hash is identical to another script's. The name of the original script is included.
+    /// The script's bytecode hash is identical to another script's. The name of the original
+    /// script is included.
     Duplicate(String),
 
-    /// We can't say either way if the script is compatible, because the check failed for some reason.
+    /// We can't say either way if the script is compatible, because the check failed for some
+    /// reason.
     CheckFailed,
 }
 
@@ -528,12 +531,13 @@ impl Display for ScriptIssue {
 }
 
 pub fn check_all(mut scripts: Vec<&mut super::game_old::CleoScript>) {
-    // Sort the scripts so we have a defined order for identifying duplicates. (The first script once sorted
-    //  will not be marked as a duplicate, but any scripts after it which have the same hash will be.)
+    // Sort the scripts so we have a defined order for identifying duplicates. (The first script
+    // once sorted will not be marked as a duplicate, but any scripts after it which have the same
+    // hash will be.)
     scripts.sort_by_cached_key(|script| script.name.clone());
 
-    // We need to check each script's hash against all those which we've found already, so we collect
-    //  hashes as we iterate.
+    // We need to check each script's hash against all those which we've found already, so we
+    // collect hashes as we iterate.
     let mut hashes: HashMap<u64, &str> = HashMap::with_capacity(scripts.len());
 
     for script in scripts.iter_mut() {
@@ -563,8 +567,9 @@ pub fn check_all(mut scripts: Vec<&mut super::game_old::CleoScript>) {
                     err
                 );
 
-                // If checking failed, we can't guarantee that the script is problem-free.
-                // We report that the check failed so that the user knows the script could be problematic.
+                // If checking failed, we can't guarantee that the script is problem-free. We
+                // report that the check failed so that the user knows the script could be
+                // problematic.
                 Some(ScriptIssue::CheckFailed)
             }
         };
@@ -589,8 +594,8 @@ impl CompatReport {
 }
 
 fn scan_bytecode(bytes: &[u8]) -> Result<Option<ScriptIssue>, String> {
-    // Even though we don't particularly care about the offsets, we need a HashMap so that `disassemble` can
-    //  easily check if it's visited an offset before (to avoid infinite loops).
+    // Even though we don't particularly care about the offsets, we need a HashMap so that
+    // `disassemble` can easily check if it's visited an offset before (to avoid infinite loops).
     let mut instruction_map = HashMap::new();
 
     let disasm_result = disassemble(
