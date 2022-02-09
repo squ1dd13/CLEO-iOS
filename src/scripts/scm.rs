@@ -583,7 +583,8 @@ pub struct CompatReport {}
 
 impl CompatReport {
     pub fn new(bytecode: &[u8]) -> Result<CompatReport> {
-        todo!()
+        log::warn!("Script checking has not yet been re-implemented!");
+        Ok(CompatReport {})
     }
 }
 

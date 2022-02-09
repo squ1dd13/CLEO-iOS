@@ -1,7 +1,9 @@
 use std::sync::Mutex;
 
+use crate::scripts::base::Script;
+
 use super::{base, game, js, scm};
-use anyhow::Result;
+use anyhow::{Context, Result};
 use byteorder::WriteBytesExt;
 use crossbeam_channel::{Receiver, Sender};
 use once_cell::sync::{Lazy, OnceCell};
@@ -142,6 +144,14 @@ impl base::Script for JsScript {
     fn identity(&self) -> base::Identity {
         todo!()
     }
+
+    fn set_state(&mut self, state: base::State) {
+        self.puppet.set_state(state);
+    }
+
+    fn name(&self) -> std::borrow::Cow<'_, str> {
+        todo!()
+    }
 }
 
 /// A structure that manages a group of scripts.
@@ -170,7 +180,9 @@ impl ScriptRuntime {
     /// Updates each script in turn.
     fn update(&mut self) -> Result<()> {
         for script in &mut self.scripts {
-            script.exec_block()?;
+            script
+                .exec_block()
+                .with_context(|| format!("while updating script '{}'", script.name()))?;
         }
 
         Ok(())
@@ -197,7 +209,7 @@ impl ScriptRuntime {
               - Load all scripts from files. (Don't keep scripts between loads.)
               - Check scripts for potential issues.
               - Set script default states to sensible values based on checking outcomes.
-                - Enum with two variants: `State::Default(bool)` and `State::Overridden(bool)`
+                - Enum with two variants: `State::Auto(bool)` and `State::User(bool)`
                 - Scripts with issues should be off by default.
                 - Other scripts on by default.
               - Load custom script states from user settings.
@@ -214,13 +226,16 @@ impl ScriptRuntime {
 
         for res in res_iter() {
             match res {
-                ModRes::RunningScript(path) => runtime.add_script(Box::new(
-                    super::game::CleoScript::new(
+                ModRes::RunningScript(path) => {
+                    let mut script = super::game::CleoScript::new(
                         path.display().to_string(),
                         &mut std::io::BufReader::new(std::fs::File::open(path).unwrap()),
                     )
-                    .expect("Failed to load script"),
-                )),
+                    .expect("Failed to load script");
+
+                    script.set_state(base::State::Auto(true));
+                    runtime.add_script(Box::new(script));
+                }
                 ModRes::LazyScript(path) => todo!(),
                 ModRes::JsScript(path) => todo!(),
                 _ => (),

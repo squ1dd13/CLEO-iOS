@@ -1,5 +1,22 @@
 use anyhow::Result;
 
+/// Tells whether or not a script is running, and where the value came from.
+pub enum State {
+    /// A state automatically decided by CLEO.
+    Auto(bool),
+
+    /// A state selected by the user.
+    User(bool),
+}
+
+impl State {
+    pub fn value(self) -> bool {
+        match self {
+            State::Auto(v) | State::User(v) => v,
+        }
+    }
+}
+
 pub enum FocusWish {
     /// The script needs to retain the focus and execute its next instruction.
     RetainFocus,
@@ -59,4 +76,11 @@ pub trait Script {
 
     /// Returns this script's identity.
     fn identity(&self) -> Identity;
+
+    /// Sets the script's state to the value given.
+    fn set_state(&mut self, state: State);
+
+    /// Returns either an owned `String` or a reference to a string containing
+    /// the user-facing name of the script.
+    fn name(&self) -> std::borrow::Cow<'_, str>;
 }

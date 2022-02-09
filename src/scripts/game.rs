@@ -176,6 +176,14 @@ impl base::Script for CleoScript {
 
         base::Identity::Scm(hash)
     }
+
+    fn set_state(&mut self, state: base::State) {
+        self.game_script.active = state.value();
+    }
+
+    fn name(&self) -> std::borrow::Cow<'_, str> {
+        std::borrow::Cow::from(&self.name)
+    }
 }
 
 /// Mirror of the game's CRunningScript class structure. We need to use instances of this struct
