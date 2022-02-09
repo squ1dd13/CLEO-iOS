@@ -185,6 +185,7 @@ impl ScriptRuntime {
 
     /// Removes all of the scripts from the runtime.
     fn clear(&mut self) {
+        self.reset();
         self.scripts.clear();
     }
 
@@ -205,6 +206,26 @@ impl ScriptRuntime {
                 - When loading, match states to scripts by hash. For scripts where there is another
                   script with the same hash, match by both hash and path.
         */
+
+        let mut runtime = Self::shared_mut();
+        runtime.clear();
+
+        use crate::files::{res_iter, ModRes};
+
+        for res in res_iter() {
+            match res {
+                ModRes::RunningScript(path) => runtime.add_script(Box::new(
+                    super::game::CleoScript::new(
+                        path.display().to_string(),
+                        &mut std::io::BufReader::new(std::fs::File::open(path).unwrap()),
+                    )
+                    .expect("Failed to load script"),
+                )),
+                ModRes::LazyScript(path) => todo!(),
+                ModRes::JsScript(path) => todo!(),
+                _ => (),
+            }
+        }
 
         crate::call_original!(crate::targets::init_stage_three, ptr);
     }
@@ -235,6 +256,7 @@ impl ScriptRuntime {
 }
 
 pub fn init() {
+    crate::targets::init_stage_three::install(ScriptRuntime::load_hook);
     crate::targets::script_tick::install(ScriptRuntime::tick_hook);
     crate::targets::reset_before_start::install(ScriptRuntime::reset_hook);
 }

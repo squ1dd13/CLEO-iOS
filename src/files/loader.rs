@@ -63,7 +63,7 @@ fn find_absolute_path_c(p1: i32, p2: *const u8, p3: i32) -> *const u8 {
     c_path
 }
 
-pub fn load_replacement(path: &impl AsRef<std::path::Path>) -> anyhow::Result<()> {
+fn load_replacement(path: &impl AsRef<std::path::Path>) -> anyhow::Result<()> {
     // fixme: File replacements should not be case-sensitive.
     let game_file_path = path_in_game_dir(path).unwrap();
 
@@ -84,4 +84,16 @@ pub fn load_replacement(path: &impl AsRef<std::path::Path>) -> anyhow::Result<()
 
 pub fn init() {
     crate::targets::find_absolute_path::install(find_absolute_path_c);
+
+    for res in super::res::res_iter() {
+        if let super::res::ModRes::Swap(path) = res {
+            if let Err(err) = load_replacement(&path) {
+                log::error!(
+                    "Failed to load file replacement '{}': {:?}",
+                    path.display(),
+                    err
+                );
+            }
+        }
+    }
 }

@@ -1,7 +1,7 @@
 //! Exposes a primitive Rust API for the game's text system, and manages the loading
 //! of FXT language files.
 
-use crate::{call_original, targets};
+use crate::{call_original, files, targets};
 use lazy_static::lazy_static;
 use log::warn;
 use std::collections::HashMap;
@@ -66,7 +66,7 @@ fn generate_numberplate(chars: *mut u8, length: i32) -> bool {
     call_original!(targets::gen_plate, chars, length)
 }
 
-pub fn load_fxt(path: &impl AsRef<std::path::Path>) -> anyhow::Result<()> {
+fn load_fxt(path: &impl AsRef<std::path::Path>) -> anyhow::Result<()> {
     // todo: Remove the regex so we don't need the crate anymore.
     let comment_pattern: regex::Regex = regex::Regex::new(r"//|#").unwrap();
 
@@ -109,4 +109,12 @@ pub fn load_fxt(path: &impl AsRef<std::path::Path>) -> anyhow::Result<()> {
 pub fn init() {
     targets::get_gxt_string::install(get_gxt_string);
     targets::gen_plate::install(generate_numberplate);
+
+    for resource in files::res_iter() {
+        if let files::ModRes::KeyValFile(path) = resource {
+            if let Err(err) = load_fxt(&path) {
+                log::error!("Failed to load FXT file '{}': {:?}", path.display(), err);
+            }
+        }
+    }
 }

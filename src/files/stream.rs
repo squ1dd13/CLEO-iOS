@@ -464,21 +464,6 @@ fn load_directory(path_c: *const i8, archive_id: i32) {
     });
 }
 
-pub fn init() {
-    const CD_STREAM_INIT: hook::Target<fn(i32)> = hook::Target::Address(0x100177eb8);
-    CD_STREAM_INIT.hook_hard(stream_init);
-
-    const CD_STREAM_READ: hook::Target<fn(u32, *mut u8, StreamSource, u32) -> bool> =
-        hook::Target::Address(0x100178048);
-    CD_STREAM_READ.hook_hard(stream_read);
-
-    const CD_STREAM_OPEN: hook::Target<fn(*const c_char, bool) -> i32> =
-        hook::Target::Address(0x1001782b0);
-    CD_STREAM_OPEN.hook_hard(stream_open);
-
-    targets::load_cd_directory::install(load_directory);
-}
-
 struct ArchiveFileReplacement {
     size_bytes: u32,
 
@@ -502,7 +487,7 @@ impl ArchiveFileReplacement {
     }
 }
 
-pub fn load_replacement(image_name: &str, path: &impl AsRef<Path>) -> anyhow::Result<()> {
+fn load_replacement(image_name: &str, path: &impl AsRef<Path>) -> anyhow::Result<()> {
     with_replacements(&mut |replacements| {
         let size = path.as_ref().metadata()?.len();
 
@@ -626,6 +611,34 @@ impl Queue {
     fn remove_first(&mut self) {
         if self.head != self.tail {
             self.head = (self.head + 1) % self.capacity;
+        }
+    }
+}
+
+pub fn init() {
+    const CD_STREAM_INIT: hook::Target<fn(i32)> = hook::Target::Address(0x100177eb8);
+    CD_STREAM_INIT.hook_hard(stream_init);
+
+    const CD_STREAM_READ: hook::Target<fn(u32, *mut u8, StreamSource, u32) -> bool> =
+        hook::Target::Address(0x100178048);
+    CD_STREAM_READ.hook_hard(stream_read);
+
+    const CD_STREAM_OPEN: hook::Target<fn(*const c_char, bool) -> i32> =
+        hook::Target::Address(0x1001782b0);
+    CD_STREAM_OPEN.hook_hard(stream_open);
+
+    targets::load_cd_directory::install(load_directory);
+
+    for res in super::res::res_iter() {
+        if let super::res::ModRes::ArchSwap(name, path) = res {
+            if let Err(err) = load_replacement(&name, &path) {
+                log::error!(
+                    "Failed to load archive replacement '{}' / '{}': {:?}",
+                    path.display(),
+                    name,
+                    err
+                );
+            }
         }
     }
 }

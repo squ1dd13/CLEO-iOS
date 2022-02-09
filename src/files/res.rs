@@ -25,43 +25,49 @@ use std::{
 */
 
 #[derive(Debug)]
-enum ModResource {
+pub enum ModRes {
     // CSA script.
-    StartupScript(PathBuf),
+    RunningScript(PathBuf),
 
     // CSI script.
-    InvokedScript(PathBuf),
+    LazyScript(PathBuf),
+
+    // JS script.
+    JsScript(PathBuf),
 
     // FXT language file.
-    LanguageFile(PathBuf),
+    KeyValFile(PathBuf),
 
     // Anything inside a top-level folder with the extension "img".
     // First value is the image name.
-    StreamReplacement(String, PathBuf),
+    ArchSwap(String, PathBuf),
 
     // A file from the "Replace" folder.
-    FileReplacement(PathBuf),
+    Swap(PathBuf),
 }
 
-impl Display for ModResource {
+impl Display for ModRes {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            ModResource::StartupScript(path) => {
-                write!(f, "startup script {:?}", path.file_name().unwrap())
+            ModRes::RunningScript(path) => {
+                write!(f, "running script {:?}", path.file_name().unwrap())
             }
-            ModResource::InvokedScript(path) => {
-                write!(f, "invoked script {:?}", path.file_name().unwrap())
+            ModRes::LazyScript(path) => {
+                write!(f, "lazy script {:?}", path.file_name().unwrap())
             }
-            ModResource::LanguageFile(path) => {
+            ModRes::JsScript(path) => {
+                write!(f, "JavaScript script {:?}", path.file_name().unwrap())
+            }
+            ModRes::KeyValFile(path) => {
                 write!(f, "language file {:?}", path.file_name().unwrap())
             }
-            ModResource::StreamReplacement(img_name, path) => write!(
+            ModRes::ArchSwap(img_name, path) => write!(
                 f,
                 "replacement file {:?} for archive \"{}\"",
                 path.file_name().unwrap(),
                 img_name
             ),
-            ModResource::FileReplacement(path) => write!(
+            ModRes::Swap(path) => write!(
                 f,
                 "general file replacement {:?}",
                 path.file_name().unwrap()
@@ -70,8 +76,8 @@ impl Display for ModResource {
     }
 }
 
-impl ModResource {
-    fn flatten_dir(path: &impl AsRef<Path>) -> Option<Vec<ModResource>> {
+impl ModRes {
+    fn flatten_dir(path: &impl AsRef<Path>) -> Option<Vec<ModRes>> {
         let path = path.as_ref();
         let mut resources = vec![];
 
@@ -97,9 +103,7 @@ impl ModResource {
         Some(resources)
     }
 
-    fn from_path(path: &impl AsRef<Path>) -> Option<ModResource> {
-        let path = path.as_ref();
-
+    fn from_path(path: &Path) -> Option<ModRes> {
         if path.is_dir() {
             // We don't have any reason to use directories as resources at the moment, although
             //  this may change in the future.
@@ -117,7 +121,7 @@ impl ModResource {
         let relative_to_cleo = path.strip_prefix(find_cleo_dir_path()).ok()?;
 
         if relative_to_cleo.starts_with("Replace") || relative_to_cleo.starts_with("replace") {
-            return Some(ModResource::FileReplacement(path.to_path_buf()));
+            return Some(ModRes::Swap(path.to_path_buf()));
         }
 
         let first_component = relative_to_cleo.iter().next().map(Path::new);
@@ -138,16 +142,13 @@ impl ModResource {
                 return None;
             }
 
-            return Some(ModResource::StreamReplacement(
-                archive_name,
-                path.to_path_buf(),
-            ));
+            return Some(ModRes::ArchSwap(archive_name, path.to_path_buf()));
         }
 
         match extension.as_str() {
-            "csa" => Some(ModResource::StartupScript(path.to_path_buf())),
-            "csi" => Some(ModResource::InvokedScript(path.to_path_buf())),
-            "fxt" => Some(ModResource::LanguageFile(path.to_path_buf())),
+            "csa" => Some(ModRes::RunningScript(path.to_path_buf())),
+            "csi" => Some(ModRes::LazyScript(path.to_path_buf())),
+            "fxt" => Some(ModRes::KeyValFile(path.to_path_buf())),
 
             _ => {
                 log::warn!("Unrecognised extension '{}'", extension);
@@ -277,39 +278,45 @@ pub fn get_documents_path(resource_name: &str) -> PathBuf {
     path
 }
 
-pub fn res_iter() -> impl Iterator<Item = ModResource> {
-    fn flatten_dir(path: )
+/// Returns an iterator over the resources in the CLEO directory. Modules should filter through the
+/// resources in the iterator to find the ones they need to use.
+pub fn res_iter() -> impl Iterator<Item = ModRes> {
+    walkdir::WalkDir::new(find_cleo_dir_path())
+        .into_iter()
+        .filter_map(|entry| ModRes::from_path(entry.ok()?.path()))
 }
 
 pub fn init() {
-    let cleo_path = find_cleo_dir_path();
-
-    log::info!("Creating 'Replace' folder...");
     create_replace_dir();
-
-    log::info!("Creating archive folders...");
     create_archive_dirs();
+    // let cleo_path = find_cleo_dir_path();
 
-    log::info!("Finding and loading resources...");
-    let all_resources = ModResource::flatten_dir(&cleo_path).unwrap();
+    // log::info!("Creating 'Replace' folder...");
+    // create_replace_dir();
 
-    for resource in &all_resources {
-        log::info!("Attempting to load {}.", resource);
+    // log::info!("Creating archive folders...");
+    // create_archive_dirs();
 
-        let load_error = match resource {
-            ModResource::StartupScript(path) => scripts::load_running_script(path).err(),
-            ModResource::InvokedScript(path) => scripts::load_invoked_script(path).err(),
-            ModResource::LanguageFile(path) => text::load_fxt(path).err(),
-            ModResource::StreamReplacement(archive_name, path) => {
-                super::stream::load_replacement(archive_name, &path).err()
-            }
-            ModResource::FileReplacement(path) => super::loader::load_replacement(&path).err(),
-        };
+    // log::info!("Finding and loading resources...");
+    // let all_resources = ModRes::flatten_dir(&cleo_path).unwrap();
 
-        if let Some(err) = load_error {
-            log::warn!("Failed to load resource: {}", err);
-        }
-    }
+    // for resource in &all_resources {
+    //     log::info!("Attempting to load {}.", resource);
 
-    log::info!("Finished loading resources.");
+    //     let load_error = match resource {
+    //         ModRes::RunningScript(path) => scripts::load_running_script(path).err(),
+    //         ModRes::LazyScript(path) => scripts::load_invoked_script(path).err(),
+    //         ModRes::KeyValFile(path) => text::load_fxt(path).err(),
+    //         ModRes::ArchSwap(archive_name, path) => {
+    //             super::stream::load_replacement(archive_name, &path).err()
+    //         }
+    //         ModRes::Swap(path) => super::loader::load_replacement(&path).err(),
+    //     };
+
+    //     if let Some(err) = load_error {
+    //         log::warn!("Failed to load resource: {}", err);
+    //     }
+    // }
+
+    // log::info!("Finished loading resources.");
 }

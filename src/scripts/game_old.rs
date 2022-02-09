@@ -897,8 +897,8 @@ pub fn tab_data_csi() -> ui::TabData {
     }
 }
 
-pub fn init() {
-    targets::script_tick::install(script_update);
-    targets::reset_before_start::install(script_reset);
-    targets::init_stage_three::install(init_stage_three);
-}
+// pub fn init() {
+//     targets::script_tick::install(script_update);
+//     targets::reset_before_start::install(script_reset);
+//     targets::init_stage_three::install(init_stage_three);
+// }
