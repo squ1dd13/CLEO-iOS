@@ -384,8 +384,8 @@ impl Instr {
     }
 
     fn next_offsets(&self, current: u64, offsets: &mut Vec<u64>) {
-        // The 'return' command should go to the return address on the call stack,
-        //  but we already handle that case when we branch at 'gosub'.
+        // The 'return' command should go to the return address on the call stack, but we already
+        // handle that case when we branch at 'gosub'.
         if self.opcode == 0x0051 {
             return;
         }
@@ -396,7 +396,7 @@ impl Instr {
         }
 
         // goto, goto_if_true, goto_if_false, gosub, switch_start and switch_continue can all
-        //  branch to every pointer they reference (in theory).
+        // branch to every pointer they reference (in theory).
         if let 0x0002 | 0x004c | 0x004d | 0x0050 | 0x0871 | 0x0872 = self.opcode {
             for arg in &self.args {
                 if let Value::Pointer(ptr) = arg {
@@ -433,55 +433,91 @@ impl Display for Instr {
     }
 }
 
-fn disassemble(
-    commands: &HashMap<u16, Command>,
-    reader: &mut Cursor<&[u8]>,
-    instrs: &mut HashMap<u64, Instr>,
-) -> Result<()> {
-    let start = std::time::Instant::now();
+struct Disassembler<'bytes> {
+    commands: HashMap<u16, Command>,
+    bytecode: Cursor<&'bytes [u8]>,
+    instrs: HashMap<u64, Instr>,
+}
 
-    // Start with offset 0 (the beginning of the script).
-    let mut cur_offsets: Vec<u64> = vec![0];
+impl Disassembler<'_> {
+    fn disassemble(&mut self) -> Result<()> {
+        let start = std::time::Instant::now();
 
-    // We only use this vector inside the `while` loop, but we create it here so fewer
-    // allocations take place (since it keeps its buffer in between iterations).
-    let mut new_offsets: Vec<u64> = Vec::new();
+        // Start with offset 0 (the beginning of the script).
+        let mut to_explore: Vec<u64> = vec![0];
 
-    while !cur_offsets.is_empty() {
-        for offset in &cur_offsets {
-            if instrs.contains_key(offset) {
-                continue;
-            }
+        // We only use this vector inside the `while` loop, but we create it here so fewer
+        // allocations take place (since it keeps its buffer in between iterations).
+        // let mut new_offsets: Vec<u64> = Vec::new();
 
-            reader.seek(io::SeekFrom::Start(*offset))?;
-
-            let instr = match Instr::read(commands, reader) {
-                Ok(instr) => instr,
-                Err(err) => {
-                    // Log the error and continue - we can't guarantee that the game would go down
-                    // this invalid path, so the script could still run fine (this is the basis of
-                    // many script obfuscation methods - disassemblers will go down every path, but
-                    // the game won't, so invalid code will stop disassembly but not execution).
-                    log::warn!("Encountered error at {:#x}: {}", *offset, err);
-
-                    continue;
+        while !to_explore.is_empty() {
+            let next_offsets = to_explore.iter().filter_map(|offset| {
+                if self.instrs.contains_key(offset) {
+                    return None;
                 }
-            };
 
-            instr.next_offsets(reader.position(), &mut new_offsets);
-            instrs.insert(*offset, instr);
+                self.bytecode.seek(io::SeekFrom::Start(*offset)).ok()?;
+
+                let instr = match Instr::read(&self.commands, &mut self.bytecode) {
+                    Ok(instr) => instr,
+                    Err(err) => {
+                        // Log the error and continue - we can't guarantee that the game would go
+                        // down this invalid path, so the script could still run fine (this is the
+                        // basis of many script obfuscation methods - disassemblers will go down
+                        // every path, but the game won't, so invalid code will stop disassembly
+                        // but not execution).
+                        log::warn!("Encountered error at {:#x}: {}", *offset, err);
+
+                        return None;
+                    }
+                };
+
+                let mut new_offsets = vec![];
+                instr.next_offsets(self.bytecode.position(), &mut new_offsets);
+
+                self.instrs.insert(*offset, instr);
+                Some(new_offsets.into_iter())
+            });
+
+            to_explore.clear();
+            to_explore.extend(next_offsets.flatten());
+
+            // for offset in &cur_offsets {
+            //     if self.instrs.contains_key(offset) {
+            //         continue;
+            //     }
+
+            //     self.bytecode.seek(io::SeekFrom::Start(*offset))?;
+
+            //     let instr = match Instr::read(&self.commands, &mut self.bytecode) {
+            //         Ok(instr) => instr,
+            //         Err(err) => {
+            //             // Log the error and continue - we can't guarantee that the game would go
+            //             // down this invalid path, so the script could still run fine (this is the
+            //             // basis of many script obfuscation methods - disassemblers will go down
+            //             // every path, but the game won't, so invalid code will stop disassembly
+            //             // but not execution).
+            //             log::warn!("Encountered error at {:#x}: {}", *offset, err);
+
+            //             continue;
+            //         }
+            //     };
+
+            //     instr.next_offsets(self.bytecode.position(), &mut new_offsets);
+            //     self.instrs.insert(*offset, instr);
+            // }
+
+            // cur_offsets.clear();
+            // cur_offsets.append(&mut new_offsets);
         }
 
-        cur_offsets.clear();
-        cur_offsets.append(&mut new_offsets);
+        let end = std::time::Instant::now();
+        let time_taken = end - start;
+
+        log::info!("Disassembly took {:#?}", time_taken);
+
+        Ok(())
     }
-
-    let end = std::time::Instant::now();
-    let time_taken = end - start;
-
-    log::info!("Disassembly took {:#?}", time_taken);
-
-    Ok(())
 }
 
 fn get_commands() -> &'static HashMap<u16, Command> {

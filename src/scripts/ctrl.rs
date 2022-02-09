@@ -2,7 +2,7 @@ use std::sync::Mutex;
 
 use crate::scripts::base::Script;
 
-use super::{base, game, js, scm};
+use super::{asm, base, game, js};
 use anyhow::{Context, Result};
 use byteorder::WriteBytesExt;
 use crossbeam_channel::{Receiver, Sender};
@@ -76,7 +76,7 @@ impl base::Script for JsScript {
                 self.puppet.reset();
 
                 // Create a new instruction to compile and execute.
-                let instr = scm::Instr::new(opcode, args);
+                let instr = asm::Instr::new(opcode, args);
                 let byte_count = instr.write(&mut self.puppet.bytecode_mut())?;
 
                 // Execute the instruction we just assembled.

@@ -1,6 +1,6 @@
 use super::{
+    asm,
     base::{self, Script},
-    scm,
 };
 use anyhow::Result;
 
@@ -16,7 +16,7 @@ pub struct CleoScript {
     name: String,
 
     /// A record of any potential stability issues this script has.
-    compat: scm::CompatReport,
+    compat: asm::CompatReport,
 }
 
 type OpcodeFn = fn(&mut CleoScript, u16) -> Result<base::FocusWish>;
@@ -32,7 +32,7 @@ impl CleoScript {
         bytecode.shrink_to_fit();
 
         // Analyse the bytecode so we can warn the user about any possible problems later.
-        let compat = scm::CompatReport::new(&bytecode)?;
+        let compat = asm::CompatReport::new(&bytecode)?;
 
         Ok(CleoScript {
             game_script: GameScript {

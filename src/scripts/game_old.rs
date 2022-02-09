@@ -3,7 +3,7 @@
 
 use once_cell::sync::Lazy;
 
-use super::{js, scm::ScriptIssue};
+use super::{asm::ScriptIssue, js};
 use crate::{
     call_original, hook,
     settings::Settings,
@@ -101,7 +101,7 @@ pub struct CleoScript {
     pub name: String,
 
     /// A problem found with the script. Multiple may be reported during checking, but only one is kept.
-    pub issue: Option<super::scm::ScriptIssue>,
+    pub issue: Option<super::asm::ScriptIssue>,
 
     /// A hash of the script's bytes. This hash can be used to identify the script.
     pub hash: u64,
@@ -607,7 +607,7 @@ fn init_stage_three(p: usize) {
 
     let mut scripts = SCRIPTS.lock().unwrap();
 
-    super::scm::check_all(
+    super::asm::check_all(
         scripts
             .iter_mut()
             .map(|script| script.get_cleo_script_mut())
