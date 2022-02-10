@@ -440,6 +440,20 @@ struct Disassembler<'bytes> {
 }
 
 impl Disassembler<'_> {
+    fn disasm_bytes(bytecode: &[u8]) -> HashMap<u64, Instr> {
+        let mut disasm = Disassembler {
+            commands: get_commands(),
+            bytecode: Cursor::new(bytecode),
+            instrs: HashMap::new(),
+        };
+
+        if let Err(err) = disasm.disassemble() {
+            log::warn!("Error at end of disassembly: {}", err);
+        }
+
+        disasm.instrs
+    }
+
     fn disassemble(&mut self) -> Result<()> {
         let start = std::time::Instant::now();
 
@@ -539,22 +553,12 @@ pub struct CompatReport {
 
 impl CompatReport {
     pub fn scan(bytecode: &[u8]) -> CompatReport {
-        let instrs = {
-            let mut disasm = Disassembler {
-                commands: get_commands(),
-                bytecode: Cursor::new(bytecode),
-                instrs: HashMap::new(),
-            };
+        // Disassemble the entire script.
+        let instrs = Disassembler::disasm_bytes(bytecode);
 
-            if let Err(err) = disasm.disassemble() {
-                log::warn!("Error at end of disassembly: {}", err);
-            } else {
-                log::info!("Finished disassembly");
-            }
+        // todo: Re-assemble all instructions over the top of `bytecode` and look for differences.
 
-            disasm.instrs
-        };
-
+        // Look for problematic opcodes.
         let instr_issues = instrs
             .iter()
             .filter_map(|(_, instr)| match instr.opcode {
