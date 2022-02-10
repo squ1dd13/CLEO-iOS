@@ -31,6 +31,8 @@ impl CleoScript {
         // lot of scripts, we'll try to make them as small as is reasonable.
         bytecode.shrink_to_fit();
 
+        log::info!("Checking '{}'", name);
+
         // Analyse the bytecode so we can warn the user about any possible problems later.
         let compat = asm::CompatReport::scan(&bytecode);
 

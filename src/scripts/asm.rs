@@ -134,6 +134,7 @@ impl Value {
                 writer.write_u8(match location {
                     Location::Global => 0x02,
                     Location::Local => 0x03,
+                    _ => panic!(),
                 })?;
 
                 writer.write_u16::<LittleEndian>(value as u16)?;
@@ -271,6 +272,10 @@ enum ParamType {
 
 #[derive(Debug, Deserialize, Serialize, Clone, Copy)]
 enum Location {
+    /// Useless. Included only for compatibility with `commands.bin`.
+    // todo: Rebuild `commands.bin` with this variant removed.
+    _0,
+
     /// A variable local to the script.
     Local,
 
@@ -543,6 +548,8 @@ impl CompatReport {
 
         // todo: Re-assemble all instructions over the top of `bytecode` and look for differences.
 
+        log::info!("Disassembled {} instructions", instrs.len());
+
         // Look for problematic opcodes.
         let instr_issues = instrs
             .iter()
@@ -553,6 +560,10 @@ impl CompatReport {
                 _ => None,
             })
             .collect();
+
+        for issue in &instr_issues {
+            log::info!("Issue: {}", issue);
+        }
 
         CompatReport {
             issues: instr_issues,
