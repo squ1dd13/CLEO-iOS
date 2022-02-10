@@ -443,14 +443,12 @@ impl Disassembler<'_> {
     fn disassemble(&mut self) -> Result<()> {
         let start = std::time::Instant::now();
 
-        // Start with offset 0 (the beginning of the script).
+        // `to_explore` contains the possible values of the program counter after the previous
+        // instruction has been executed. It starts with the script entry point, offset 0.
         let mut to_explore: Vec<u64> = vec![0];
 
-        // We only use this vector inside the `while` loop, but we create it here so fewer
-        // allocations take place (since it keeps its buffer in between iterations).
-        // let mut new_offsets: Vec<u64> = Vec::new();
-
         while !to_explore.is_empty() {
+            // Explore and disassemble at each offset.
             let next_offsets = to_explore.iter().filter_map(|offset| {
                 if self.instrs.contains_key(offset) {
                     return None;
@@ -481,34 +479,6 @@ impl Disassembler<'_> {
 
             to_explore.clear();
             to_explore.extend(next_offsets.flatten());
-
-            // for offset in &cur_offsets {
-            //     if self.instrs.contains_key(offset) {
-            //         continue;
-            //     }
-
-            //     self.bytecode.seek(io::SeekFrom::Start(*offset))?;
-
-            //     let instr = match Instr::read(&self.commands, &mut self.bytecode) {
-            //         Ok(instr) => instr,
-            //         Err(err) => {
-            //             // Log the error and continue - we can't guarantee that the game would go
-            //             // down this invalid path, so the script could still run fine (this is the
-            //             // basis of many script obfuscation methods - disassemblers will go down
-            //             // every path, but the game won't, so invalid code will stop disassembly
-            //             // but not execution).
-            //             log::warn!("Encountered error at {:#x}: {}", *offset, err);
-
-            //             continue;
-            //         }
-            //     };
-
-            //     instr.next_offsets(self.bytecode.position(), &mut new_offsets);
-            //     self.instrs.insert(*offset, instr);
-            // }
-
-            // cur_offsets.clear();
-            // cur_offsets.append(&mut new_offsets);
         }
 
         let end = std::time::Instant::now();
@@ -535,58 +505,6 @@ fn get_commands() -> &'static HashMap<u16, Command> {
         loaded
     })
 }
-
-// pub fn check_all(mut scripts: Vec<&mut super::game_old::CleoScript>) {
-//     // Sort the scripts so we have a defined order for identifying duplicates. (The first script
-//     // once sorted will not be marked as a duplicate, but any scripts after it which have the same
-//     // hash will be.)
-//     scripts.sort_by_cached_key(|script| script.name.clone());
-
-//     // We need to check each script's hash against all those which we've found already, so we
-//     // collect hashes as we iterate.
-//     let mut hashes: HashMap<u64, &str> = HashMap::with_capacity(scripts.len());
-
-//     for script in scripts.iter_mut() {
-//         if let Some(original_name) = hashes.get(&script.hash) {
-//             log::warn!(
-//                 "Script '{}' is a duplicate of '{}'.",
-//                 script.name,
-//                 original_name
-//             );
-
-//             script.issue = Some(ScriptIssue::Duplicate(original_name.to_string()));
-
-//             // We don't need to bother checking any further, because the duplicate issue takes
-//             //  precedence over other issues and we can only report one problem.
-//             continue;
-//         } else {
-//             // Remember this script hash so we can identify duplicates of it.
-//             hashes.insert(script.hash, &script.name);
-//         }
-
-//         script.issue = match scan_bytecode(&script.bytes) {
-//             Ok(issue) => issue,
-//             Err(err) => {
-//                 log::error!(
-//                     "Bytecode check failed for script '{}'. Error: {:?}",
-//                     script.name,
-//                     err
-//                 );
-
-//                 // If checking failed, we can't guarantee that the script is problem-free. We
-//                 // report that the check failed so that the user knows the script could be
-//                 // problematic.
-//                 Some(ScriptIssue::CheckFailed)
-//             }
-//         };
-
-//         if let Some(issue) = &script.issue {
-//             log::warn!("Problem with script '{}': {}", script.name, issue);
-//         } else {
-//             log::info!("No problems were found with script '{}'.", script.name);
-//         }
-//     }
-// }
 
 pub enum Issue {
     /// The script uses instructions that aren't implemented in this library.
@@ -656,34 +574,3 @@ impl CompatReport {
         todo!()
     }
 }
-
-// fn scan_bytecode(bytes: &[u8]) -> Result<Vec<Issue>> {
-//     log::info!("Checking for bad opcodes...");
-
-//     // The order of instruction_map.iter() is not guaranteed to be the same every time we run,
-//     //  and sometimes the order change means that a different one of several errors in the script
-//     //  is found and presented to the user. To prevent confusion caused by different messages being
-//     //  given for the same script on different runs, we always report the maximum issue we find (or
-//     //  nothing if there are no issues). The only downside to this is that we have to iterate over
-//     //  all of the instructions rather than being able to stop at the first issue.
-//     let mut max_issue = None;
-
-//     for instr in instrs.values() {
-//         let issue = match instr.opcode {
-//             0x0dd5 | 0x0dd6 | 0x0de1..=0x0df6 => Some(Issue::NotImpl),
-//             0x0dd0..=0x0ddb | 0x0dde => Some(Issue::BadArch),
-
-//             _ => None,
-//         };
-
-//         if let Some(issue) = &issue {
-//             log::warn!("{}", issue);
-//         }
-
-//         max_issue = max_issue.max(issue);
-//     }
-
-//     log::info!("Finished checking opcodes. Max issue: {:?}", max_issue);
-
-//     Ok(max_issue)
-// }
