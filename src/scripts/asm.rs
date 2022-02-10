@@ -383,12 +383,14 @@ impl Instr {
         })
     }
 
-    fn next_offsets(&self, current: u64, offsets: &mut Vec<u64>) {
+    fn next_offsets(&self, current: u64) -> Vec<u64> {
         // The 'return' command should go to the return address on the call stack, but we already
         // handle that case when we branch at 'gosub'.
         if self.opcode == 0x0051 {
-            return;
+            return vec![];
         }
+
+        let mut offsets = vec![];
 
         // goto always branches. Everything else is assumed to also go onto the next instruction.
         if self.opcode != 0x0002 {
@@ -406,6 +408,8 @@ impl Instr {
                 }
             }
         }
+
+        offsets
     }
 
     fn name(&self) -> Option<&'static str> {
@@ -440,67 +444,48 @@ struct Disassembler<'bytes> {
 }
 
 impl Disassembler<'_> {
-    fn disasm_bytes(bytecode: &[u8]) -> HashMap<u64, Instr> {
-        let mut disasm = Disassembler {
+    fn disasm_all(bytecode: &[u8]) -> HashMap<u64, Instr> {
+        let mut disassembler = Disassembler {
             commands: get_commands(),
             bytecode: Cursor::new(bytecode),
             instrs: HashMap::new(),
         };
 
-        if let Err(err) = disasm.disassemble() {
-            log::warn!("Error at end of disassembly: {}", err);
-        }
-
-        disasm.instrs
+        // Disassemble from offset 0 (the entry point).
+        disassembler.disasm(0);
+        disassembler.instrs
     }
 
-    fn disassemble(&mut self) -> Result<()> {
-        let start = std::time::Instant::now();
-
-        // `to_explore` contains the possible values of the program counter after the previous
-        // instruction has been executed. It starts with the script entry point, offset 0.
-        let mut to_explore: Vec<u64> = vec![0];
-
-        while !to_explore.is_empty() {
-            // Explore and disassemble at each offset.
-            let next_offsets = to_explore.iter().filter_map(|offset| {
-                if self.instrs.contains_key(offset) {
-                    return None;
-                }
-
-                self.bytecode.seek(io::SeekFrom::Start(*offset)).ok()?;
-
-                let instr = match Instr::read(&self.commands, &mut self.bytecode) {
-                    Ok(instr) => instr,
-                    Err(err) => {
-                        // Log the error and continue - we can't guarantee that the game would go
-                        // down this invalid path, so the script could still run fine (this is the
-                        // basis of many script obfuscation methods - disassemblers will go down
-                        // every path, but the game won't, so invalid code will stop disassembly
-                        // but not execution).
-                        log::warn!("Encountered error at {:#x}: {}", *offset, err);
-
-                        return None;
-                    }
-                };
-
-                let mut new_offsets = vec![];
-                instr.next_offsets(self.bytecode.position(), &mut new_offsets);
-
-                self.instrs.insert(*offset, instr);
-                Some(new_offsets.into_iter())
-            });
-
-            to_explore.clear();
-            to_explore.extend(next_offsets.flatten());
+    fn disasm(&mut self, offset: u64) {
+        if self.instrs.contains_key(&offset) {
+            // Path already explored.
+            return;
         }
 
-        let end = std::time::Instant::now();
-        let time_taken = end - start;
+        if let Err(err) = self.bytecode.seek(io::SeekFrom::Start(offset)) {
+            log::error!("Seek error: {}", err);
+            return;
+        }
 
-        log::info!("Disassembly took {:#?}", time_taken);
+        // Try to read a single instruction.
+        let instr = match Instr::read(self.commands, &mut self.bytecode) {
+            Ok(v) => v,
+            Err(err) => {
+                // We actually expect disassembly errors, because a lot of scripts use invalid
+                // bytecode as a way to stop disassembly. We just log the error and carry on.
+                log::error!("Error during disassembly: {}", err);
+                return;
+            }
+        };
 
-        Ok(())
+        let next_offsets = instr.next_offsets(self.bytecode.position());
+        self.instrs.insert(offset, instr);
+
+        // Disassemble from all of the possible offsets that could come after the instruction. This
+        // allows us to explore all the branches of any conventional script.
+        for offset in next_offsets {
+            self.disasm(offset);
+        }
     }
 }
 
@@ -554,7 +539,7 @@ pub struct CompatReport {
 impl CompatReport {
     pub fn scan(bytecode: &[u8]) -> CompatReport {
         // Disassemble the entire script.
-        let instrs = Disassembler::disasm_bytes(bytecode);
+        let instrs = Disassembler::disasm_all(bytecode);
 
         // todo: Re-assemble all instructions over the top of `bytecode` and look for differences.
 

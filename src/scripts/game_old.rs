@@ -3,7 +3,7 @@
 
 use once_cell::sync::Lazy;
 
-use super::{asm::ScriptIssue, js};
+use super::{asm::Issue, js};
 use crate::{
     call_original, hook,
     settings::Settings,
@@ -88,7 +88,6 @@ impl GameScript {
 }
 
 /// A wrapper for game-compatible script structures that allows use with both game code and CLEO code.
-#[derive(Debug)]
 pub struct CleoScript {
     game_script: GameScript,
 
@@ -101,7 +100,7 @@ pub struct CleoScript {
     pub name: String,
 
     /// A problem found with the script. Multiple may be reported during checking, but only one is kept.
-    pub issue: Option<super::asm::ScriptIssue>,
+    pub issue: Option<Issue>,
 
     /// A hash of the script's bytes. This hash can be used to identify the script.
     pub hash: u64,
@@ -411,7 +410,6 @@ impl CsaState {
     }
 }
 
-#[derive(Debug)]
 enum Script {
     /// CSI scripts. These do not run until the user tells them to using the menu.
     Csi(CleoScript),
@@ -536,7 +534,7 @@ fn save_csa_states() {
 
     for script in SCRIPTS.lock().unwrap().iter() {
         if let Script::Csa { script, state } = script {
-            if let Some(ScriptIssue::Duplicate(orig_name)) = &script.issue {
+            if let Some(Issue::Duplicate(orig_name)) = &script.issue {
                 log::info!(
                     "Not saving state for duplicate '{}' of script '{}'.",
                     script.name,
@@ -564,7 +562,7 @@ fn get_csa_state(script: &CleoScript) -> CsaState {
     // If there is a state saved for the script, we use it (even if there are issues with the script).
     // This allows the user to judge whether or not they want to ignore the errors in a script.
     if let Some(state) = SAVED_STATES.lock().unwrap().get(&script.hash) {
-        if let Some(ScriptIssue::Duplicate(_)) = script.issue {
+        if let Some(Issue::Duplicate(_)) = script.issue {
             // If the script is a duplicate of another, then matching by hash won't work (because it would
             //  enable all versions of the script if the user enabled a single one), so we ignore saved states
             //  for versions marked as duplicates.
@@ -607,12 +605,12 @@ fn init_stage_three(p: usize) {
 
     let mut scripts = SCRIPTS.lock().unwrap();
 
-    super::asm::check_all(
-        scripts
-            .iter_mut()
-            .map(|script| script.get_cleo_script_mut())
-            .collect(),
-    );
+    // super::asm::check_all(
+    //     scripts
+    //         .iter_mut()
+    //         .map(|script| script.get_cleo_script_mut())
+    //         .collect(),
+    // );
 
     // Add the states to CSA scripts. We have to do this after script checking is complete, because
     //  `get_csa_state` produces different states for scripts with issues.
