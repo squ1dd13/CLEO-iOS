@@ -434,7 +434,7 @@ impl Display for Instr {
 }
 
 struct Disassembler<'bytes> {
-    commands: HashMap<u16, Command>,
+    commands: &'static HashMap<u16, Command>,
     bytecode: Cursor<&'bytes [u8]>,
     instrs: HashMap<u64, Instr>,
 }
@@ -536,142 +536,154 @@ fn get_commands() -> &'static HashMap<u16, Command> {
     })
 }
 
-/// Defines reasons why a script should be marked as potentially incompatible.
-#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub enum ScriptIssue {
-    /// CLEO does not yet implement a particular command that the script uses.
+// pub fn check_all(mut scripts: Vec<&mut super::game_old::CleoScript>) {
+//     // Sort the scripts so we have a defined order for identifying duplicates. (The first script
+//     // once sorted will not be marked as a duplicate, but any scripts after it which have the same
+//     // hash will be.)
+//     scripts.sort_by_cached_key(|script| script.name.clone());
+
+//     // We need to check each script's hash against all those which we've found already, so we
+//     // collect hashes as we iterate.
+//     let mut hashes: HashMap<u64, &str> = HashMap::with_capacity(scripts.len());
+
+//     for script in scripts.iter_mut() {
+//         if let Some(original_name) = hashes.get(&script.hash) {
+//             log::warn!(
+//                 "Script '{}' is a duplicate of '{}'.",
+//                 script.name,
+//                 original_name
+//             );
+
+//             script.issue = Some(ScriptIssue::Duplicate(original_name.to_string()));
+
+//             // We don't need to bother checking any further, because the duplicate issue takes
+//             //  precedence over other issues and we can only report one problem.
+//             continue;
+//         } else {
+//             // Remember this script hash so we can identify duplicates of it.
+//             hashes.insert(script.hash, &script.name);
+//         }
+
+//         script.issue = match scan_bytecode(&script.bytes) {
+//             Ok(issue) => issue,
+//             Err(err) => {
+//                 log::error!(
+//                     "Bytecode check failed for script '{}'. Error: {:?}",
+//                     script.name,
+//                     err
+//                 );
+
+//                 // If checking failed, we can't guarantee that the script is problem-free. We
+//                 // report that the check failed so that the user knows the script could be
+//                 // problematic.
+//                 Some(ScriptIssue::CheckFailed)
+//             }
+//         };
+
+//         if let Some(issue) = &script.issue {
+//             log::warn!("Problem with script '{}': {}", script.name, issue);
+//         } else {
+//             log::info!("No problems were found with script '{}'.", script.name);
+//         }
+//     }
+// }
+
+pub enum Issue {
+    /// The script uses instructions that aren't implemented in this library.
     NotImpl,
 
-    /// The script relies on Android-specific stuff such as hardcoded memory addresses or symbol
-    /// names.
-    AndroidSpecific,
+    /// The script uses code that can only work on Android due to architecture differences.
+    BadArch,
 
-    /// The script's bytecode hash is identical to another script's. The name of the original
-    /// script is included.
+    // fixme: Script checks can no longer fail, so we should remove this variant.
+    /// The script check failed, so we can't say whether or not the script has issues.
+    Unchecked,
+
+    /// The script has the same identity as some other script.
     Duplicate(String),
-
-    /// We can't say either way if the script is compatible, because the check failed for some
-    /// reason.
-    CheckFailed,
 }
 
-impl Display for ScriptIssue {
+impl Display for Issue {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::NotImpl => f.write_str("Uses features unavailable on iOS."),
-            Self::AndroidSpecific => f.write_str("Uses some Android-only code."),
+            Self::NotImpl => f.write_str("Requires features unavailable on iOS."),
+            Self::BadArch => f.write_str("Contains some iOS-incompatible code."),
             Self::Duplicate(orig_name) => write!(f, "Duplicate of '{}'.", orig_name),
-            Self::CheckFailed => f.write_str("Unable to complete script check."),
+            Self::Unchecked => f.write_str("Script check failed."),
         }
     }
 }
 
-pub fn check_all(mut scripts: Vec<&mut super::game_old::CleoScript>) {
-    // Sort the scripts so we have a defined order for identifying duplicates. (The first script
-    // once sorted will not be marked as a duplicate, but any scripts after it which have the same
-    // hash will be.)
-    scripts.sort_by_cached_key(|script| script.name.clone());
-
-    // We need to check each script's hash against all those which we've found already, so we
-    // collect hashes as we iterate.
-    let mut hashes: HashMap<u64, &str> = HashMap::with_capacity(scripts.len());
-
-    for script in scripts.iter_mut() {
-        if let Some(original_name) = hashes.get(&script.hash) {
-            log::warn!(
-                "Script '{}' is a duplicate of '{}'.",
-                script.name,
-                original_name
-            );
-
-            script.issue = Some(ScriptIssue::Duplicate(original_name.to_string()));
-
-            // We don't need to bother checking any further, because the duplicate issue takes
-            //  precedence over other issues and we can only report one problem.
-            continue;
-        } else {
-            // Remember this script hash so we can identify duplicates of it.
-            hashes.insert(script.hash, &script.name);
-        }
-
-        script.issue = match scan_bytecode(&script.bytes) {
-            Ok(issue) => issue,
-            Err(err) => {
-                log::error!(
-                    "Bytecode check failed for script '{}'. Error: {:?}",
-                    script.name,
-                    err
-                );
-
-                // If checking failed, we can't guarantee that the script is problem-free. We
-                // report that the check failed so that the user knows the script could be
-                // problematic.
-                Some(ScriptIssue::CheckFailed)
-            }
-        };
-
-        if let Some(issue) = &script.issue {
-            log::warn!("Problem with script '{}': {}", script.name, issue);
-        } else {
-            log::info!("No problems were found with script '{}'.", script.name);
-        }
-    }
-}
-
-// todo: Implement CompatReport
 /// A record of the problems found in a script.
-pub struct CompatReport {}
+pub struct CompatReport {
+    issues: Vec<Issue>,
+}
 
 impl CompatReport {
-    pub fn new(bytecode: &[u8]) -> Result<CompatReport> {
-        log::warn!("Script checking has not yet been re-implemented!");
-        Ok(CompatReport {})
-    }
-}
+    pub fn scan(bytecode: &[u8]) -> CompatReport {
+        let instrs = {
+            let mut disasm = Disassembler {
+                commands: get_commands(),
+                bytecode: Cursor::new(bytecode),
+                instrs: HashMap::new(),
+            };
 
-fn scan_bytecode(bytes: &[u8]) -> Result<Option<ScriptIssue>, String> {
-    // Even though we don't particularly care about the offsets, we need a HashMap so that
-    // `disassemble` can easily check if it's visited an offset before (to avoid infinite loops).
-    let mut instruction_map = HashMap::new();
+            if let Err(err) = disasm.disassemble() {
+                log::warn!("Error at end of disassembly: {}", err);
+            } else {
+                log::info!("Finished disassembly");
+            }
 
-    let disasm_result = disassemble(
-        get_commands(),
-        &mut Cursor::new(bytes),
-        &mut instruction_map,
-    );
-
-    if let Err(err) = disasm_result {
-        log::warn!("Error at end of disassembly: {}", err);
-    } else {
-        log::info!("Finished disassembly");
-    }
-
-    log::info!("Checking for bad opcodes...");
-
-    // The order of instruction_map.iter() is not guaranteed to be the same every time we run,
-    //  and sometimes the order change means that a different one of several errors in the script
-    //  is found and presented to the user. To prevent confusion caused by different messages being
-    //  given for the same script on different runs, we always report the maximum issue we find (or
-    //  nothing if there are no issues). The only downside to this is that we have to iterate over
-    //  all of the instructions rather than being able to stop at the first issue.
-    let mut max_issue = None;
-
-    for instr in instruction_map.values() {
-        let issue = match instr.opcode {
-            0x0dd5 | 0x0dd6 | 0x0de1..=0x0df6 => Some(ScriptIssue::NotImpl),
-            0x0dd0..=0x0ddb | 0x0dde => Some(ScriptIssue::AndroidSpecific),
-
-            _ => None,
+            disasm.instrs
         };
 
-        if let Some(issue) = &issue {
-            log::warn!("{}", issue);
-        }
+        let instr_issues = instrs
+            .iter()
+            .filter_map(|(_, instr)| match instr.opcode {
+                0x0dd5 | 0x0dd6 | 0x0de1..=0x0df6 => Some(Issue::NotImpl),
+                0x0dd0..=0x0ddb | 0x0dde => Some(Issue::BadArch),
 
-        max_issue = max_issue.max(issue);
+                _ => None,
+            })
+            .collect();
+
+        CompatReport {
+            issues: instr_issues,
+        }
     }
 
-    log::info!("Finished checking opcodes. Max issue: {:?}", max_issue);
-
-    Ok(max_issue)
+    fn main_issue(&self) -> Option<&Issue> {
+        todo!()
+    }
 }
+
+// fn scan_bytecode(bytes: &[u8]) -> Result<Vec<Issue>> {
+//     log::info!("Checking for bad opcodes...");
+
+//     // The order of instruction_map.iter() is not guaranteed to be the same every time we run,
+//     //  and sometimes the order change means that a different one of several errors in the script
+//     //  is found and presented to the user. To prevent confusion caused by different messages being
+//     //  given for the same script on different runs, we always report the maximum issue we find (or
+//     //  nothing if there are no issues). The only downside to this is that we have to iterate over
+//     //  all of the instructions rather than being able to stop at the first issue.
+//     let mut max_issue = None;
+
+//     for instr in instrs.values() {
+//         let issue = match instr.opcode {
+//             0x0dd5 | 0x0dd6 | 0x0de1..=0x0df6 => Some(Issue::NotImpl),
+//             0x0dd0..=0x0ddb | 0x0dde => Some(Issue::BadArch),
+
+//             _ => None,
+//         };
+
+//         if let Some(issue) = &issue {
+//             log::warn!("{}", issue);
+//         }
+
+//         max_issue = max_issue.max(issue);
+//     }
+
+//     log::info!("Finished checking opcodes. Max issue: {:?}", max_issue);
+
+//     Ok(max_issue)
+// }

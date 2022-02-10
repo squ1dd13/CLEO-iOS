@@ -32,7 +32,7 @@ impl CleoScript {
         bytecode.shrink_to_fit();
 
         // Analyse the bytecode so we can warn the user about any possible problems later.
-        let compat = asm::CompatReport::new(&bytecode)?;
+        let compat = asm::CompatReport::scan(&bytecode);
 
         Ok(CleoScript {
             game_script: GameScript {
