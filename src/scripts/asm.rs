@@ -128,9 +128,9 @@ impl Value {
                 string.len() + 1
             }
             Value::Variable(Variable { value, location }) => {
-                // If we're compiling code for the game to run, it shouldn't matter that
-                // all variables are written as int/float, even if they are strings: the
-                // game doesn't check the type.
+                // If we're compiling code for the game to run, it shouldn't matter that all
+                // variables are written as int/float, even if they are strings: the game doesn't
+                // check the type.
                 writer.write_u8(match location {
                     Location::Global => 0x02,
                     Location::Local => 0x03,
@@ -334,8 +334,8 @@ impl Instr {
         let compiled_opcode = self.opcode | if self.bool_inverted { 0x8000 } else { 0 };
         dest.write_u16::<LittleEndian>(compiled_opcode)?;
 
-        // We track the length of the bytecode written so that the caller can keep
-        // track of offsets.
+        // We track the length of the bytecode written so that the caller can keep track of
+        // offsets.
         let mut byte_count = 2;
 
         for arg in self.args {
@@ -351,16 +351,16 @@ impl Instr {
         let (opcode, bool_inverted) = {
             let opcode_in_file = reader.read_u16::<LittleEndian>()?;
 
-            // The most significant bit (0x8000) is set when the returned
-            //  boolean is to be inverted.
+            // The most significant bit (0x8000) is set when the returned boolean is to be
+            // inverted.
             (opcode_in_file & 0x7fff, opcode_in_file & 0x8000 != 0)
         };
 
         let cmd = match commands.get(&opcode) {
             Some(command) => command,
             None => {
-                // If we don't know the opcode, then we can't get the parameter list,
-                //  which is necessary for reading the instruction.
+                // If we don't know the opcode, then we can't get the parameter list, which is
+                // necessary for reading the instruction.
                 return Err(Error::new(
                     ErrorKind::InvalidData,
                     format!("unknown opcode {:#x}", opcode),
