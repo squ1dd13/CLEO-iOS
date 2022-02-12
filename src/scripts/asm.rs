@@ -4,9 +4,11 @@ use anyhow::Result;
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 use once_cell::sync::OnceCell;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+use std::collections::{BTreeSet, HashMap};
 use std::fmt::Display;
 use std::io::{self, Cursor, Error, ErrorKind, Seek};
+
+use super::base;
 
 #[derive(Debug, Clone)]
 pub struct Variable {
@@ -510,67 +512,49 @@ fn get_commands() -> &'static HashMap<u16, Command> {
     })
 }
 
-pub enum Issue {
-    /// The script uses instructions that aren't implemented in this library.
-    NotImpl,
+pub fn check_bytecode(bytecode: &[u8]) -> BTreeSet<base::Flag> {
+    // Disassemble the entire script.
+    let instrs = Disassembler::disasm_all(bytecode);
 
-    /// The script uses code that can only work on Android due to architecture differences.
-    BadArch,
+    // todo: Re-assemble all instructions over the top of `bytecode` and look for differences.
 
-    // fixme: Script checks can no longer fail, so we should remove this variant.
-    /// The script check failed, so we can't say whether or not the script has issues.
-    Unchecked,
+    log::info!("Disassembled {} instructions", instrs.len());
 
-    /// The script has the same identity as some other script.
-    Duplicate(String),
-}
+    const DUMP_SCRIPTS: bool = false;
 
-impl Display for Issue {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::NotImpl => f.write_str("Requires features unavailable on iOS."),
-            Self::BadArch => f.write_str("Contains some iOS-incompatible code."),
-            Self::Duplicate(orig_name) => write!(f, "Duplicate of '{}'.", orig_name),
-            Self::Unchecked => f.write_str("Script check failed."),
-        }
-    }
-}
+    if DUMP_SCRIPTS {
+        let mut instrs_ordered: Vec<_> = instrs.iter().map(|kv| (*kv.0, kv.1)).collect();
+        instrs_ordered.sort_by_key(|kv| kv.0);
 
-/// A record of the problems found in a script.
-pub struct CompatReport {
-    issues: Vec<Issue>,
-}
+        let filename = format!("{:?}", bytecode.as_ptr());
+        let filename = crate::files::get_documents_path(filename.as_str());
+        log::info!("Dumping to '{}'", filename.display());
 
-impl CompatReport {
-    pub fn scan(bytecode: &[u8]) -> CompatReport {
-        // Disassemble the entire script.
-        let instrs = Disassembler::disasm_all(bytecode);
-
-        // todo: Re-assemble all instructions over the top of `bytecode` and look for differences.
-
-        log::info!("Disassembled {} instructions", instrs.len());
-
-        // Look for problematic opcodes.
-        let instr_issues = instrs
-            .iter()
-            .filter_map(|(_, instr)| match instr.opcode {
-                0x0dd5 | 0x0dd6 | 0x0de1..=0x0df6 => Some(Issue::NotImpl),
-                0x0dd0..=0x0ddb | 0x0dde => Some(Issue::BadArch),
-
-                _ => None,
-            })
-            .collect();
-
-        for issue in &instr_issues {
-            log::info!("Issue: {}", issue);
-        }
-
-        CompatReport {
-            issues: instr_issues,
-        }
+        std::fs::write(
+            filename,
+            instrs_ordered
+                .into_iter()
+                .map(|(_, instr)| instr.to_string())
+                .collect::<Vec<String>>()
+                .join("\n"),
+        )
+        .unwrap();
     }
 
-    fn main_issue(&self) -> Option<&Issue> {
-        todo!()
+    // Look for problematic opcodes.
+    let flags = instrs
+        .iter()
+        .filter_map(|(_, instr)| match instr.opcode {
+            0x0dd5 | 0x0dd6 | 0x0de1..=0x0df6 => Some(base::Flag::UsesUnimplemented),
+            0x0dd0..=0x0ddb | 0x0dde => Some(base::Flag::PlatformSpecific),
+
+            _ => None,
+        })
+        .collect();
+
+    for flag in &flags {
+        log::info!("Flag: {}", flag);
     }
+
+    flags
 }

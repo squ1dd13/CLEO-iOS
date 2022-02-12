@@ -1,3 +1,5 @@
+use std::collections::BTreeSet;
+
 use super::{
     asm,
     base::{self, Script},
@@ -15,8 +17,8 @@ pub struct CleoScript {
     /// The name of the script. This will be shown to the user in the script menu.
     name: String,
 
-    /// A record of any potential stability issues this script has.
-    compat: asm::CompatReport,
+    /// Information about script problems that we should show to the user.
+    flags: BTreeSet<base::Flag>,
 }
 
 type OpcodeFn = fn(&mut CleoScript, u16) -> Result<base::FocusWish>;
@@ -34,7 +36,7 @@ impl CleoScript {
         log::info!("Checking '{}'", name);
 
         // Analyse the bytecode so we can warn the user about any possible problems later.
-        let compat = asm::CompatReport::scan(&bytecode);
+        let flags = asm::check_bytecode(&bytecode);
 
         Ok(CleoScript {
             game_script: GameScript {
@@ -44,7 +46,7 @@ impl CleoScript {
             },
             bytecode,
             name,
-            compat,
+            flags,
         })
     }
 
@@ -217,6 +219,10 @@ impl base::Script for CleoScript {
 
     fn name(&self) -> std::borrow::Cow<'_, str> {
         std::borrow::Cow::from(&self.name)
+    }
+
+    fn add_flag(&mut self, flag: base::Flag) {
+        self.flags.insert(flag);
     }
 }
 

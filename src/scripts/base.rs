@@ -25,10 +25,67 @@ pub enum FocusWish {
     MoveOn,
 }
 
+/// Information about a script that should be given to the user. Flags can be added both before and
+/// while the script is running, so may represent either static or runtime information.
+#[derive(PartialEq, Eq, Ord)]
+pub enum Flag {
+    /// The script is taking a long time to update, and may cause performance issues.
+    Slow,
+
+    /// The script uses instructions that aren't available in this version of CLEO.
+    UsesUnimplemented,
+
+    /// The script uses code that is specific to the Android platform/game.
+    PlatformSpecific,
+
+    /// The script has the same `identity` as another script.
+    Duplicate(String),
+}
+
+impl Flag {
+    /// Returns an integer value indicating how important this flag is. A *lower* value means that
+    /// a flag is *more* important.
+    fn importance(&self) -> u8 {
+        match self {
+            Flag::Slow => 3,
+            Flag::UsesUnimplemented => 2,
+            Flag::PlatformSpecific => 1,
+            Flag::Duplicate(_) => 4,
+        }
+    }
+}
+
+impl PartialOrd for Flag {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        let this_sev = self.importance();
+        let other_sev = other.importance();
+
+        if this_sev > other_sev {
+            Some(std::cmp::Ordering::Greater)
+        } else if other_sev < this_sev {
+            Some(std::cmp::Ordering::Less)
+        } else {
+            // Importances are equal.
+            None
+        }
+    }
+}
+
+impl std::fmt::Display for Flag {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::UsesUnimplemented => f.write_str("Requires features unavailable on iOS."),
+            Self::PlatformSpecific => f.write_str("Contains some iOS-incompatible code."),
+            Self::Duplicate(orig_name) => write!(f, "Duplicate of '{}'.", orig_name),
+            Self::Slow => f.write_str("May be slowing down the game."),
+        }
+    }
+}
+
 pub type GameTime = u32;
 
-/// An item that should be unique for a script's content and which can therefore be used to
-/// identify scripts that are identical.
+/// An item that should be unique for a script's content and which can therefore be used to find
+/// scripts that are identical.
 #[derive(PartialEq)]
 pub enum Identity {
     Scm(u64),
@@ -58,7 +115,20 @@ pub trait Script {
             return Ok(());
         }
 
-        while let FocusWish::RetainFocus = self.exec_single()? {}
+        // Record the time at which we start executing instructions so we have a reference point.
+        let start_time = std::time::Instant::now();
+
+        while let FocusWish::RetainFocus = self.exec_single()? {
+            let update_duration = std::time::Instant::now() - start_time;
+
+            // If the script tries to update for more than 1ms, we move onto the next script.
+            // Script updates run on the main thread, so if a script takes a long time to update,
+            // the user will see it in the form of lag.
+            if update_duration.as_millis() > 1 {
+                break;
+            }
+        }
+
         Ok(())
     }
 
@@ -83,4 +153,7 @@ pub trait Script {
     /// Returns either an owned `String` or a reference to a string containing the user-facing name
     /// of the script.
     fn name(&self) -> std::borrow::Cow<'_, str>;
+
+    /// Adds the given flag to the script.
+    fn add_flag(&mut self, flag: Flag);
 }

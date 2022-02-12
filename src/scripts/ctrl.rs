@@ -154,6 +154,10 @@ impl base::Script for JsScript {
     fn name(&self) -> std::borrow::Cow<'_, str> {
         todo!()
     }
+
+    fn add_flag(&mut self, flag: base::Flag) {
+        self.puppet.add_flag(flag);
+    }
 }
 
 /// A structure that manages a group of scripts.
@@ -182,9 +186,19 @@ impl ScriptRuntime {
     /// Updates each script in turn.
     fn update(&mut self) -> Result<()> {
         for script in &mut self.scripts {
+            let update_start = std::time::Instant::now();
+
             script
                 .exec_block()
                 .with_context(|| format!("while updating script '{}'", script.name()))?;
+
+            let update_end = std::time::Instant::now();
+            let update_time = update_end - update_start;
+
+            if update_time.as_millis() > 1 {
+                script.add_flag(base::Flag::Slow);
+                log::trace!("Update for '{}' took {:?}", script.name(), update_time);
+            }
         }
 
         Ok(())
@@ -248,9 +262,9 @@ impl ScriptRuntime {
     }
 
     fn tick_hook() {
-        // Script system error handling is very important. Invalid script behaviour can corrupt the game state.
-        // At the very least we need to discard the game state by quitting to the main menu, but we should also
-        // ensure that the game does not save with this invalid state.
+        // Script system error handling is very important. Invalid script behaviour can corrupt the
+        // game state. At the very least we need to discard the game state by quitting to the main
+        // menu, but we should also ensure that the game does not save with this invalid state.
         // todo: Prevent game saving and quit to main menu on script errors.
 
         ScriptRuntime::shared_mut()

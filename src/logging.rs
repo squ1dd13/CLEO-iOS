@@ -61,7 +61,10 @@ impl Message {
             MessageType::Normal => "info",
             MessageType::Error => "error",
             MessageType::Warning => "warning",
-            MessageType::Debug => "debug",
+
+            // Don't write debug messages to the log file. This means we can use `debug!` and
+            // `trace!` to log large volumes of data.
+            MessageType::Debug => return,
         };
 
         // This is a direct copy of the format used by VSCode (adapted for Rust).
