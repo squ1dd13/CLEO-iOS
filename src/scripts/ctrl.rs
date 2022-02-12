@@ -286,6 +286,22 @@ impl ScriptRuntime {
     }
 }
 
+pub fn tab_data_csa() -> crate::ui::TabData {
+    crate::ui::TabData {
+        name: "CSA".to_string(),
+        warning: None,
+        row_data: vec![],
+    }
+}
+
+pub fn tab_data_csi() -> crate::ui::TabData {
+    crate::ui::TabData {
+        name: "CSI".to_string(),
+        warning: None,
+        row_data: vec![],
+    }
+}
+
 pub fn init() {
     crate::targets::init_stage_three::install(ScriptRuntime::load_hook);
     crate::targets::script_tick::install(ScriptRuntime::tick_hook);

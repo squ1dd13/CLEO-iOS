@@ -27,7 +27,7 @@ pub enum FocusWish {
 
 /// Information about a script that should be given to the user. Flags can be added both before and
 /// while the script is running, so may represent either static or runtime information.
-#[derive(PartialEq, Eq, Ord)]
+#[derive(Eq)]
 pub enum Flag {
     /// The script is taking a long time to update, and may cause performance issues.
     Slow,
@@ -55,19 +55,21 @@ impl Flag {
     }
 }
 
+impl Ord for Flag {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.importance().cmp(&other.importance())
+    }
+}
+
 impl PartialOrd for Flag {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        let this_sev = self.importance();
-        let other_sev = other.importance();
+        Some(self.cmp(other))
+    }
+}
 
-        if this_sev > other_sev {
-            Some(std::cmp::Ordering::Greater)
-        } else if other_sev < this_sev {
-            Some(std::cmp::Ordering::Less)
-        } else {
-            // Importances are equal.
-            None
-        }
+impl PartialEq for Flag {
+    fn eq(&self, other: &Self) -> bool {
+        self.importance() == other.importance()
     }
 }
 
