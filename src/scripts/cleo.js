@@ -11,8 +11,7 @@ function showBottomText(key, time) {
 }
 
 function sleep(sleepDuration) {
-    var now = new Date().getTime();
-    while (new Date().getTime() < now + sleepDuration) { /* Do nothing */ }
+    wait(sleepDuration)
 }
 
 console.log("cleo.js loaded successfully!");

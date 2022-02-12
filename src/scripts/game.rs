@@ -153,10 +153,6 @@ impl CleoScript {
         })
     }
 
-    pub fn game_time() -> base::GameTime {
-        crate::hook::get_global(0x1007d3af8)
-    }
-
     pub fn bytecode_mut(&mut self) -> &mut Vec<u8> {
         &mut self.bytecode
     }
@@ -189,7 +185,7 @@ impl base::Script for CleoScript {
     }
 
     fn is_ready(&self) -> bool {
-        self.game_script.active && Self::game_time() >= self.game_script.wakeup_time
+        self.game_script.active && time() >= self.game_script.wakeup_time
     }
 
     fn wakeup_time(&self) -> base::GameTime {
@@ -226,6 +222,10 @@ impl base::Script for CleoScript {
     fn add_flag(&mut self, flag: base::Flag) {
         self.flags.insert(flag);
     }
+}
+
+pub fn time() -> base::GameTime {
+    crate::hook::get_global(0x1007d3af8)
 }
 
 /// Mirror of the game's CRunningScript class structure. We need to use instances of this struct

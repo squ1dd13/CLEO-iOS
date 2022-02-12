@@ -10,7 +10,7 @@ use quick_js::{Context, JsValue};
 use std::{
     hash::{Hash, Hasher},
     io,
-    thread::JoinHandle,
+    thread::{self, JoinHandle},
 };
 
 fn get_scm_value(value: &JsValue) -> Result<Value> {
@@ -65,8 +65,9 @@ pub enum RespMsg {
     /// Tells the JS script to exit.
     Exit,
 
-    /// Contains the boolean flag. Sent back after executing an instruction.
-    BoolFlag(Box<dyn Fn() -> bool + Send + Sync>),
+    /// Contains the boolean flag and the time at which the script should continue executing. Sent
+    /// back after executing an instruction.
+    InstrDone(bool, u32),
 }
 
 /// A bidirectional connection between a JS script and the control thread. This structure should be
@@ -142,7 +143,7 @@ impl Script {
         // hack: Cloning the whole script is expensive and probably not necessary.
         let script = self.clone();
 
-        std::thread::spawn(move || {
+        thread::spawn(move || {
             // We have to create the JS context inside the new thread because we can't pass it
             // between threads.
             let context = Context::builder()
@@ -169,11 +170,20 @@ impl Script {
                     Some(RespMsg::Exit) => {
                         return Err(anyhow::format_err!("Script thread exiting"))
                     }
-                    Some(RespMsg::BoolFlag(flag_fn)) => return Ok(JsValue::Bool(flag_fn())),
-                    _ => (),
-                }
+                    Some(RespMsg::InstrDone(flag, continue_time)) => {
+                        let game_time = game::time();
 
-                Ok(JsValue::Undefined)
+                        if continue_time > game_time {
+                            let wait_len = continue_time - game::time();
+
+                            // Wait until we're scheduled to run again.
+                            thread::sleep(std::time::Duration::from_millis(wait_len as u64));
+                        }
+
+                        Ok(JsValue::Bool(flag))
+                    }
+                    _ => Ok(JsValue::Undefined),
+                }
             };
 
             context
@@ -282,7 +292,7 @@ pub struct ScriptUnit {
     puppet: game::CleoScript,
 
     /// A handle with which we can move the execution of JavaScript code to the controlling thread.
-    join_handle: Option<std::thread::JoinHandle<()>>,
+    join_handle: Option<thread::JoinHandle<()>>,
 }
 
 impl ScriptUnit {
@@ -350,28 +360,38 @@ impl base::Script for ScriptUnit {
                 self.puppet.reset();
                 self.puppet.set_state(base::State::Auto(true));
 
+                self.puppet.bytecode_mut().clear();
+
                 // Create a new instruction to compile and execute.
                 let instr = asm::Instr::new(opcode, args);
+                log::trace!("instruction: {}", instr);
+
                 let byte_count = instr.write(&mut self.puppet.bytecode_mut())?;
 
                 log::trace!("Wrote {} bytes of compiled code", byte_count);
+
+                let byte_str = self.puppet.bytecode_mut()[..byte_count]
+                    .iter()
+                    .map(|b| format!("{:x}", b))
+                    .collect::<Vec<_>>()
+                    .join(" ");
+
+                log::trace!("bytes: {}", byte_str);
 
                 // Execute the instruction we just assembled.
                 let focus_wish = self.puppet.exec_single()?;
 
                 // Clear the bytecode we created so that the next instruction is not mixed with old
                 // bytes.
-                self.puppet.bytecode_mut()[..byte_count].fill(0);
+                self.puppet.bytecode_mut().clear();
 
                 // Send back the boolean flag of the script. This could be considered the return
-                // value of the SCM instruction.
-                let bool_flag = self.puppet.bool_flag();
-                let time_ready = self.wakeup_time();
-
-                self.conn.send(Some(RespMsg::BoolFlag(Box::new(move || {
-                    while time_ready > game::CleoScript::game_time() {}
-                    bool_flag
-                }))));
+                // value of the SCM instruction. We also send the time at which the script should
+                // continue executing, because the waiting needs to be done on the script's thread.
+                self.conn.send(Some(RespMsg::InstrDone(
+                    self.puppet.bool_flag(),
+                    self.puppet.wakeup_time(),
+                )));
 
                 return Ok(focus_wish);
             }
