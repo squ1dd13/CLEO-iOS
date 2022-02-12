@@ -1,10 +1,12 @@
-use std::collections::BTreeSet;
+//! Implements scripts similar to those used by the game itself in that they use the game's own SCM
+//! bytecode.
 
 use super::{
     asm,
     base::{self, Script},
 };
 use anyhow::Result;
+use std::collections::BTreeSet;
 
 /// A script structure that manages a raw game script while providing a high-level interface.
 pub struct CleoScript {
@@ -30,7 +32,7 @@ impl CleoScript {
         bytes.read_to_end(&mut bytecode)?;
 
         // It's unlikely that scripts will ever cause memory issues, but since the user may have a
-        // lot of scripts, we'll try to make them as small as is reasonable.
+        // lot of scripts, we'll try to make them as small as possible.
         bytecode.shrink_to_fit();
 
         log::info!("Checking '{}'", name);

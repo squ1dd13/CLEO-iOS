@@ -1,4 +1,4 @@
-//! Provides assembly, disassembly and safety checking for SCM code.
+//! Provides assembly, disassembly and safety checking for SCM bytecode.
 
 use anyhow::Result;
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};

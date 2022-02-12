@@ -1,3 +1,6 @@
+//! Provides a runtime, for JavaScript scripts, that integrates with the SCM runtime to allow full
+//! scripting capabilities to be used in JavaScript code.
+
 use super::{asm::Value, ctrl};
 use anyhow::Result;
 use crossbeam_channel::{Receiver, Sender};

@@ -1,3 +1,5 @@
+//! Defines types and behaviours that are used across the `scripts` module.
+
 use anyhow::Result;
 
 /// Tells whether or not a script is running, and where the value came from.

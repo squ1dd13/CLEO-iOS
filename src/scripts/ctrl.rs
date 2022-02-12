@@ -1,12 +1,13 @@
-use std::sync::Mutex;
-
-use crate::scripts::base::Script;
+//! Manages the script runtime. It is responsible for loading and controlling all
+//! scripts used by CLEO.
 
 use super::{asm, base, game, js};
+use crate::scripts::base::Script;
 use anyhow::{Context, Result};
 use byteorder::WriteBytesExt;
 use crossbeam_channel::{Receiver, Sender};
 use once_cell::sync::{Lazy, OnceCell};
+use std::sync::Mutex;
 
 /// A connection between this module and a JavaScript-based script that allows us to receive
 /// requests and send back responses.
