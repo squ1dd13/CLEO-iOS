@@ -1,11 +1,17 @@
 //! Provides a runtime, for JavaScript scripts, that integrates with the SCM runtime to allow full
 //! scripting capabilities to be used in JavaScript code.
 
-use super::{asm::Value, ctrl};
+use crate::scripts::asm;
+
+use super::{asm::Value, base, ctrl, game};
 use anyhow::Result;
-use crossbeam_channel::{Receiver, Sender};
+use crossbeam_channel::{Receiver, Sender, TryRecvError};
 use quick_js::{Context, JsValue};
-use std::{io, thread::JoinHandle};
+use std::{
+    hash::{Hash, Hasher},
+    io,
+    thread::JoinHandle,
+};
 
 fn get_scm_value(value: &JsValue) -> Result<Value> {
     Ok(match value {
@@ -60,7 +66,7 @@ pub enum RespMsg {
     Exit,
 
     /// Contains the boolean flag. Sent back after executing an instruction.
-    BoolFlag(bool),
+    BoolFlag(Box<dyn Fn() -> bool + Send + Sync>),
 }
 
 /// A bidirectional connection between a JS script and the control thread. This structure should be
@@ -78,7 +84,7 @@ struct CtrlConn {
 impl CtrlConn {
     /// Creates two channels for communication between the JS module and the control module.
     /// Returns the endpoint for this module as well as the one created for the control module.
-    fn new() -> (CtrlConn, ctrl::JsConn) {
+    fn new() -> (CtrlConn, JsConn) {
         // Our channel to the control module must have a buffer size of zero so that it blocks when
         // we send messages. This way, we can't carry on executing JavaScript while inline SCM code
         // is being processed (which would be very bad).
@@ -90,7 +96,7 @@ impl CtrlConn {
                 sender: to_ctrl,
                 receiver: from_ctrl,
             },
-            ctrl::JsConn::new(to_js, from_js),
+            JsConn::new(to_js, from_js),
         )
     }
 
@@ -121,35 +127,35 @@ struct Script {
 
     /// The source code of the script.
     code: String,
+
+    /// Whether the script is currently running or not.
+    running: bool,
 }
 
 impl Script {
-    /// Creates a new JavaScript-based script with the given name and code bytes. Also returns the
-    /// communication structure to be given to the control module to allow it to manage the script.
-    fn new(name: String, bytes: &mut impl io::Read) -> Result<(Script, ctrl::JsConn)> {
-        let (conn, ext_conn) = CtrlConn::new();
-
-        let mut code = String::new();
-        bytes.read_to_string(&mut code)?;
-
-        let script = Script { name, conn, code };
-
-        Ok((script, ext_conn))
-    }
-
     /// Start evaluating the script's code in another thread. This method will return immediately.
-    fn launch(&mut self) {
+    fn launch(&mut self) -> JoinHandle<()> {
+        self.running = true;
+
         // Clone this script so we don't have to recreate it if we need to run it again after it
         // exits.
+        // hack: Cloning the whole script is expensive and probably not necessary.
         let script = self.clone();
 
-        let join_handle = std::thread::spawn(move || {
+        std::thread::spawn(move || {
             // We have to create the JS context inside the new thread because we can't pass it
             // between threads.
             let context = Context::builder()
                 .console(JsConsole::new(script.name))
                 .build()
                 .expect("Failed to initialise JS context");
+
+            context
+                .add_callback("setGxtKeyValue", |key: String, value: String| {
+                    crate::text::set_kv(&key, &value);
+                    JsValue::Undefined
+                })
+                .expect("Failed to add GXT callback");
 
             let scm_conn = script.conn.clone();
             let scm_call = move |opcode: i32, args: Vec<JsValue>| -> Result<JsValue> {
@@ -159,8 +165,12 @@ impl Script {
                 let scm_args = args.iter().map(get_scm_value).collect::<Result<Vec<_>>>()?;
                 let response = scm_conn.send(ReqMsg::ExecInstr(opcode as u16, scm_args));
 
-                if let Some(RespMsg::Exit) = response {
-                    return Err(anyhow::format_err!("Script thread exiting"));
+                match response {
+                    Some(RespMsg::Exit) => {
+                        return Err(anyhow::format_err!("Script thread exiting"))
+                    }
+                    Some(RespMsg::BoolFlag(flag_fn)) => return Ok(JsValue::Bool(flag_fn())),
+                    _ => (),
                 }
 
                 Ok(JsValue::Undefined)
@@ -175,9 +185,7 @@ impl Script {
                 // message, because we're going to exit straight away regardless.
                 script.conn.send(ReqMsg::ReportErr(err.into()));
             }
-        });
-
-        let _ = self.conn.send(ReqMsg::JoinHandle(join_handle));
+        })
     }
 }
 
@@ -228,6 +236,217 @@ impl quick_js::console::ConsoleBackend for JsConsole {
             level_name,
             message
         );
+    }
+}
+
+/// A connection between this module and a JavaScript-based script that allows us to receive
+/// requests and send back responses.
+pub struct JsConn {
+    sender: Sender<Option<RespMsg>>,
+    receiver: Receiver<ReqMsg>,
+}
+
+impl JsConn {
+    /// Create a new connection using a sender and receiver.
+    pub fn new(sender: Sender<Option<RespMsg>>, receiver: Receiver<ReqMsg>) -> JsConn {
+        JsConn { sender, receiver }
+    }
+
+    fn send(&self, msg: Option<RespMsg>) {
+        self.sender
+            .send(msg)
+            .expect("Failed to send response message");
+    }
+
+    fn next(&mut self) -> Option<ReqMsg> {
+        match self.receiver.try_recv() {
+            Ok(msg) => Some(msg),
+            Err(TryRecvError::Empty) => None,
+            Err(TryRecvError::Disconnected) => panic!("JS connection disconnected"),
+        }
+    }
+}
+
+/// A proxy for a JavaScript-based script that behaves like a full script.
+pub struct ScriptUnit {
+    /// The script that this controller is in charge of. We need to communicate with it through
+    /// channels because even though it might be owned by the controlling thread, it will actually
+    /// execute on another thread.
+    script: Script,
+
+    /// The connection through which we communicate with the script's theread of execution.
+    conn: JsConn,
+
+    /// A skeleton script that we use to run the JIT-compiled instructions requested by the
+    /// JavaScript thread.
+    puppet: game::CleoScript,
+
+    /// A handle with which we can move the execution of JavaScript code to the controlling thread.
+    join_handle: Option<std::thread::JoinHandle<()>>,
+}
+
+impl ScriptUnit {
+    pub fn load(path: std::path::PathBuf) -> Result<ScriptUnit> {
+        let name = match path.file_name().and_then(|os| os.to_str()) {
+            Some(s) => s.to_string(),
+            None => "JS Script".to_string(),
+        };
+
+        let bytes = std::fs::read(path)?;
+        ScriptUnit::from_bytes(name, &bytes)
+    }
+
+    pub fn from_bytes(name: String, bytes: &[u8]) -> Result<ScriptUnit> {
+        // Create a connection to use between the script and control threads.
+        let (conn, ext_conn) = CtrlConn::new();
+
+        let code = std::str::from_utf8(bytes)?.to_string();
+        let script = Script {
+            name,
+            conn,
+            code,
+            running: false,
+        };
+
+        Ok(Self::new(script, ext_conn))
+    }
+
+    /// Create a new script using the given communication structure.
+    fn new(script: Script, conn: JsConn) -> ScriptUnit {
+        let puppet = game::CleoScript::new(
+            // No name required.
+            String::new(),
+            // A JS-based script should never have more than one instruction in it, so 1000
+            // bytes is plenty of space.
+            &mut &vec![0; 1000][..],
+        )
+        // Safety: `CleoScript::new` only fails when it can't read the bytes, but we know that
+        // we've just created the vector, so it won't fail.
+        .unwrap();
+
+        ScriptUnit {
+            script,
+            conn,
+            puppet,
+            join_handle: None,
+        }
+    }
+}
+
+impl base::Script for ScriptUnit {
+    fn exec_single(&mut self) -> Result<base::FocusWish> {
+        let request = match self.conn.next() {
+            Some(r) => r,
+
+            // If there's no request to handle, just move on to the next script.
+            None => return Ok(base::FocusWish::MoveOn),
+        };
+
+        use ReqMsg::*;
+        let response = match request {
+            ExecInstr(opcode, args) => {
+                // Clear anything that could affect instruction behaviour and return the
+                // instruction pointer to the beginning of the script.
+                self.puppet.reset();
+                self.puppet.set_state(base::State::Auto(true));
+
+                // Create a new instruction to compile and execute.
+                let instr = asm::Instr::new(opcode, args);
+                let byte_count = instr.write(&mut self.puppet.bytecode_mut())?;
+
+                log::trace!("Wrote {} bytes of compiled code", byte_count);
+
+                // Execute the instruction we just assembled.
+                let focus_wish = self.puppet.exec_single()?;
+
+                // Clear the bytecode we created so that the next instruction is not mixed with old
+                // bytes.
+                self.puppet.bytecode_mut()[..byte_count].fill(0);
+
+                // Send back the boolean flag of the script. This could be considered the return
+                // value of the SCM instruction.
+                let bool_flag = self.puppet.bool_flag();
+                let time_ready = self.wakeup_time();
+
+                self.conn.send(Some(RespMsg::BoolFlag(Box::new(move || {
+                    while time_ready > game::CleoScript::game_time() {}
+                    bool_flag
+                }))));
+
+                return Ok(focus_wish);
+            }
+            GetVar(_) => todo!(),
+            SetVar(_, _) => todo!(),
+            ReportErr(err) => {
+                self.conn.send(Some(RespMsg::Exit));
+                return Err(err);
+            }
+            JoinHandle(handle) => {
+                self.join_handle = Some(handle);
+                None
+            }
+        };
+
+        self.conn.send(response);
+
+        todo!()
+    }
+
+    fn is_ready(&self) -> bool {
+        self.puppet.is_ready()
+    }
+
+    fn wakeup_time(&self) -> base::GameTime {
+        self.puppet.wakeup_time()
+    }
+
+    fn reset(&mut self) {
+        // We're not going to respond to any more requests from `exec_single` (since it's not going
+        // to be called again), so just tell the script to exit. Next time it sends a message and
+        // checks for a response, it'll get this message and exit.
+        self.conn.send(Some(RespMsg::Exit));
+
+        // The script may also report an error on exiting, and if it does, it'll hang while it
+        // waits for a reply. To stop that happening, we just send a message now that will be
+        // consumed when the error is reported, allowing the script to exit.
+        self.conn.send(None);
+
+        if let Some(join_handle) = self.join_handle.take() {
+            if let Err(err) = join_handle.join() {
+                log::error!("Script thread panicked on `join()`: {:?}", err);
+            }
+        }
+
+        log::info!("Successfully shut down remote JS script.");
+
+        // Reset the puppet, ready for executing more bytecode.
+        self.puppet.reset();
+
+        self.script.running = false;
+    }
+
+    fn identity(&self) -> base::Identity {
+        let mut hasher = std::collections::hash_map::DefaultHasher::new();
+        self.script.code.hash(&mut hasher);
+        base::Identity::Js(hasher.finish())
+    }
+
+    fn set_state(&mut self, state: base::State) {
+        if state.is_on() && !self.script.running {
+            self.join_handle = Some(self.script.launch());
+        }
+
+        // todo: Handle other script states here.
+
+        self.puppet.set_state(state);
+    }
+
+    fn name(&self) -> std::borrow::Cow<'_, str> {
+        std::borrow::Cow::Borrowed(&self.script.name)
+    }
+
+    fn add_flag(&mut self, flag: base::Flag) {
+        self.puppet.add_flag(flag);
     }
 }
 

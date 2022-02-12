@@ -117,11 +117,13 @@ impl ModRes {
             return None;
         }
 
+        let path = path.to_path_buf();
+
         let extension = extension.unwrap().to_str()?.to_lowercase();
         let relative_to_cleo = path.strip_prefix(find_cleo_dir_path()).ok()?;
 
         if relative_to_cleo.starts_with("Replace") || relative_to_cleo.starts_with("replace") {
-            return Some(ModRes::Swap(path.to_path_buf()));
+            return Some(ModRes::Swap(path));
         }
 
         let first_component = relative_to_cleo.iter().next().map(Path::new);
@@ -142,13 +144,14 @@ impl ModRes {
                 return None;
             }
 
-            return Some(ModRes::ArchSwap(archive_name, path.to_path_buf()));
+            return Some(ModRes::ArchSwap(archive_name, path));
         }
 
         match extension.as_str() {
-            "csa" => Some(ModRes::RunningScript(path.to_path_buf())),
-            "csi" => Some(ModRes::LazyScript(path.to_path_buf())),
-            "fxt" => Some(ModRes::KeyValFile(path.to_path_buf())),
+            "csa" => Some(ModRes::RunningScript(path)),
+            "csi" => Some(ModRes::LazyScript(path)),
+            "js" => Some(ModRes::JsScript(path)),
+            "fxt" => Some(ModRes::KeyValFile(path)),
 
             _ => {
                 log::warn!("Unrecognised extension '{}'", extension);

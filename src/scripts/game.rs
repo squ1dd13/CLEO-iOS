@@ -153,7 +153,7 @@ impl CleoScript {
         })
     }
 
-    fn game_time() -> base::GameTime {
+    pub fn game_time() -> base::GameTime {
         crate::hook::get_global(0x1007d3af8)
     }
 
@@ -216,7 +216,7 @@ impl base::Script for CleoScript {
     }
 
     fn set_state(&mut self, state: base::State) {
-        self.game_script.active = state.value();
+        self.game_script.active = state.is_on();
     }
 
     fn name(&self) -> std::borrow::Cow<'_, str> {

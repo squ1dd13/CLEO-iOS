@@ -3,6 +3,7 @@
 use anyhow::Result;
 
 /// Tells whether or not a script is running, and where the value came from.
+#[derive(Clone, Copy)]
 pub enum State {
     /// A state automatically decided by CLEO.
     Auto(bool),
@@ -12,7 +13,7 @@ pub enum State {
 }
 
 impl State {
-    pub fn value(self) -> bool {
+    pub fn is_on(self) -> bool {
         match self {
             State::Auto(v) | State::User(v) => v,
         }
