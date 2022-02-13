@@ -1,9 +1,5 @@
 // cleo:mode = running
-
-function wait(time) {
-    console.log("Called wait with time", time);
-    scmCall(0x0001, [time]);
-}
+// cleo:name = Test Script
 
 function showBottomText(key, time) {
     console.log("Called SBT with", key, time);
