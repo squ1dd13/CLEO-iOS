@@ -7,6 +7,7 @@ use super::{asm::Value, base, ctrl, game};
 use anyhow::Result;
 use crossbeam_channel::{Receiver, Sender, TryRecvError};
 use quick_js::{Context, JsValue};
+use serde::{Deserialize, Serialize};
 use std::{
     hash::{Hash, Hasher},
     io,
@@ -468,6 +469,75 @@ impl base::Script for ScriptUnit {
     fn add_flag(&mut self, flag: base::Flag) {
         self.puppet.add_flag(flag);
     }
+}
+
+#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct Root {
+    pub meta: Meta,
+    pub extensions: Vec<Extension>,
+    pub classes: Vec<Class>,
+}
+
+#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct Meta {
+    pub last_update: i64,
+    pub version: String,
+    pub url: String,
+}
+
+#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct Extension {
+    pub name: String,
+    pub commands: Vec<Command>,
+}
+
+#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct Command {
+    pub id: String,
+    pub name: String,
+    pub num_params: i64,
+    pub short_desc: Option<String>,
+    pub attrs: Option<Attrs>,
+    #[serde(default)]
+    pub input: Vec<IoValue>,
+    pub class: Option<String>,
+    pub member: Option<String>,
+    #[serde(default)]
+    pub output: Vec<IoValue>,
+    #[serde(default)]
+    pub platforms: Vec<String>,
+    #[serde(default)]
+    pub versions: Vec<String>,
+}
+
+#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct Attrs {
+    pub is_static: Option<bool>,
+    pub is_condition: Option<bool>,
+    pub is_overload: Option<bool>,
+    pub is_keyword: Option<bool>,
+    pub is_variadic: Option<bool>,
+    pub is_nop: Option<bool>,
+    pub is_destructor: Option<bool>,
+    pub is_constructor: Option<bool>,
+    pub is_unsupported: Option<bool>,
+    pub is_branch: Option<bool>,
+    pub is_segment: Option<bool>,
+}
+
+#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct IoValue {
+    pub name: String,
+    pub r#type: String,
+    pub source: Option<String>,
+}
+
+#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct Class {
+    pub name: String,
+    pub constructable: bool,
+    pub desc: String,
+    pub extends: Option<String>,
 }
 
 pub fn init() {}
