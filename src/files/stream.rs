@@ -618,8 +618,8 @@ pub fn init() {
     const CD_STREAM_INIT: hook::Target<fn(i32)> = hook::Target::Address(0x100177eb8);
     CD_STREAM_INIT.hook_hard(stream_init);
 
-    const CD_STREAM_READ: hook::Target<fn(u32, *mut u8, StreamSource, u32) -> bool> =
-        hook::Target::Address(0x100178048);
+    type CdReadFn = fn(u32, *mut u8, StreamSource, u32) -> bool;
+    const CD_STREAM_READ: hook::Target<CdReadFn> = hook::Target::Address(0x100178048);
     CD_STREAM_READ.hook_hard(stream_read);
 
     const CD_STREAM_OPEN: hook::Target<fn(*const c_char, bool) -> i32> =

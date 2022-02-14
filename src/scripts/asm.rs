@@ -16,15 +16,6 @@ pub struct Variable {
     location: Location,
 }
 
-impl Variable {
-    pub fn new_local(value: i64) -> Variable {
-        Variable {
-            value,
-            location: Location::Local,
-        }
-    }
-}
-
 impl std::fmt::Display for Variable {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let prefix = match self.location {

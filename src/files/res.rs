@@ -1,7 +1,6 @@
 //! Creates a flattened version of the CLEO directory and delegates to other modules for
 //! handling specific types of resources.
 
-use crate::*;
 use cached::proc_macro::cached;
 use std::{
     fmt::Display,
@@ -77,32 +76,6 @@ impl Display for ModRes {
 }
 
 impl ModRes {
-    fn flatten_dir(path: &impl AsRef<Path>) -> Option<Vec<ModRes>> {
-        let path = path.as_ref();
-        let mut resources = vec![];
-
-        for entry in path.read_dir().ok()? {
-            let entry = if let Err(err) = entry {
-                log::warn!("Error while reading resources from directory: {}", err);
-                continue;
-            } else {
-                entry.unwrap()
-            };
-
-            let entry_path = entry.path();
-
-            if let Some(resource) = Self::from_path(&entry_path) {
-                resources.push(resource);
-            } else if entry_path.is_dir() {
-                if let Some(mut found) = Self::flatten_dir(&entry_path) {
-                    resources.append(&mut found);
-                }
-            }
-        }
-
-        Some(resources)
-    }
-
     fn from_path(path: &Path) -> Option<ModRes> {
         if path.is_dir() {
             // We don't have any reason to use directories as resources at the moment, although
@@ -292,34 +265,4 @@ pub fn res_iter() -> impl Iterator<Item = ModRes> {
 pub fn init() {
     create_replace_dir();
     create_archive_dirs();
-    // let cleo_path = find_cleo_dir_path();
-
-    // log::info!("Creating 'Replace' folder...");
-    // create_replace_dir();
-
-    // log::info!("Creating archive folders...");
-    // create_archive_dirs();
-
-    // log::info!("Finding and loading resources...");
-    // let all_resources = ModRes::flatten_dir(&cleo_path).unwrap();
-
-    // for resource in &all_resources {
-    //     log::info!("Attempting to load {}.", resource);
-
-    //     let load_error = match resource {
-    //         ModRes::RunningScript(path) => scripts::load_running_script(path).err(),
-    //         ModRes::LazyScript(path) => scripts::load_invoked_script(path).err(),
-    //         ModRes::KeyValFile(path) => text::load_fxt(path).err(),
-    //         ModRes::ArchSwap(archive_name, path) => {
-    //             super::stream::load_replacement(archive_name, &path).err()
-    //         }
-    //         ModRes::Swap(path) => super::loader::load_replacement(&path).err(),
-    //     };
-
-    //     if let Some(err) = load_error {
-    //         log::warn!("Failed to load resource: {}", err);
-    //     }
-    // }
-
-    // log::info!("Finished loading resources.");
 }

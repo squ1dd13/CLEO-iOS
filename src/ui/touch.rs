@@ -4,10 +4,8 @@
 use crate::ui::gui::CGRect;
 use crate::{call_original, targets};
 use cached::proc_macro::cached;
-use log::warn;
 use objc::{runtime::Object, *};
 use once_cell::sync::OnceCell;
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Mutex;
 
 #[cached]

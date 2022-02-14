@@ -3,14 +3,13 @@
 
 use crate::scripts::asm;
 
-use super::{asm::Value, base, ctrl, game};
+use super::{asm::Value, base, game};
 use anyhow::Result;
 use crossbeam_channel::{Receiver, Sender, TryRecvError};
 use quick_js::{Context, JsValue};
 use serde::{Deserialize, Serialize};
 use std::{
     hash::{Hash, Hasher},
-    io,
     thread::{self, JoinHandle},
 };
 

@@ -1,12 +1,12 @@
 //! Manages the script runtime. It is responsible for loading and controlling all
 //! scripts used by CLEO.
 
-use super::{asm, base, game, js};
-use crate::scripts::base::Script;
+use super::{
+    base::{self, Script},
+    js,
+};
 use anyhow::{Context, Result};
-use byteorder::WriteBytesExt;
-use crossbeam_channel::{Receiver, Sender};
-use once_cell::sync::{Lazy, OnceCell};
+use once_cell::sync::OnceCell;
 use std::sync::Mutex;
 
 /// A structure that manages a group of scripts.
@@ -100,7 +100,7 @@ impl ScriptRuntime {
 
                     Box::new(script)
                 }
-                ModRes::LazyScript(path) => todo!(),
+                ModRes::LazyScript(_) => todo!(),
                 ModRes::JsScript(path) => {
                     let script = js::ScriptUnit::load(path).expect("Failed to load JS script");
                     Box::new(script)

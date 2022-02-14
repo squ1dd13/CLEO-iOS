@@ -1,8 +1,7 @@
 //! Interfaces with the GitHub API to determine if a CLEO update is available, and manages
 //! the version cache.
 
-use crate::{call_original, files, hook, text};
-use objc::{runtime::Object, *};
+use crate::files;
 use once_cell::sync::Lazy;
 use std::{
     io::{Read, Write},
