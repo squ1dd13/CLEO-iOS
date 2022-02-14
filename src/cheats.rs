@@ -1,13 +1,16 @@
 //! Replaces the game's broken cheats system with our own system that integrates with the menu.
 
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{
+    atomic::{AtomicBool, Ordering},
+    Mutex,
+};
 
 use crate::{
     call_original, hook,
     settings::Settings,
     ui::{self, RowData, TabData},
 };
-use lazy_static::lazy_static;
+// use lazy_static::lazy_static;
 use log::error;
 use once_cell::sync::Lazy;
 
@@ -17,9 +20,11 @@ pub struct Cheat {
     description: &'static str,
 }
 
-lazy_static! {
-    static ref WAITING_CHEATS: std::sync::Mutex<Vec<usize>> = std::sync::Mutex::new(vec![]);
-}
+static WAITING_CHEATS: Lazy<Mutex<Vec<usize>>> = Lazy::new(|| Mutex::new(vec![]));
+
+// lazy_static! {
+// static ref WAITING_CHEATS: std::sync::Mutex<Vec<usize>> = std::sync::Mutex::new(vec![]);
+// }
 
 impl Cheat {
     const fn new(index: usize, code: &'static str, description: &'static str) -> Cheat {

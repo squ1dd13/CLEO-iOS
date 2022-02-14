@@ -5,7 +5,7 @@ pub mod touch;
 
 pub use gui::{colours, exit_to_homescreen};
 pub use menu::{MenuMessage, RowData, RowDetail, TabData};
-pub use touch::TouchType;
+pub use touch::Stage;
 
 pub fn init() {
     gui::init();

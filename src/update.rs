@@ -3,6 +3,7 @@
 
 use crate::{call_original, files, hook, text};
 use objc::{runtime::Object, *};
+use once_cell::sync::Lazy;
 use std::{
     io::{Read, Write},
     sync::Mutex,
@@ -75,9 +76,11 @@ fn get_target_version() -> anyhow::Result<VersionNumber> {
     Ok(number)
 }
 
-lazy_static::lazy_static! {
-    static ref CHECK_RESULT: Mutex<Option<Result<bool, String>>> = Mutex::new(None);
-}
+static CHECK_RESULT: Lazy<Mutex<Option<Result<bool, String>>>> = Lazy::new(|| Mutex::new(None));
+
+// lazy_static::lazy_static! {
+//     static ref CHECK_RESULT: Mutex<Option<Result<bool, String>>> = Mutex::new(None);
+// }
 
 /// Should be called a while after the update check was initiated. Returns `true` if the
 /// update check finished without errors and an update is available. Otherwise, returns

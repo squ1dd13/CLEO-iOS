@@ -104,15 +104,15 @@ impl CleoScript {
             0xe1 => |script, _| {
                 collect_value_args(script, 2);
 
-                let zone =
-                    unsafe { *crate::hook::slide::<*const u32>(0x1007ad690).add(1) } as usize;
+                let zone = {
+                    let zone_num =
+                        unsafe { *crate::hook::slide::<*const u32>(0x1007ad690).add(1) } as usize;
 
-                let state = if let Some(state) = crate::ui::touch::query_zone(zone) {
-                    state
-                } else {
-                    log::warn!("Returning invalid touch state for zone {}", zone);
-                    false
+                    // Turn the number into an index.
+                    zone_num - 1
                 };
+
+                let state = crate::ui::touch::Manager::shared().query_zone(zone);
 
                 update_bool_flag(script, state);
                 Ok(base::FocusWish::RetainFocus)

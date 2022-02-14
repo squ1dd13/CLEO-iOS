@@ -2,14 +2,13 @@
 //! of FXT language files.
 
 use crate::{call_original, files, targets};
-use lazy_static::lazy_static;
 use log::warn;
+use once_cell::sync::Lazy;
 use std::collections::HashMap;
 use std::{os::raw::c_char, sync::Mutex};
 
-lazy_static! {
-    static ref CUSTOM_STRINGS: Mutex<HashMap<String, Vec<u16>>> = Mutex::new(HashMap::new());
-}
+static CUSTOM_STRINGS: Lazy<Mutex<HashMap<String, Vec<u16>>>> =
+    Lazy::new(|| Mutex::new(HashMap::new()));
 
 fn get_gxt_string(text_obj_ptr: usize, key: *const c_char) -> *const u16 {
     if !key.is_null() {

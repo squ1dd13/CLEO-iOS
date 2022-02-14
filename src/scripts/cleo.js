@@ -7,7 +7,7 @@ function showBottomText(key, time) {
 }
 
 function sleep(sleepDuration) {
-    wait(sleepDuration)
+    scmCall(0x0001, [sleepDuration]);
 }
 
 console.log("cleo.js loaded successfully!");

@@ -12,6 +12,7 @@ use std::{
 
 use byteorder::{LittleEndian, ReadBytesExt};
 use libc::c_char;
+use once_cell::sync::Lazy;
 
 use crate::{call_original, hook, targets};
 
@@ -339,9 +340,8 @@ fn get_archive_path(path: &str) -> Option<(String, String)> {
 }
 
 fn with_model_names<T>(with: impl Fn(&mut HashMap<StreamSource, String>) -> T) -> T {
-    lazy_static::lazy_static! {
-        static ref NAMES: Mutex<HashMap<StreamSource, String>> = Mutex::new(HashMap::new());
-    }
+    static NAMES: Lazy<Mutex<HashMap<StreamSource, String>>> =
+        Lazy::new(|| Mutex::new(HashMap::new()));
 
     let mut locked = NAMES.lock();
     with(locked.as_mut().unwrap())
@@ -350,9 +350,8 @@ fn with_model_names<T>(with: impl Fn(&mut HashMap<StreamSource, String>) -> T) -
 type ArchiveReplacements = HashMap<String, HashMap<String, ArchiveFileReplacement>>;
 
 fn with_replacements<T>(with: &mut impl FnMut(&mut ArchiveReplacements) -> T) -> T {
-    lazy_static::lazy_static! {
-        static ref REPLACEMENTS: Mutex<ArchiveReplacements> = Mutex::new(HashMap::new());
-    }
+    static REPLACEMENTS: Lazy<Mutex<ArchiveReplacements>> =
+        Lazy::new(|| Mutex::new(HashMap::new()));
 
     let mut locked = REPLACEMENTS.lock();
     with(locked.as_mut().unwrap())

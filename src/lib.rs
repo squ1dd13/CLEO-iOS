@@ -26,7 +26,7 @@ mod targets {
     create_soft_target!(
         process_touch,
         0x1004e831c,
-        fn(f32, f32, f64, f32, ui::TouchType)
+        fn(f32, f32, f64, f32, ui::Stage)
     );
 
     create_soft_target!(
