@@ -1,4 +1,5 @@
-//! Provides a touch interface and accompanying logic to allow the user to interact with scripts, cheats and settings.
+//! Provides a touch interface and accompanying logic to allow the user to interact with scripts,
+//! cheats and settings.
 
 use super::gui::{self, create_ns_string, CGPoint, CGRect, CGSize};
 use objc::{class, msg_send, runtime::Object, sel, sel_impl};
@@ -101,8 +102,8 @@ pub enum MenuMessage {
 }
 
 impl MenuMessage {
-    /// Send the message using the default sender. Requires locking the sender mutex, so
-    /// will block until the mutex becomes available.
+    /// Send the message using the default sender. Requires locking the sender mutex, so will block
+    /// until the mutex becomes available.
     pub fn send(self) {
         if let Some(sender) = MESSAGE_SENDER.get() {
             self.send_with_sender(&sender.lock().unwrap());
@@ -154,7 +155,7 @@ impl Row {
             let detail_frame = CGRect::new(
                 frame.size.width * 0.05,
                 // 0.5 to move the detail up towards the title. This makes it more obvious that the
-                //  detail goes with the title, and makes the rows easier to read.
+                // detail goes with the title, and makes the rows easier to read.
                 frame.size.height * 0.5,
                 frame.size.width * 0.9,
                 frame.size.height * 0.4,
@@ -222,7 +223,7 @@ impl Row {
 }
 
 // Previously, we used multipliers for all of the element sizes. This produced good results on
-//  smaller devices, but on iPads, many things were too big and the menu as a whole looked strange.
+// smaller devices, but on iPads, many things were too big and the menu as a whole looked strange.
 // Now we just hardcode the same values for all displays.
 
 const ROW_HEIGHT: f64 = 57.;
@@ -236,7 +237,7 @@ const CLOSE_BUTTON_HEIGHT: f64 = 30.;
 const CLOSE_BTN_FONT_SIZE: f64 = 23.;
 
 // Some elements are still proportional to others. The height of the warning label is proportional
-//  to the height of the tab view as a whole.
+// to the height of the tab view as a whole.
 const WARNING_HEIGHT_FRAC: f64 = 0.1;
 const WARNING_LBL_FONT_SIZE: f64 = 10.;
 
@@ -398,12 +399,13 @@ impl TabButton {
 
 // bug: The pause-reset system sometimes allows the game to unpause within the pause menu (unless that's a game bug).
 fn set_game_timer_paused(want_pause: bool) {
-    // Previously, opening and closing the CLEO menu inside the pause menu would unpause the game, because we use
-    //  the same mechanism as the pause menu for pausing the game (so when CLEO unpaused the game, it undid the pause
-    //  menu's pausing). To stop this being possible, we use PAUSED_ALREADY to say whether the game was paused when
-    //  CLEO first tried to pause it (on opening the menu). Then, when CLEO tries to unpause the game, it only happens
-    //  if the game was not paused already. This means that users can't unpause the game when the game itself wants to
-    //  be paused.
+    // Previously, opening and closing the CLEO menu inside the pause menu would unpause the game,
+    // because we use the same mechanism as the pause menu for pausing the game (so when CLEO
+    // unpaused the game, it undid the pause menu's pausing). To stop this being possible, we use
+    // PAUSED_ALREADY to say whether the game was paused when CLEO first tried to pause it (on
+    // opening the menu). Then, when CLEO tries to unpause the game, it only happens if the game
+    // was not paused already. This means that users can't unpause the game when the game itself
+    // wants to be paused.
     static mut PAUSED_ALREADY: bool = false;
 
     let var_ptr = crate::hook::slide::<*mut bool>(0x1007d3b34);
@@ -475,8 +477,9 @@ impl Menu {
         // Move all the tab data into Tab structures.
         let tabs = tab_data.into_iter().enumerate().map(|(tab_index, data)| {
             let state = unsafe {
-                // We remove the existing state from the map if it exists, because we need to move it into
-                //  the Tab we're about to create. It will be returned to the map when the menu is closed.
+                // We remove the existing state from the map if it exists, because we need to move
+                // it into the Tab we're about to create. It will be returned to the map when the
+                // menu is closed.
                 TAB_STATES.remove(&data.name).unwrap_or(TabState {
                     selected: false,
                     scroll_y: 0.,
@@ -590,8 +593,8 @@ impl Menu {
     fn get_module_tab_data() -> Vec<TabData> {
         let game_state = unsafe { *crate::hook::slide::<*const u32>(0x1006806d0) };
 
-        // The menu will be automatically created from any TabData structures in the
-        //  vector that we return, so adding another tab simply requires adding other stuff here.
+        // The menu will be automatically created from any TabData structures in the vector that we
+        // return, so adding another tab simply requires adding other stuff here.
         if game_state == 9 {
             // In a game, so allow access to all the tabs.
             vec![
