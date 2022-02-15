@@ -180,7 +180,7 @@ impl Manager {
         log::info!("Detected menu swipe. Showing menu.");
 
         // Show the menu.
-        super::menu::MenuMessage::Show.send();
+        super::old_menu::MenuMessage::Show.send();
     }
 
     /// Updates the touch manager with information from a new touch event.
