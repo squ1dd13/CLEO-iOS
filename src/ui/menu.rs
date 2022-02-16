@@ -1,18 +1,18 @@
-mod data {
-    pub type CowStr = std::borrow::Cow<'static, String>;
+pub mod data {
+    use std::borrow::Cow;
 
     /// Provides data that is displayed within a row.
-    pub trait RowData {
+    pub trait RowData<'s> {
         /// Returns the title of the row.
-        fn title(&self) -> CowStr;
+        fn title(&self) -> Cow<'s, String>;
 
         /// Returns a vector of strings to be shown underneath the title of the row. The strings
         /// will be shown downwards in order.
-        fn detail(&self) -> Vec<CowStr>;
+        fn detail(&self) -> Vec<Cow<'s, String>>;
 
         /// Returns the string to show on the RHS of the row, indicating the current state of
         /// whatever the row represents.
-        fn value(&self) -> CowStr;
+        fn value(&self) -> Cow<'s, String>;
 
         /// Returns a value representing the selection of colours that should be applied to the
         /// row's UI components. The tint colour should be selected to provide meaning.
@@ -20,18 +20,18 @@ mod data {
     }
 
     /// Data for a message shown above the rows in a tab.
-    pub struct TabMsg {
-        pub text: CowStr,
+    pub struct TabMsg<'s> {
+        pub text: Cow<'s, String>,
         pub tint: super::view::Tint,
     }
 
     /// Data used to construct a tab for the user to interact with in the menu.
-    pub struct TabData<R: RowData> {
+    pub struct TabData<'s, R: RowData<'s>> {
         /// The title of the tab. This is shown at the top of the menu.
-        pub title: CowStr,
+        pub title: Cow<'s, String>,
 
         /// A message shown above the rows.
-        pub message: Option<TabMsg>,
+        pub message: Option<TabMsg<'s>>,
 
         /// The rows in the tab.
         pub rows: Vec<R>,

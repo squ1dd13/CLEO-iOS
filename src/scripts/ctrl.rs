@@ -1,13 +1,15 @@
 //! Manages the script runtime. It is responsible for loading and controlling all
 //! scripts used by CLEO.
 
+use crate::ui::menu::data;
+
 use super::{
     base::{self, Script},
     js,
 };
 use anyhow::{Context, Result};
 use once_cell::sync::OnceCell;
-use std::sync::Mutex;
+use std::{sync::Mutex, borrow::Cow};
 
 /// A structure that manages a group of scripts.
 struct ScriptRuntime {
@@ -145,20 +147,37 @@ impl ScriptRuntime {
     }
 }
 
-pub fn tab_data_csa() -> crate::ui::TabData {
-    crate::ui::TabData {
-        name: "CSA".to_string(),
-        warning: None,
-        row_data: vec![],
+pub struct ScriptRow<'s> {
+    title: &'s str,
+    
+    detail: Vec<&'static str>,
+    value: bool,
+}
+
+impl data::RowData for ScriptRow {
+    fn title(&self) -> data::CowStr {
+        data::CowStr::Borrowed(self.title)
+    }
+
+    fn detail(&self) -> Vec<data::CowStr> {
+        self.detail.map(data::CowStr::Borrowed)
+    }
+
+    fn value(&self) -> data::CowStr {
+        if self.value {
+            "On"
+        } else {
+            "Off"
+        }
+    }
+
+    fn tint(&self) -> super::view::Tint {
+        
     }
 }
 
-pub fn tab_data_csi() -> crate::ui::TabData {
-    crate::ui::TabData {
-        name: "CSI".to_string(),
-        warning: None,
-        row_data: vec![],
-    }
+pub fn tabs() -> (data::TabData<()>, data::TabData<) {
+
 }
 
 pub fn init() {
