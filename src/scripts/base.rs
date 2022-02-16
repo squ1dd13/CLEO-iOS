@@ -1,5 +1,7 @@
 //! Defines types and behaviours that are used across the `scripts` module.
 
+use std::collections::BTreeSet;
+
 use anyhow::Result;
 
 /// Tells whether or not a script is running, and where the value came from.
@@ -10,12 +12,16 @@ pub enum State {
 
     /// A state selected by the user.
     User(bool),
+
+    /// The state of an invoked script. There is no auto/user for these, as they are always off by
+    /// default and can only turn on if triggered by the user.
+    Trigger(bool),
 }
 
 impl State {
     pub fn is_on(self) -> bool {
         match self {
-            State::Auto(v) | State::User(v) => v,
+            State::Auto(v) | State::User(v) | State::Trigger(v) => v,
         }
     }
 }
@@ -30,7 +36,7 @@ pub enum FocusWish {
 
 /// Information about a script that should be given to the user. Flags can be added both before and
 /// while the script is running, so may represent either static or runtime information.
-#[derive(Eq)]
+#[derive(Eq, Clone)]
 pub enum Flag {
     /// The script is taking a long time to update, and may cause performance issues.
     Slow,
@@ -54,6 +60,15 @@ impl Flag {
             Flag::UsesUnimplemented => 2,
             Flag::PlatformSpecific => 1,
             Flag::Duplicate(_) => 4,
+        }
+    }
+
+    pub fn is_severe(&self) -> bool {
+        match self {
+            Flag::Slow => false,
+            Flag::UsesUnimplemented => true,
+            Flag::PlatformSpecific => true,
+            Flag::Duplicate(_) => false,
         }
     }
 }
@@ -155,10 +170,16 @@ pub trait Script {
     /// Sets the script's state to the value given.
     fn set_state(&mut self, state: State);
 
+    /// Returns the script's current state.
+    fn state(&self) -> State;
+
     /// Returns either an owned `String` or a reference to a string containing the user-facing name
     /// of the script.
     fn name(&self) -> std::borrow::Cow<'_, str>;
 
     /// Adds the given flag to the script.
     fn add_flag(&mut self, flag: Flag);
+
+    /// Returns a reference to the script's flag set.
+    fn flags(&self) -> &BTreeSet<Flag>;
 }

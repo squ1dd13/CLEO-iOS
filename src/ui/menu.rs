@@ -2,17 +2,17 @@ pub mod data {
     use std::borrow::Cow;
 
     /// Provides data that is displayed within a row.
-    pub trait RowData<'s> {
+    pub trait RowData {
         /// Returns the title of the row.
-        fn title(&self) -> Cow<'s, String>;
+        fn title(&self) -> Cow<'_, str>;
 
         /// Returns a vector of strings to be shown underneath the title of the row. The strings
         /// will be shown downwards in order.
-        fn detail(&self) -> Vec<Cow<'s, String>>;
+        fn detail(&self) -> Vec<Cow<'_, str>>;
 
         /// Returns the string to show on the RHS of the row, indicating the current state of
         /// whatever the row represents.
-        fn value(&self) -> Cow<'s, String>;
+        fn value(&self) -> Cow<'_, str>;
 
         /// Returns a value representing the selection of colours that should be applied to the
         /// row's UI components. The tint colour should be selected to provide meaning.
@@ -26,9 +26,9 @@ pub mod data {
     }
 
     /// Data used to construct a tab for the user to interact with in the menu.
-    pub struct TabData<'s, R: RowData<'s>> {
+    pub struct TabData<'s, R: RowData> {
         /// The title of the tab. This is shown at the top of the menu.
-        pub title: Cow<'s, String>,
+        pub title: Cow<'s, str>,
 
         /// A message shown above the rows.
         pub message: Option<TabMsg<'s>>,
@@ -38,17 +38,20 @@ pub mod data {
     }
 }
 
-mod view {
+pub mod view {
     use objc::{
         runtime::{Object, Sel},
         *,
     };
 
     /// Colours that are applied to menu information to add extra meaning.
+    ///
+    /// [coolors.co](https://coolors.co/78c8ff-4e9540-ffffff-ff535e-ff8000-f3b61f)
     pub enum Tint {
         White,
         Red,
         Orange,
+        Yellow,
         Green,
         Blue,
     }
@@ -61,6 +64,7 @@ mod view {
                 Tint::White => (255, 255, 255),
                 Tint::Red => (255, 83, 94),
                 Tint::Orange => (255, 128, 0),
+                Tint::Yellow => (243, 182, 31),
                 Tint::Green => (78, 149, 64),
                 Tint::Blue => (120, 200, 255),
             }

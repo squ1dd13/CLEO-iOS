@@ -21,6 +21,9 @@ pub struct CleoScript {
 
     /// Information about script problems that we should show to the user.
     flags: BTreeSet<base::Flag>,
+
+    /// The current state of the script (whether it is executing, and the source of the value).
+    state: base::State,
 }
 
 type OpcodeFn = fn(&mut CleoScript, u16) -> Result<base::FocusWish>;
@@ -49,6 +52,7 @@ impl CleoScript {
             bytecode,
             name,
             flags,
+            state: base::State::Auto(false),
         })
     }
 
@@ -213,6 +217,7 @@ impl base::Script for CleoScript {
 
     fn set_state(&mut self, state: base::State) {
         self.game_script.active = state.is_on();
+        self.state = state;
     }
 
     fn name(&self) -> std::borrow::Cow<'_, str> {
@@ -221,6 +226,14 @@ impl base::Script for CleoScript {
 
     fn add_flag(&mut self, flag: base::Flag) {
         self.flags.insert(flag);
+    }
+
+    fn state(&self) -> base::State {
+        self.state
+    }
+
+    fn flags(&self) -> &BTreeSet<base::Flag> {
+        &self.flags
     }
 }
 

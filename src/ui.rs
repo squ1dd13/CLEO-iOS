@@ -1,6 +1,6 @@
 mod controller;
 mod gui;
-mod menu;
+pub mod menu;
 mod old_menu;
 pub mod touch;
 

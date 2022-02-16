@@ -1,7 +1,10 @@
 //! Manages the script runtime. It is responsible for loading and controlling all
 //! scripts used by CLEO.
 
-use crate::ui::menu::data;
+use crate::ui::menu::{
+    data::{self, RowData},
+    view,
+};
 
 use super::{
     base::{self, Script},
@@ -9,7 +12,7 @@ use super::{
 };
 use anyhow::{Context, Result};
 use once_cell::sync::OnceCell;
-use std::{sync::Mutex, borrow::Cow};
+use std::{borrow::Cow, collections::BTreeSet, sync::Mutex};
 
 /// A structure that manages a group of scripts.
 struct ScriptRuntime {
@@ -141,43 +144,149 @@ impl ScriptRuntime {
         /*
             On reset:
               - Lazy scripts should be switched off
-              - Active scripts should be returned to their user-defined state (unless they have warnings attached)
+              - Active scripts should be returned to their user-defined state (unless they have
+                 warnings attached)
         */
         ScriptRuntime::shared_mut().reset();
     }
+
+    /// Returns an appropriate message to give the user based on the number of scripts with severe
+    /// issues and the number with minor issues.
+    fn warning_message(severe_count: usize, minor_count: usize) -> Option<data::TabMsg<'static>> {
+        let found_severe = severe_count != 0;
+        let found_minor = minor_count != 0;
+
+        let string = match (found_minor, found_severe) {
+            (false, false) => return None,
+
+            // Both severe and minor issues.
+            (true, true) => format!(
+                "Found {} script{} with severe issues and {} with minor issues.",
+                severe_count,
+                if severe_count != 1 { "s" } else { "" },
+                minor_count,
+            ),
+
+            // Just minor issues.
+            (true, false) => format!(
+                "Found {} script{} with minor issues.",
+                minor_count,
+                if minor_count != 1 { "s" } else { "" },
+            ),
+
+            // Just severe issues.
+            (false, true) => format!(
+                "Found {} script{} with severe issues.",
+                severe_count,
+                if severe_count != 1 { "s" } else { "" },
+            ),
+        };
+
+        Some(data::TabMsg {
+            text: Cow::Owned(string),
+            tint: if found_severe {
+                view::Tint::Orange
+            } else {
+                view::Tint::Yellow
+            },
+        })
+    }
+
+    /// Returns the data for the script tab.
+    fn tab_data<'data>(&self) -> data::TabData<'data, ScriptRow> {
+        // Produce a row structure for every script.
+        let mut rows: Vec<ScriptRow> = self
+            .scripts
+            .iter()
+            .map(|script| ScriptRow {
+                title: script.name().to_string(),
+                flags: script.flags().clone(),
+                state: script.state(),
+            })
+            .collect();
+
+        // Sort in alphabetical order. We cannot sort by a key because that would require cloning
+        // every title.
+        rows.sort_unstable_by(|left, right| left.title.cmp(&right.title));
+
+        let mut severe_count = 0;
+        let mut minor_count = 0;
+
+        for row in &rows {
+            match row.are_issues_bad() {
+                Some(true) => severe_count += 1,
+                Some(false) => minor_count += 1,
+                None => continue,
+            }
+        }
+
+        let warning = Self::warning_message(severe_count, minor_count);
+
+        data::TabData {
+            title: Cow::Borrowed("Scripts"),
+            message: warning,
+            rows,
+        }
+    }
 }
 
-pub struct ScriptRow<'s> {
-    title: &'s str,
-    
-    detail: Vec<&'static str>,
-    value: bool,
+pub struct ScriptRow {
+    title: String,
+    flags: BTreeSet<base::Flag>,
+    state: base::State,
+}
+
+impl ScriptRow {
+    /// Returns the severity of the script's issues in the range `0..=2`.
+    fn are_issues_bad(&self) -> Option<bool> {
+        // The first item in the set should be the most important, so the overall severity is based
+        // on the first issue.
+        self.flags.iter().next().map(base::Flag::is_severe)
+    }
 }
 
 impl data::RowData for ScriptRow {
-    fn title(&self) -> data::CowStr {
-        data::CowStr::Borrowed(self.title)
+    fn title(&self) -> Cow<'_, str> {
+        Cow::Borrowed(&self.title)
     }
 
-    fn detail(&self) -> Vec<data::CowStr> {
-        self.detail.map(data::CowStr::Borrowed)
+    fn detail(&self) -> Vec<Cow<'_, str>> {
+        self.flags
+            .iter()
+            .map(|flag| Cow::Owned(flag.to_string()))
+            .collect()
     }
 
-    fn value(&self) -> data::CowStr {
-        if self.value {
-            "On"
-        } else {
-            "Off"
+    fn value(&self) -> Cow<'_, str> {
+        use base::State::*;
+
+        Cow::Borrowed(match self.state {
+            // States decided by the runtime.
+            Auto(true) => "On (Auto)",
+            Auto(false) => "Off (Auto)",
+
+            // States that the user has set themselves.
+            User(true) => "On (Custom)",
+            User(false) => "Off (Custom)",
+
+            // Invoked script states.
+            Trigger(true) => "Active",
+            Trigger(false) => "Inactive",
+        })
+    }
+
+    fn tint(&self) -> view::Tint {
+        match self.are_issues_bad() {
+            // More important issues are orange.
+            Some(true) => view::Tint::Orange,
+
+            // Less important issues are yellow.
+            Some(false) => view::Tint::Yellow,
+
+            // If there are no issues, no special colouring is applied.
+            None => view::Tint::White,
         }
     }
-
-    fn tint(&self) -> super::view::Tint {
-        
-    }
-}
-
-pub fn tabs() -> (data::TabData<()>, data::TabData<) {
-
 }
 
 pub fn init() {

@@ -468,6 +468,14 @@ impl base::Script for ScriptUnit {
     fn add_flag(&mut self, flag: base::Flag) {
         self.puppet.add_flag(flag);
     }
+
+    fn state(&self) -> base::State {
+        self.puppet.state()
+    }
+
+    fn flags(&self) -> &std::collections::BTreeSet<base::Flag> {
+        self.puppet.flags()
+    }
 }
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
