@@ -1,18 +1,16 @@
 //! Replaces the game's broken cheats system with our own system that integrates with the menu.
 
-use std::sync::{
-    atomic::{AtomicBool, Ordering},
-    Mutex,
-};
-
 use crate::{
     call_original, hook,
     settings::Settings,
     ui::{self, RowData, TabData},
 };
-// use lazy_static::lazy_static;
 use log::error;
 use once_cell::sync::Lazy;
+use std::sync::{
+    atomic::{AtomicBool, Ordering},
+    Mutex,
+};
 
 pub struct Cheat {
     index: usize,
@@ -21,10 +19,6 @@ pub struct Cheat {
 }
 
 static WAITING_CHEATS: Lazy<Mutex<Vec<usize>>> = Lazy::new(|| Mutex::new(vec![]));
-
-// lazy_static! {
-// static ref WAITING_CHEATS: std::sync::Mutex<Vec<usize>> = std::sync::Mutex::new(vec![]);
-// }
 
 impl Cheat {
     const fn new(index: usize, code: &'static str, description: &'static str) -> Cheat {
@@ -40,14 +34,14 @@ impl Cheat {
         let ptr = hook::slide::<*const *const u64>(entry_address);
 
         // The array pointer shouldn't be null, but we check it just in case. The more important
-        // check is the second, which ensures that the function pointer is not 0.
+        // check is the second, which ensures that the function pointer is not null.
         if ptr.is_null() || unsafe { *ptr }.is_null() {
             None
         } else {
-            // Get the value again, but this time as a pointer to a function.
-            // The reason we don't get it as a *const fn() the first time is that 'fn' is itself
-            //  the function pointer, but we can't check if it is null. We use *const *const u64
-            //  instead because we can check the inner pointer as well.
+            // Get the value again, but this time as a pointer to a function. The reason we don't
+            // get it as a *const fn() the first time is that 'fn' is itself the function pointer,
+            // but we can't check if it is null. We use *const *const u64 instead because we can
+            // check the inner pointer as well.
             let func_ptr = hook::slide::<*const fn()>(entry_address);
             Some(unsafe { *func_ptr })
         }
