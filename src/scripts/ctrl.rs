@@ -184,6 +184,9 @@ impl ScriptRuntime {
 
         Some(data::TabMsg {
             text: Cow::Owned(string),
+
+            // The warning should have the same importance as the most important issue considered
+            // while generating a summary, so we use the same tints as the rows themselves.
             tint: if found_severe {
                 view::Tint::Orange
             } else {
@@ -209,18 +212,20 @@ impl ScriptRuntime {
         // every title.
         rows.sort_unstable_by(|left, right| left.title.cmp(&right.title));
 
-        let mut severe_count = 0;
-        let mut minor_count = 0;
+        // Count the number of scripts that have severe or minor issues.
+        // For simplicity, we count a script with any severe issues as having *only* severe issues,
+        // regardless of whether or not it has minor issues too.
+        let (severe, minor) =
+            rows.iter()
+                .fold((0, 0), |(severe, minor), row| match row.are_issues_bad() {
+                    Some(true) => (severe + 1, minor),
+                    Some(false) => (severe, minor + 1),
+                    None => (severe, minor),
+                });
 
-        for row in &rows {
-            match row.are_issues_bad() {
-                Some(true) => severe_count += 1,
-                Some(false) => minor_count += 1,
-                None => continue,
-            }
-        }
-
-        let warning = Self::warning_message(severe_count, minor_count);
+        // Generate a warning message so we can give the user a heads-up about the issues.
+        // Showing this at the top of the menu makes it harder for them to miss problems.
+        let warning = Self::warning_message(severe, minor);
 
         data::TabData {
             title: Cow::Borrowed("Scripts"),
@@ -230,9 +235,15 @@ impl ScriptRuntime {
     }
 }
 
+/// The data that is presented to the user through the script tab in the menu.
 pub struct ScriptRow {
+    /// The name of the script.
     title: String,
+
+    /// The script flags, which will be shown beneath the name.
     flags: BTreeSet<base::Flag>,
+
+    /// The script state, shown on the right-hand side of the row.
     state: base::State,
 }
 
