@@ -11,24 +11,46 @@ use super::{
     js,
 };
 use anyhow::{Context, Result};
+use crossbeam_channel::{Receiver, Sender};
 use once_cell::sync::OnceCell;
 use std::{borrow::Cow, collections::BTreeSet, sync::Mutex};
 
+/// A message used to report an interaction with a script in the menu. Contains the script name and
+/// the state that the user switched it to.
+type StateUpdate = (String, base::State);
+
 /// A structure that manages a group of scripts.
-struct ScriptRuntime {
+struct Runtime {
+    /// The scripts managed by this runtime. This is a collection of different types of scripts (as
+    /// opposed to being just SCM or JS).
     scripts: Vec<Box<dyn base::Script>>,
+
+    /// Receiver for getting messages from the menu.
+    receiver: Receiver<StateUpdate>,
+
+    /// Sender to clone and give to tab structures so that they can communicate with us.
+    sender: Sender<StateUpdate>,
 }
 
-impl ScriptRuntime {
-    fn shared_mut<'rt>() -> std::sync::MutexGuard<'rt, ScriptRuntime> {
+impl Runtime {
+    fn shared_mut<'rt>() -> std::sync::MutexGuard<'rt, Runtime> {
         // Safety: This is safe because the scripts are never accessed from two threads at the same time.
         // (Game code uses them on the same thread that our hooks run.)
-        unsafe impl Send for ScriptRuntime {}
+        unsafe impl Send for Runtime {}
 
-        static SHARED: OnceCell<Mutex<ScriptRuntime>> = OnceCell::new();
+        static SHARED: OnceCell<Mutex<Runtime>> = OnceCell::new();
 
         SHARED
-            .get_or_init(|| Mutex::new(ScriptRuntime { scripts: vec![] }))
+            .get_or_init(|| {
+                Mutex::new({
+                    let (sender, receiver) = crossbeam_channel::unbounded();
+                    Runtime {
+                        scripts: vec![],
+                        receiver,
+                        sender,
+                    }
+                })
+            })
             .lock()
             .unwrap()
     }
@@ -39,6 +61,20 @@ impl ScriptRuntime {
 
     /// Updates each script in turn.
     fn update(&mut self) -> Result<()> {
+        for (name, state) in self.receiver.try_iter() {
+            let script = match self.scripts.iter_mut().find(|s| s.name() == name) {
+                Some(s) => s,
+                None => {
+                    return Err(anyhow::format_err!(
+                        "Received menu update for script named '{}', but no such script found",
+                        name
+                    ))
+                }
+            };
+
+            script.set_state(state);
+        }
+
         for script in &mut self.scripts {
             let update_start = std::time::Instant::now();
 
@@ -131,7 +167,7 @@ impl ScriptRuntime {
         // menu, but we should also ensure that the game does not save with this invalid state.
         // todo: Prevent game saving and quit to main menu on script errors.
 
-        ScriptRuntime::shared_mut()
+        Runtime::shared_mut()
             .update()
             .expect("Script runtime error");
 
@@ -147,7 +183,7 @@ impl ScriptRuntime {
               - Active scripts should be returned to their user-defined state (unless they have
                  warnings attached)
         */
-        ScriptRuntime::shared_mut().reset();
+        Runtime::shared_mut().reset();
     }
 
     /// Returns an appropriate message to give the user based on the number of scripts with severe
@@ -196,7 +232,7 @@ impl ScriptRuntime {
     }
 
     /// Returns the data for the script tab.
-    fn tab_data<'data>(&self) -> data::TabData<'data, ScriptRow> {
+    fn tab_data<'data>(&self) -> data::TabData<'data, StateUpdate, ScriptRow> {
         // Produce a row structure for every script.
         let mut rows: Vec<ScriptRow> = self
             .scripts
@@ -231,6 +267,7 @@ impl ScriptRuntime {
             title: Cow::Borrowed("Scripts"),
             message: warning,
             rows,
+            sender: self.sender.clone(),
         }
     }
 }
@@ -256,7 +293,7 @@ impl ScriptRow {
     }
 }
 
-impl data::RowData for ScriptRow {
+impl data::RowData<StateUpdate> for ScriptRow {
     fn title(&self) -> Cow<'_, str> {
         Cow::Borrowed(&self.title)
     }
@@ -298,10 +335,17 @@ impl data::RowData for ScriptRow {
             None => view::Tint::White,
         }
     }
+
+    fn tap_msg(&mut self) -> Option<StateUpdate> {
+        // Show the user the opposite state (the one they wanted to switch to) and then send that
+        // state to the runtime.
+        self.state = self.state.opposite();
+        Some((self.title.clone(), self.state))
+    }
 }
 
 pub fn init() {
-    crate::targets::init_stage_three::install(ScriptRuntime::load_hook);
-    crate::targets::script_tick::install(ScriptRuntime::tick_hook);
-    crate::targets::reset_before_start::install(ScriptRuntime::reset_hook);
+    crate::targets::init_stage_three::install(Runtime::load_hook);
+    crate::targets::script_tick::install(Runtime::tick_hook);
+    crate::targets::reset_before_start::install(Runtime::reset_hook);
 }

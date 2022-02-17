@@ -1,4 +1,7 @@
 pub mod data {
+    use crossbeam_channel::Sender;
+
+    use super::view;
     use std::borrow::Cow;
 
     /// Provides data that is displayed within a row.
@@ -16,7 +19,7 @@ pub mod data {
 
         /// Returns a value representing the selection of colours that should be applied to the
         /// row's UI components. The tint colour should be selected to provide meaning.
-        fn tint(&self) -> super::view::Tint;
+        fn tint(&self) -> view::Tint;
 
         /// Returns a message to send with the sender in the parent `TabData` structure. This
         /// method will be called when the row is tapped in the menu.
@@ -26,7 +29,7 @@ pub mod data {
     /// Data for a message shown above the rows in a tab.
     pub struct TabMsg<'s> {
         pub text: Cow<'s, str>,
-        pub tint: super::view::Tint,
+        pub tint: view::Tint,
     }
 
     /// Data used to construct a tab for the user to interact with in the menu.
@@ -39,6 +42,9 @@ pub mod data {
 
         /// The rows in the tab.
         pub rows: Vec<R>,
+
+        /// A sender for reporting UI changes.
+        pub sender: Sender<Msg>,
     }
 }
 

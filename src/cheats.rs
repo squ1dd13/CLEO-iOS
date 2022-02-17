@@ -175,26 +175,16 @@ impl Manager {
         // this is > 0 after the update, a cheat state has changed and we need to save.
         let mut state_balance = 0i32;
 
-        // Loop over and process all of the messages we've received.
-        loop {
-            // We use `try_recv` because it doesn't block when there are no more messages.
-            let next = self.receiver.try_recv();
+        // Iterate over and process all of the messages we've received.
+        for (cheat_index, state) in self.receiver.try_iter() {
+            state_balance += if let State::Queued(_) = state { 1 } else { -1 };
 
-            match next {
-                Ok((cheat_index, state)) => {
-                    state_balance += if let State::Queued(_) = state { 1 } else { -1 };
-
-                    if state_balance < 0 {
-                        log::error!("State balance should never be < 0");
-                        state_balance = 0;
-                    }
-
-                    self.cheats[cheat_index].state = state;
-                }
-
-                Err(crossbeam_channel::TryRecvError::Empty) => break,
-                Err(err) => panic!("try_recv error: {}", err),
+            if state_balance < 0 {
+                log::error!("State balance should never be < 0");
+                state_balance = 0;
             }
+
+            self.cheats[cheat_index].state = state;
         }
 
         // Update the cheats *before* saving their states so that we don't save the states of
@@ -229,6 +219,7 @@ Make sure you back up your save if you don't want to risk losing your progress."
             // The rows are actually just cloned cheat structures that send updates back to us so
             // we can modify the real cheats.
             rows: self.cheats.clone(),
+            sender: self.sender.clone(),
         }
     }
 }

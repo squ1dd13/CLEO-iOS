@@ -24,6 +24,22 @@ impl State {
             State::Auto(v) | State::User(v) | State::Trigger(v) => v,
         }
     }
+
+    pub fn opposite(self) -> State {
+        match self {
+            // Auto -> User because we only pick one automatically, so the opposite state must be
+            // user-chosen.
+            State::Auto(v) => State::User(!v),
+
+            // User -> Auto because the user can only pick one, and the opposite must have been
+            // whatever we picked automatically.
+            State::User(v) => State::Auto(!v),
+
+            // Trigger states stay as triggers because there is no automatic selection of these
+            // states (as they are off by default).
+            State::Trigger(v) => State::Trigger(!v),
+        }
+    }
 }
 
 pub enum FocusWish {
