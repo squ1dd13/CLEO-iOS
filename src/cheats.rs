@@ -1,23 +1,39 @@
-use std::borrow::Cow;
 use crate::ui::menu::{data, view};
+use std::borrow::Cow;
 
 /// Describes the cheat's impact on the game.
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq, Eq)]
 enum State {
     /// The cheat is either on or off.
     Concrete(bool),
 
-    /// The cheat is *going to be* on or off, but is currently transitioning.
+    /// The cheat will change state on the next update.
     Queued(bool),
 }
 
 impl State {
+    /// Returns a description of the state that can be shown to the user.
     fn desc(self) -> &'static str {
         match self {
             State::Concrete(true) => "On",
-            State::Concrete(false) => "Off",
-            State::Queued(true) => "Queued On",
-            State::Queued(false) => "Queued Off",
+            State::Queued(true) => "Queued",
+
+            // We hide the queueing mechanic for disabling cheats from the user. As far as they are
+            // concerned, a cheat turns off as soon as they tell it to.
+            State::Concrete(false) | State::Queued(false) => "Off",
+        }
+    }
+
+    /// Returns the state that this one can be toggled to.
+    fn opposite(self) -> State {
+        match self {
+            // Concrete states can be toggled to queued states with the opposite value, as the
+            // queued state represents a transition to the opposite concrete state.
+            State::Concrete(v) => State::Queued(!v),
+
+            // Queued states turn back into whatever they were before they changed, which can only
+            // be a concrete state.
+            State::Queued(v) => State::Concrete(!v),
         }
     }
 }
@@ -29,15 +45,57 @@ struct Cheat {
     /// about this specific cheat.
     index: usize,
 
-    /// The cheat code. Some cheats don't have codes because they were never intended for players to
-    /// use, so will have `None` here.
+    /// The cheat code. Some cheats don't have codes because they were never intended for players
+    /// to use, so will have `None` here.
     code: Option<&'static str>,
 
-    /// A description of the cheat. This should include any warnings about the script's stability.
+    /// A description of the cheat. This should include any warnings about the cheat's stability.
     desc: &'static str,
 
     /// How and when the cheat will affect the game.
     state: State,
+}
+
+impl Cheat {
+    /// Runs the cheat if the user has requested to change its state.
+    fn update(&mut self) {
+        // Skip the update if the state is not changing.
+        if let State::Concrete(_) = self.state {
+            return;
+        }
+
+        let bool_state = self.bool_state();
+
+        // Cheats with functions handle their own states. We just need to call the function.
+        if let Some(func) = self.function() {
+            // Call the game's implementation of the cheat.
+            func();
+
+            // Set a concrete state now that we know the outcome of the cheat function.
+            self.state = State::Concrete(*bool_state);
+
+            return;
+        }
+
+        // We have to set the state ourselves because there is no function to call.
+        *bool_state = match self.state {
+            State::Concrete(v) | State::Queued(v) => v,
+        };
+
+        self.state = State::Concrete(*bool_state);
+    }
+
+    /// Returns a mutable reference to the boolean value that the game uses to keep track of
+    /// whether this cheat is enabled or not.
+    fn bool_state(&self) -> &'static mut bool {
+        todo!()
+    }
+
+    /// If this cheat has a function associated with it, returns the pointer to that function. If
+    /// there is no function, `None` is returned.
+    fn function(&self) -> Option<fn()> {
+        todo!()
+    }
 }
 
 impl data::RowData for Cheat {
@@ -57,12 +115,10 @@ impl data::RowData for Cheat {
     }
 
     fn tint(&self) -> view::Tint {
-        // todo: Consider using red/amber/green to imitate traffic lights.
         match self.state {
             State::Concrete(true) => view::Tint::Green,
-            State::Concrete(false) => view::Tint::White,
             State::Queued(true) => view::Tint::Blue,
-            State::Queued(false) => view::Tint::Red,
+            State::Concrete(false) | State::Queued(false) => view::Tint::White,
         }
     }
 }
