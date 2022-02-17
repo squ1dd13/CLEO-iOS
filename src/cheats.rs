@@ -40,8 +40,13 @@ impl State {
     }
 }
 
+/// The messages that are sent from the rows in the menu to the cheat manager.
+/// Format: (cheat index, new state)
+type StateUpdate = (usize, State);
+
 /// An action that is performed to change the way the game runs, either once or with an ongoing
 /// effect.
+#[derive(Clone, Copy)]
 struct Cheat {
     /// The number of the cheat in arrays in game code. We need this to communicate with the game
     /// about this specific cheat.
@@ -100,7 +105,7 @@ impl Cheat {
     }
 }
 
-impl data::RowData for Cheat {
+impl data::RowData<StateUpdate> for Cheat {
     fn title(&self) -> Cow<'_, str> {
         Cow::Borrowed(match self.code {
             Some(s) => s,
@@ -122,6 +127,15 @@ impl data::RowData for Cheat {
             State::Queued(true) => view::Tint::Blue,
             State::Concrete(false) | State::Queued(false) => view::Tint::White,
         }
+    }
+
+    fn tap_msg(&mut self) -> Option<StateUpdate> {
+        // Update the state here so that we can show the user.
+        self.state = self.state.opposite();
+
+        // Send the new state to the cheat manager so it can be applied to the real cheat when the
+        // game resumes.
+        Some((self.index, self.state))
     }
 }
 
@@ -196,6 +210,27 @@ impl Manager {
             log::info!("No overall changes to cheat states, so no save required.");
         }
     }
+
+    fn tab_data(&self) -> data::TabData<StateUpdate, Cheat> {
+        data::TabData {
+            title: Cow::Borrowed("Cheats"),
+
+            // Show a message to warn the user of the dangers of messing with cheats.
+            message: Some(data::TabMsg {
+                text: Cow::Borrowed(
+                    r"Some cheats may crash the game or corrupt your savegame.
+Make sure you back up your save if you don't want to risk losing your progress.",
+                ),
+
+                // This is a warning, so tint it orange.
+                tint: view::Tint::Orange,
+            }),
+
+            // The rows are actually just cloned cheat structures that send updates back to us so
+            // we can modify the real cheats.
+            rows: self.cheats.clone(),
+        }
+    }
 }
 
 pub fn init() {
@@ -203,6 +238,9 @@ pub fn init() {
 }
 
 fn cheats_vec() -> Vec<Cheat> {
+    // Pages I found useful for writing this list:
+    //  https://docs.google.com/spreadsheets/d/1-rmga12W9reALga7fct22tJ-1thxbbsfGiGltK2qgh0/edit
+    //  https://gta.fandom.com/wiki/Cheats_in_GTA_San_Andreas
     const PROTOTYPES: [(&str, &str); 111] = [
         ("THUGSARMOURY", "Weapon set 1"),
         ("PROFESSIONALSKIT", "Weapon set 2"),

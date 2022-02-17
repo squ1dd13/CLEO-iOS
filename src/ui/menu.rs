@@ -2,7 +2,7 @@ pub mod data {
     use std::borrow::Cow;
 
     /// Provides data that is displayed within a row.
-    pub trait RowData {
+    pub trait RowData<Msg> {
         /// Returns the title of the row.
         fn title(&self) -> Cow<'_, str>;
 
@@ -17,16 +17,20 @@ pub mod data {
         /// Returns a value representing the selection of colours that should be applied to the
         /// row's UI components. The tint colour should be selected to provide meaning.
         fn tint(&self) -> super::view::Tint;
+
+        /// Returns a message to send with the sender in the parent `TabData` structure. This
+        /// method will be called when the row is tapped in the menu.
+        fn tap_msg(&mut self) -> Option<Msg>;
     }
 
     /// Data for a message shown above the rows in a tab.
     pub struct TabMsg<'s> {
-        pub text: Cow<'s, String>,
+        pub text: Cow<'s, str>,
         pub tint: super::view::Tint,
     }
 
     /// Data used to construct a tab for the user to interact with in the menu.
-    pub struct TabData<'s, R: RowData> {
+    pub struct TabData<'s, Msg, R: RowData<Msg>> {
         /// The title of the tab. This is shown at the top of the menu.
         pub title: Cow<'s, str>,
 
