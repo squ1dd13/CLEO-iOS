@@ -600,7 +600,7 @@ impl Menu {
             vec![
                 // crate::scripts::tab_data_csi(),
                 // crate::scripts::tab_data_csa(),
-                crate::cheats::tab_data(),
+                crate::old_cheats::tab_data(),
                 crate::settings::tab_data(),
             ]
         } else {

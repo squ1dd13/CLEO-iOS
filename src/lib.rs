@@ -12,6 +12,7 @@ mod extras;
 mod files;
 mod hook;
 mod logging;
+mod old_cheats;
 mod scripts;
 mod settings;
 mod text;
@@ -114,6 +115,7 @@ fn initialise() {
     text::init();
     extras::init();
     scripts::init();
+    // old_cheats::init();
     cheats::init();
 }
 
