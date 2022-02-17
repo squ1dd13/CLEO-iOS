@@ -5,7 +5,7 @@ use std::{borrow::Cow, sync::Mutex};
 
 /// Describes the cheat's impact on the game.
 #[derive(Clone, Copy)]
-enum State {
+pub enum State {
     /// The cheat is either on or off.
     Concrete(bool),
 
@@ -42,7 +42,7 @@ impl State {
 
 /// The messages that are sent from the rows in the menu to the cheat manager.
 /// Format: (cheat index, new state)
-type StateUpdate = (usize, State);
+pub type StateUpdate = (usize, State);
 
 /// An action that is performed to change the way the game runs, either once or with an ongoing
 /// effect.
@@ -212,7 +212,18 @@ impl Manager {
         }
     }
 
-    fn tab_data(&self) -> data::TabData<StateUpdate, Cheat> {
+    /// Disables all of the cheats.
+    fn reset(&mut self) {
+        while self.receiver.try_recv().is_ok() {
+            log::info!("Ignoring state message during reset.");
+        }
+
+        for cheat in &mut self.cheats {
+            cheat.state = State::Concrete(false);
+        }
+    }
+
+    fn tab_data(&self) -> data::TabData<'static, StateUpdate, Cheat> {
         data::TabData {
             title: Cow::Borrowed("Cheats"),
 
@@ -236,8 +247,23 @@ Make sure you back up your save if you don't want to risk losing your progress."
     }
 }
 
+// fixme: We shouldn't need to expose `StateUpdate` here. Find a better way to do this.
+pub fn tab_data() -> data::TabData<'static, StateUpdate, impl data::RowData<StateUpdate>> {
+    Manager::shared_mut().tab_data()
+}
+
 pub fn init() {
-    todo!()
+    // Hook the function that updates the cheat system. This is called once every tick.
+    crate::targets::do_cheats::install(|| {
+        Manager::shared_mut().update();
+    });
+
+    // Hook the function that resets the cheat states between games.
+    crate::targets::reset_cheats::install(|| {
+        log::info!("Resetting cheats");
+        crate::call_original!(crate::targets::reset_cheats);
+        Manager::shared_mut().reset();
+    });
 }
 
 fn cheats_vec() -> Vec<Cheat> {
