@@ -25,6 +25,7 @@ impl State {
         }
     }
 
+    /// Returns the state that this state should turn into when the script is toggled.
     pub fn opposite(self) -> State {
         match self {
             // Auto -> User because we only pick one automatically, so the opposite state must be
