@@ -219,6 +219,7 @@ Make sure you back up your save if you don't want to risk losing your progress."
             // The rows are actually just cloned cheat structures that send updates back to us so
             // we can modify the real cheats.
             rows: self.cheats.clone(),
+
             sender: self.sender.clone(),
         }
     }

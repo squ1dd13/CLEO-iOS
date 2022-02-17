@@ -59,9 +59,13 @@ impl Runtime {
         self.scripts.push(script);
     }
 
-    /// Updates each script in turn.
+    /// Updates each script in turn. Also processes any new messages that have arrived from the
+    /// menu since the last update.
     fn update(&mut self) -> Result<()> {
+        // Process new user interaction messages.
         for (name, state) in self.receiver.try_iter() {
+            // fixme: Maybe do something better than a linear search by name here.
+            // Find the script whose state we're changing.
             let script = match self.scripts.iter_mut().find(|s| s.name() == name) {
                 Some(s) => s,
                 None => {
@@ -72,6 +76,7 @@ impl Runtime {
                 }
             };
 
+            // Change the state to the new one from the message.
             script.set_state(state);
         }
 
