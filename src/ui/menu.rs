@@ -54,6 +54,8 @@ pub mod view {
         *,
     };
 
+    use crate::ui::gui;
+
     /// Colours that are applied to menu information to add extra meaning.
     ///
     /// [coolors.co](https://coolors.co/78c8ff-4e9540-ffffff-ff535e-ff8000-f3b61f)
@@ -81,7 +83,7 @@ pub mod view {
         }
 
         /// Returns the colour that text using this tint should be.
-        pub fn text_colour(self) -> *const Object {
+        fn text_colour(self) -> *const Object {
             let (r, g, b) = self.rgb();
 
             unsafe {
@@ -94,7 +96,7 @@ pub mod view {
 
         /// Returns the background colour that should be used for areas of the screen with this
         /// tint.
-        pub fn background_colour(self) -> *const Object {
+        fn background_colour(self) -> *const Object {
             let (r, g, b) = self.rgb();
 
             unsafe {
@@ -102,6 +104,61 @@ pub mod view {
                                                   green: g as f64 / 255.
                                                    blue: b as f64 / 255.
                                                   alpha: 0.2_f64]
+            }
+        }
+    }
+
+    /// A wrapper around the Objective-C `UILabel` class.
+    struct Label(*mut Object);
+
+    impl Label {
+        fn with_frame(frame: gui::CGRect) -> Label {
+            unsafe {
+                let label: *mut Object = msg_send![class!(UILabel), alloc];
+                let label: *mut Object = msg_send![label, initWithFrame: frame];
+                Label(label)
+            }
+        }
+
+        fn set_text(&mut self, text: &impl AsRef<str>) {
+            unsafe {
+                let c_string = std::ffi::CString::new(text.as_ref()).expect("CString::new failed");
+                let ns_string: *const Object =
+                    msg_send![class!(NSString), stringWithUTF8String: c_string.as_ptr()];
+
+                let _: () = msg_send![self.0, setText: ns_string];
+            }
+        }
+
+        fn set_background(&mut self, colour: *const Object) {
+            unsafe {
+                let _: () = msg_send![self.0, setBackgroundColor: colour];
+            }
+        }
+
+        fn set_foreground(&mut self, colour: *const Object) {
+            unsafe {
+                let _: () = msg_send![self.0, setTextColor: colour];
+            }
+        }
+
+        fn set_size_font_to_fit(&mut self, stf: bool) {
+            unsafe {
+                let _: () = msg_send![self.0, setAdjustsFontSizeToFitWidth: stf];
+            }
+        }
+
+        fn set_alignment(&mut self, alignment: u64) {
+            unsafe {
+                let _: () = msg_send![self.0, setTextAlignment: 0u64];
+            }
+        }
+    }
+
+    impl Drop for Label {
+        fn drop(&mut self) {
+            unsafe {
+                let _: () = msg_send![self.0, release];
             }
         }
     }
