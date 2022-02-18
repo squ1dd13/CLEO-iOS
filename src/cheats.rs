@@ -223,6 +223,7 @@ impl Manager {
         }
     }
 
+    /// Creates the tab data for allowing the user to interact with the cheat system from the menu.
     fn tab_data(&self) -> data::TabData<'static, StateUpdate, Cheat> {
         data::TabData {
             title: Cow::Borrowed("Cheats"),
