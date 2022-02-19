@@ -150,7 +150,7 @@ pub mod view {
 
         fn set_alignment(&mut self, alignment: u64) {
             unsafe {
-                let _: () = msg_send![self.0, setTextAlignment: 0u64];
+                let _: () = msg_send![self.0, setTextAlignment: alignment];
             }
         }
     }

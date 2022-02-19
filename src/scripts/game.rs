@@ -220,16 +220,16 @@ impl base::Script for CleoScript {
         self.state = state;
     }
 
+    fn state(&self) -> base::State {
+        self.state
+    }
+
     fn name(&self) -> std::borrow::Cow<'_, str> {
         std::borrow::Cow::from(&self.name)
     }
 
     fn add_flag(&mut self, flag: base::Flag) {
         self.flags.insert(flag);
-    }
-
-    fn state(&self) -> base::State {
-        self.state
     }
 
     fn flags(&self) -> &BTreeSet<base::Flag> {

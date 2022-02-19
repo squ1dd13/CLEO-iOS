@@ -284,7 +284,7 @@ pub struct ScriptUnit {
     /// execute on another thread.
     script: Script,
 
-    /// The connection through which we communicate with the script's theread of execution.
+    /// The connection through which we communicate with the script's thread of execution.
     conn: JsConn,
 
     /// A skeleton script that we use to run the JIT-compiled instructions requested by the
@@ -461,16 +461,16 @@ impl base::Script for ScriptUnit {
         self.puppet.set_state(state);
     }
 
+    fn state(&self) -> base::State {
+        self.puppet.state()
+    }
+
     fn name(&self) -> std::borrow::Cow<'_, str> {
         std::borrow::Cow::Borrowed(&self.script.name)
     }
 
     fn add_flag(&mut self, flag: base::Flag) {
         self.puppet.add_flag(flag);
-    }
-
-    fn state(&self) -> base::State {
-        self.puppet.state()
     }
 
     fn flags(&self) -> &std::collections::BTreeSet<base::Flag> {

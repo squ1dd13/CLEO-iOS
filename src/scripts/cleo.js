@@ -15,7 +15,7 @@ console.log("cleo.js loaded successfully!");
 const gxtKey = "JS_MSG";
 setGxtKeyValue(gxtKey, "Hello from JavaScript!");
 
-// Wait 10 seconds so we know the game is definitely ready.
+// Wait 10 seconds, so we know the game is definitely ready.
 sleep(10_000);
 
 // Show the message for 3 seconds.
