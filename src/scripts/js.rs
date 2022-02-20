@@ -1,17 +1,19 @@
 //! Provides a runtime, for JavaScript scripts, that integrates with the SCM runtime to allow full
 //! scripting capabilities to be used in JavaScript code.
 
-use crate::scripts::asm;
-
-use super::{asm::Value, base, game};
-use anyhow::Result;
-use crossbeam_channel::{Receiver, Sender, TryRecvError};
-use quick_js::{Context, JsValue};
-use serde::{Deserialize, Serialize};
 use std::{
     hash::{Hash, Hasher},
     thread::{self, JoinHandle},
 };
+
+use anyhow::Result;
+use crossbeam_channel::{Receiver, Sender, TryRecvError};
+use quick_js::{Context, JsValue};
+use serde::{Deserialize, Serialize};
+
+use crate::scripts::asm;
+
+use super::{asm::Value, base, game};
 
 fn get_scm_value(value: &JsValue) -> Result<Value> {
     Ok(match value {
@@ -168,7 +170,7 @@ impl Script {
 
                 match response {
                     Some(RespMsg::Exit) => {
-                        return Err(anyhow::format_err!("Script thread exiting"))
+                        return Err(anyhow::format_err!("Script thread exiting"));
                     }
                     Some(RespMsg::InstrDone(flag, continue_time)) => {
                         let game_time = game::time();

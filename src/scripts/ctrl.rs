@@ -1,6 +1,12 @@
 //! Manages the script runtime. It is responsible for loading and controlling all
 //! scripts used by CLEO.
 
+use std::{borrow::Cow, collections::BTreeSet, sync::Mutex};
+
+use anyhow::{Context, Result};
+use crossbeam_channel::{Receiver, Sender};
+use once_cell::sync::OnceCell;
+
 use crate::ui::menu::{
     data::{self, RowData},
     view,
@@ -10,10 +16,6 @@ use super::{
     base::{self, Script},
     js,
 };
-use anyhow::{Context, Result};
-use crossbeam_channel::{Receiver, Sender};
-use once_cell::sync::OnceCell;
-use std::{borrow::Cow, collections::BTreeSet, sync::Mutex};
 
 /// A message used to report an interaction with a script in the menu. Contains the script name and
 /// the state that the user switched it to.
@@ -72,7 +74,7 @@ impl Runtime {
                     return Err(anyhow::format_err!(
                         "Received menu update for script named '{}', but no such script found",
                         name
-                    ))
+                    ));
                 }
             };
 

@@ -1,12 +1,14 @@
 //! Implements scripts similar to those used by the game itself in that they use the game's own SCM
 //! bytecode.
 
+use std::collections::BTreeSet;
+
+use anyhow::Result;
+
 use super::{
     asm,
     base::{self, Script},
 };
-use anyhow::Result;
-use std::collections::BTreeSet;
 
 /// A script structure that manages a raw game script while providing a high-level interface.
 pub struct CleoScript {
@@ -139,7 +141,7 @@ impl CleoScript {
                 return Err(anyhow::format_err!(
                     "Opcode {:#x} not yet implemented",
                     opcode
-                ))
+                ));
             }
 
             // Some Android opcodes are unsupported on iOS.

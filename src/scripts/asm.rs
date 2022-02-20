@@ -1,12 +1,13 @@
 //! Provides assembly, disassembly and safety checking for SCM bytecode.
 
+use std::collections::{BTreeSet, HashMap};
+use std::fmt::Display;
+use std::io::{self, Cursor, Error, ErrorKind, Seek};
+
 use anyhow::Result;
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 use once_cell::sync::OnceCell;
 use serde::{Deserialize, Serialize};
-use std::collections::{BTreeSet, HashMap};
-use std::fmt::Display;
-use std::io::{self, Cursor, Error, ErrorKind, Seek};
 
 use super::base;
 
