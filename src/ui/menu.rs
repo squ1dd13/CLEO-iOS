@@ -1,8 +1,9 @@
 pub mod data {
+    use std::borrow::Cow;
+
     use crossbeam_channel::Sender;
 
     use super::view;
-    use std::borrow::Cow;
 
     /// Provides data that is displayed within a row.
     pub trait RowData<Msg> {

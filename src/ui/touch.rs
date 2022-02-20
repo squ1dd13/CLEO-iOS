@@ -1,12 +1,14 @@
 //! Provides touch information to other modules, and directly controls the showing/hiding
 //! of the menu when related to touch events.
 
-use crate::ui::gui::CGRect;
-use crate::{call_original, targets};
+use std::sync::Mutex;
+
 use cached::proc_macro::cached;
 use objc::{runtime::Object, *};
 use once_cell::sync::OnceCell;
-use std::sync::Mutex;
+
+use crate::ui::gui::CGRect;
+use crate::{call_original, targets};
 
 #[cached]
 fn get_screen_size() -> (f64, f64) {

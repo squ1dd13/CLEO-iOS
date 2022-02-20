@@ -1,8 +1,9 @@
 //! Adapts and uses the game's controller system to allow CLEO to take advantage of controllers.
 // fixme: Controller support is disabled for the new menu system.
 
-use objc::{runtime::Object, *};
 use std::sync::atomic::AtomicU16;
+
+use objc::{runtime::Object, *};
 
 // use crate::old_menu::MenuAction;
 

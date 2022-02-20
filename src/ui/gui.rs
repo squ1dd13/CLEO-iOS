@@ -1,13 +1,15 @@
 //! Hooks the splash screen to display our "CLEO" numberplate, and also provides a Rust interface for some
 //! common UIKit code.
 
-use crate::{call_original, targets};
+use std::os::raw::c_long;
+
 use log::trace;
 use objc::{
     runtime::{Object, Sel},
     *,
 };
-use std::os::raw::c_long;
+
+use crate::{call_original, targets};
 
 #[repr(C)]
 #[derive(Clone, Copy)]
