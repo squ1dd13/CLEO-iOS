@@ -1,7 +1,9 @@
-use crate::ui::menu::{data, view};
+use std::{borrow::Cow, sync::Mutex};
+
 use crossbeam_channel::{Receiver, Sender};
 use once_cell::sync::Lazy;
-use std::{borrow::Cow, sync::Mutex};
+
+use crate::ui::menu::{data, view};
 
 /// Describes the cheat's impact on the game.
 #[derive(Clone, Copy)]
@@ -44,6 +46,16 @@ impl State {
 /// Format: (cheat index, new state)
 pub type StateUpdate = (usize, State);
 
+/// Whether a cheat is known to cause game crashes.
+#[derive(Clone, Copy)]
+enum Stability {
+    /// The cheat is considered safe. No warning will be shown in the menu.
+    Stable,
+
+    /// The cheat is likely to crash the game. The user will be warned.
+    Crashes,
+}
+
 /// An action that is performed to change the way the game runs, either once or with an ongoing
 /// effect.
 #[derive(Clone, Copy)]
@@ -63,7 +75,7 @@ struct Cheat {
     state: State,
 
     /// Whether the cheat is known to crash the game.
-    crashes: bool,
+    stability: Stability,
 }
 
 impl Cheat {
@@ -117,13 +129,12 @@ impl data::RowData<StateUpdate> for Cheat {
     }
 
     fn detail(&self) -> Vec<Cow<'_, str>> {
-        if self.crashes {
-            vec![
+        match self.stability {
+            Stability::Stable => vec![Cow::Borrowed(self.desc)],
+            Stability::Crashes => vec![
                 Cow::Borrowed(self.desc),
                 Cow::Borrowed("This cheat crashes the game."),
             ]
-        } else {
-            vec![Cow::Borrowed(self.desc)]
         }
     }
 
@@ -133,10 +144,17 @@ impl data::RowData<StateUpdate> for Cheat {
 
     fn tint(&self) -> view::Tint {
         match self.state {
-            _ if self.crashes => view::Tint::Orange,
             State::Concrete(true) => view::Tint::Green,
             State::Queued(true) => view::Tint::Blue,
-            State::Concrete(false) | State::Queued(false) => view::Tint::White,
+
+            State::Concrete(false) | State::Queued(false) => match self.stability {
+                Stability::Stable => view::Tint::White,
+
+                // Only show the orange tint on cheats that are disabled. All cheats start
+                // disabled (unless saved enabled), so the user will see this tint at least once
+                // before they decide to enable the cheat anyway.
+                Stability::Crashes => view::Tint::Orange
+            },
         }
     }
 
@@ -144,8 +162,8 @@ impl data::RowData<StateUpdate> for Cheat {
         // Update the state here so that we can show the user.
         self.state = self.state.opposite();
 
-        // Send the new state to the cheat manager so it can be applied to the real cheat when the
-        // game resumes.
+        // Send the new state to the cheat manager so that it can be applied to the real cheat
+        // when the game resumes.
         Some((self.index, self.state))
     }
 }
@@ -157,10 +175,10 @@ struct Manager {
 
     /// A sender that we can clone to give to the menu. The menu can then report back cheat state
     /// changes.
-    sender: Sender<(usize, State)>,
+    sender: Sender<StateUpdate>,
 
     /// The receiver that we use to hold and process menu events.
-    receiver: Receiver<(usize, State)>,
+    receiver: Receiver<StateUpdate>,
 }
 
 impl Manager {
@@ -183,7 +201,7 @@ impl Manager {
     /// Updates all of the cheats that require state changes.
     fn update(&mut self) {
         // The number of queued states that have been set minus the number of concrete states. If
-        // this is > 0 after the update, a cheat state has changed and we need to save.
+        // this is > 0 after the update, a cheat state has changed, and we need to save.
         let mut state_balance = 0i32;
 
         // Iterate over and process all of the messages we've received.
@@ -240,7 +258,7 @@ Make sure you back up your save if you don't want to risk losing your progress."
             }),
 
             // The rows are actually just cloned cheat structures that send updates back to us so
-            // we can modify the real cheats.
+            // that we can modify the real cheats.
             rows: self.cheats.clone(),
 
             sender: self.sender.clone(),
@@ -268,160 +286,162 @@ pub fn init() {
 }
 
 fn cheats_vec() -> Vec<Cheat> {
+    use Stability::*;
+
     // Pages I found useful for writing this list:
     //  https://docs.google.com/spreadsheets/d/1-rmga12W9reALga7fct22tJ-1thxbbsfGiGltK2qgh0/edit
     //  https://gta.fandom.com/wiki/Cheats_in_GTA_San_Andreas
-    const PROTOTYPES: [(&str, &str, bool); 111] = [
-        ("THUGSARMOURY", "Weapon set 1", false),
-        ("PROFESSIONALSKIT", "Weapon set 2", false),
-        ("NUTTERSTOYS", "Weapon set 3", false),
+    const PROTOTYPES: [(&str, &str, Stability); 111] = [
+        ("THUGSARMOURY", "Weapon set 1", Stable),
+        ("PROFESSIONALSKIT", "Weapon set 2", Stable),
+        ("NUTTERSTOYS", "Weapon set 3", Stable),
         (
             "",
             "Give dildo, minigun and thermal/night-vision goggles",
-            false,
+            Stable,
         ),
-        ("", "Advance clock by 4 hours", false),
-        ("", "Skip to completion on some missions", false),
-        ("", "Debug (show mappings)", false),
-        ("", "Full invincibility", false),
-        ("", "Debug (show tap to target)", false),
-        ("", "Debug (show targeting)", false),
-        ("INEEDSOMEHELP", "Give health, armour and $250,000", false),
-        ("TURNUPTHEHEAT", "Increase wanted level by two stars", false),
-        ("TURNDOWNTHEHEAT", "Clear wanted level", false),
-        ("PLEASANTLYWARM", "Sunny weather", false),
-        ("TOODAMNHOT", "Very sunny weather", false),
-        ("DULLDULLDAY", "Overcast weather", false),
-        ("STAYINANDWATCHTV", "Rainy weather", false),
-        ("CANTSEEWHEREIMGOING", "Foggy weather", false),
-        ("TIMEJUSTFLIESBY", "Faster time", false),
-        ("SPEEDITUP", "Faster gameplay", false),
-        ("SLOWITDOWN", "Slower gameplay", false),
+        ("", "Advance clock by 4 hours", Stable),
+        ("", "Skip to completion on some missions", Stable),
+        ("", "Debug (show mappings)", Stable),
+        ("", "Full invincibility", Stable),
+        ("", "Debug (show tap to target)", Stable),
+        ("", "Debug (show targeting)", Stable),
+        ("INEEDSOMEHELP", "Give health, armour and $250,000", Stable),
+        ("TURNUPTHEHEAT", "Increase wanted level by two stars", Stable),
+        ("TURNDOWNTHEHEAT", "Clear wanted level", Stable),
+        ("PLEASANTLYWARM", "Sunny weather", Stable),
+        ("TOODAMNHOT", "Very sunny weather", Stable),
+        ("DULLDULLDAY", "Overcast weather", Stable),
+        ("STAYINANDWATCHTV", "Rainy weather", Stable),
+        ("CANTSEEWHEREIMGOING", "Foggy weather", Stable),
+        ("TIMEJUSTFLIESBY", "Faster time", Stable),
+        ("SPEEDITUP", "Faster gameplay", Stable),
+        ("SLOWITDOWN", "Slower gameplay", Stable),
         (
             "ROUGHNEIGHBOURHOOD",
             "Pedestrians riot, give player golf club",
-            false,
+            Stable,
         ),
-        ("STOPPICKINGONME", "Pedestrians attack the player", false),
-        ("SURROUNDEDBYNUTTERS", "Give pedestrians weapons", false),
-        ("TIMETOKICKASS", "Spawn Rhino tank", false),
-        ("OLDSPEEDDEMON", "Spawn Bloodring Banger", false),
-        ("", "Spawn stock car", false),
-        ("NOTFORPUBLICROADS", "Spawn Hotring Racer A", false),
-        ("JUSTTRYANDSTOPME", "Spawn Hotring Racer B", false),
-        ("WHERESTHEFUNERAL", "Spawn Romero", false),
-        ("CELEBRITYSTATUS", "Spawn Stretch Limousine", false),
-        ("TRUEGRIME", "Spawn Trashmaster", false),
-        ("18HOLES", "Spawn Caddy", false),
-        ("ALLCARSGOBOOM", "Explode all vehicles", false),
-        ("WHEELSONLYPLEASE", "Invisible cars", false),
-        ("STICKLIKEGLUE", "Improved suspension and handling", false),
-        ("GOODBYECRUELWORLD", "Suicide", false),
-        ("DONTTRYANDSTOPME", "Traffic lights are always green", false),
+        ("STOPPICKINGONME", "Pedestrians attack the player", Stable),
+        ("SURROUNDEDBYNUTTERS", "Give pedestrians weapons", Stable),
+        ("TIMETOKICKASS", "Spawn Rhino tank", Stable),
+        ("OLDSPEEDDEMON", "Spawn Bloodring Banger", Stable),
+        ("", "Spawn stock car", Stable),
+        ("NOTFORPUBLICROADS", "Spawn Hotring Racer A", Stable),
+        ("JUSTTRYANDSTOPME", "Spawn Hotring Racer B", Stable),
+        ("WHERESTHEFUNERAL", "Spawn Romero", Stable),
+        ("CELEBRITYSTATUS", "Spawn Stretch Limousine", Stable),
+        ("TRUEGRIME", "Spawn Trashmaster", Stable),
+        ("18HOLES", "Spawn Caddy", Stable),
+        ("ALLCARSGOBOOM", "Explode all vehicles", Stable),
+        ("WHEELSONLYPLEASE", "Invisible cars", Stable),
+        ("STICKLIKEGLUE", "Improved suspension and handling", Stable),
+        ("GOODBYECRUELWORLD", "Suicide", Stable),
+        ("DONTTRYANDSTOPME", "Traffic lights are always green", Stable),
         (
             "ALLDRIVERSARECRIMINALS",
             "All NPC drivers drive aggressively and have a wanted level",
-            false,
+            Stable,
         ),
-        ("PINKISTHENEWCOOL", "Pink traffic", false),
-        ("SOLONGASITSBLACK", "Black traffic", false),
-        ("", "Cars have sideways wheels", false),
-        ("FLYINGFISH", "Flying boats", false),
-        ("WHOATEALLTHEPIES", "Maximum fat", false),
-        ("BUFFMEUP", "Maximum muscle", false),
-        ("", "Maximum gambling skill", false),
-        ("LEANANDMEAN", "Minimum fat and muscle", false),
-        ("BLUESUEDESHOES", "All pedestrians are Elvis Presley", false),
+        ("PINKISTHENEWCOOL", "Pink traffic", Stable),
+        ("SOLONGASITSBLACK", "Black traffic", Stable),
+        ("", "Cars have sideways wheels", Stable),
+        ("FLYINGFISH", "Flying boats", Stable),
+        ("WHOATEALLTHEPIES", "Maximum fat", Stable),
+        ("BUFFMEUP", "Maximum muscle", Stable),
+        ("", "Maximum gambling skill", Stable),
+        ("LEANANDMEAN", "Minimum fat and muscle", Stable),
+        ("BLUESUEDESHOES", "All pedestrians are Elvis Presley", Stable),
         (
             "ATTACKOFTHEVILLAGEPEOPLE",
             "Pedestrians attack the player with guns and rockets",
-            false,
+            Stable,
         ),
-        ("LIFESABEACH", "Beach party theme", false),
-        ("ONLYHOMIESALLOWED", "Gang wars", false),
+        ("LIFESABEACH", "Beach party theme", Stable),
+        ("ONLYHOMIESALLOWED", "Gang wars", Stable),
         (
             "BETTERSTAYINDOORS",
             "Pedestrians replaced with fighting gang members",
-            false,
+            Stable,
         ),
-        ("NINJATOWN", "Triad theme", false),
-        ("LOVECONQUERSALL", "Pimp mode", false),
-        ("EVERYONEISPOOR", "Rural traffic", false),
-        ("EVERYONEISRICH", "Sports car traffic", false),
-        ("CHITTYCHITTYBANGBANG", "Flying cars", false),
-        ("CJPHONEHOME", "Very high bunny hops", false),
-        ("JUMPJET", "Spawn Hydra", false),
-        ("IWANTTOHOVER", "Spawn Vortex", false),
+        ("NINJATOWN", "Triad theme", Stable),
+        ("LOVECONQUERSALL", "Pimp mode", Stable),
+        ("EVERYONEISPOOR", "Rural traffic", Stable),
+        ("EVERYONEISRICH", "Sports car traffic", Stable),
+        ("CHITTYCHITTYBANGBANG", "Flying cars", Stable),
+        ("CJPHONEHOME", "Very high bunny hops", Stable),
+        ("JUMPJET", "Spawn Hydra", Stable),
+        ("IWANTTOHOVER", "Spawn Vortex", Stable),
         (
             "TOUCHMYCARYOUDIE",
             "Destroy other vehicles on collision",
-            false,
+            Stable,
         ),
-        ("SPEEDFREAK", "All cars have nitro", false),
-        ("BUBBLECARS", "Cars float away when hit", false),
-        ("NIGHTPROWLER", "Always midnight", false),
-        ("DONTBRINGONTHENIGHT", "Always 9PM", false),
-        ("SCOTTISHSUMMER", "Stormy weather", false),
-        ("SANDINMYEARS", "Sandstorm", false),
-        ("", "Predator?", false),
-        ("KANGAROO", "10x jump height", false),
-        ("NOONECANHURTME", "Infinite health", false),
-        ("MANFROMATLANTIS", "Infinite lung capacity", false),
-        ("LETSGOBASEJUMPING", "Spawn Parachute", false),
-        ("ROCKETMAN", "Spawn Jetpack", false),
-        ("IDOASIPLEASE", "Lock wanted level", false),
-        ("BRINGITON", "Six-star wanted level", false),
-        ("STINGLIKEABEE", "Super punches", false),
-        ("IAMNEVERHUNGRY", "Player never gets hungry", false),
-        ("STATEOFEMERGENCY", "Pedestrians riot", false),
-        ("CRAZYTOWN", "Carnival theme", false),
-        ("TAKEACHILLPILL", "Adrenaline effects", false),
-        ("FULLCLIP", "Everyone has unlimited ammo", false),
-        ("IWANNADRIVEBY", "Full weapon control in vehicles", false),
-        ("GHOSTTOWN", "No pedestrians, reduced live traffic", false),
-        ("HICKSVILLE", "Rural theme", false),
-        ("WANNABEINMYGANG", "Recruit anyone with pistols", false),
-        ("NOONECANSTOPUS", "Recruit anyone with AK-47s", false),
+        ("SPEEDFREAK", "All cars have nitro", Stable),
+        ("BUBBLECARS", "Cars float away when hit", Stable),
+        ("NIGHTPROWLER", "Always midnight", Stable),
+        ("DONTBRINGONTHENIGHT", "Always 9PM", Stable),
+        ("SCOTTISHSUMMER", "Stormy weather", Stable),
+        ("SANDINMYEARS", "Sandstorm", Stable),
+        ("", "Predator?", Stable),
+        ("KANGAROO", "10x jump height", Stable),
+        ("NOONECANHURTME", "Infinite health", Stable),
+        ("MANFROMATLANTIS", "Infinite lung capacity", Stable),
+        ("LETSGOBASEJUMPING", "Spawn Parachute", Stable),
+        ("ROCKETMAN", "Spawn Jetpack", Stable),
+        ("IDOASIPLEASE", "Lock wanted level", Stable),
+        ("BRINGITON", "Six-star wanted level", Stable),
+        ("STINGLIKEABEE", "Super punches", Stable),
+        ("IAMNEVERHUNGRY", "Player never gets hungry", Stable),
+        ("STATEOFEMERGENCY", "Pedestrians riot", Stable),
+        ("CRAZYTOWN", "Carnival theme", Stable),
+        ("TAKEACHILLPILL", "Adrenaline effects", Stable),
+        ("FULLCLIP", "Everyone has unlimited ammo", Stable),
+        ("IWANNADRIVEBY", "Full weapon control in vehicles", Stable),
+        ("GHOSTTOWN", "No pedestrians, reduced live traffic", Stable),
+        ("HICKSVILLE", "Rural theme", Stable),
+        ("WANNABEINMYGANG", "Recruit anyone with pistols", Stable),
+        ("NOONECANSTOPUS", "Recruit anyone with AK-47s", Stable),
         (
             "ROCKETMAYHEM",
             "Recruit anyone with rocket launchers",
-            false,
+            Stable,
         ),
-        ("WORSHIPME", "Maximum respect", false),
-        ("HELLOLADIES", "Maximum sex appeal", false),
-        ("ICANGOALLNIGHT", "Maximum stamina", false),
-        ("PROFESSIONALKILLER", "Hitman level for all weapons", false),
-        ("NATURALTALENT", "Maximum vehicle skills", false),
-        ("OHDUDE", "Spawn Hunter", false),
-        ("FOURWHEELFUN", "Spawn Quad", false),
-        ("HITTHEROADJACK", "Spawn Tanker with Tanker Trailer", false),
-        ("ITSALLBULL", "Spawn Dozer", false),
-        ("FLYINGTOSTUNT", "Spawn Stunt Plane", false),
-        ("MONSTERMASH", "Spawn Monster Truck", false),
-        ("", "Prostitutes pay you", false),
-        ("", "Taxis have hydraulics and nitro", false),
-        ("", "Slot cheat 1", true),
-        ("", "Slot cheat 2", true),
-        ("", "Slot cheat 3", true),
-        ("", "Slot cheat 4", true),
-        ("", "Slot cheat 5", true),
-        ("", "Slot cheat 6", true),
-        ("", "Slot cheat 7", true),
-        ("", "Slot cheat 8", true),
-        ("", "Slot cheat 9", true),
-        ("", "Slot cheat 10", true),
-        ("", "Xbox helper", false),
+        ("WORSHIPME", "Maximum respect", Stable),
+        ("HELLOLADIES", "Maximum sex appeal", Stable),
+        ("ICANGOALLNIGHT", "Maximum stamina", Stable),
+        ("PROFESSIONALKILLER", "Hitman level for all weapons", Stable),
+        ("NATURALTALENT", "Maximum vehicle skills", Stable),
+        ("OHDUDE", "Spawn Hunter", Stable),
+        ("FOURWHEELFUN", "Spawn Quad", Stable),
+        ("HITTHEROADJACK", "Spawn Tanker with Tanker Trailer", Stable),
+        ("ITSALLBULL", "Spawn Dozer", Stable),
+        ("FLYINGTOSTUNT", "Spawn Stunt Plane", Stable),
+        ("MONSTERMASH", "Spawn Monster Truck", Stable),
+        ("", "Prostitutes pay you", Stable),
+        ("", "Taxis have hydraulics and nitro", Stable),
+        ("", "Slot cheat 1", Crashes),
+        ("", "Slot cheat 2", Crashes),
+        ("", "Slot cheat 3", Crashes),
+        ("", "Slot cheat 4", Crashes),
+        ("", "Slot cheat 5", Crashes),
+        ("", "Slot cheat 6", Crashes),
+        ("", "Slot cheat 7", Crashes),
+        ("", "Slot cheat 8", Crashes),
+        ("", "Slot cheat 9", Crashes),
+        ("", "Slot cheat 10", Crashes),
+        ("", "Xbox helper", Stable),
     ];
 
     PROTOTYPES
         .iter()
         .enumerate()
-        .map(|(index, &(code, desc, crashes))| Cheat {
+        .map(|(index, &(code, desc, stability))| Cheat {
             index,
             code: if code.is_empty() { None } else { Some(code) },
             desc,
             state: State::Concrete(false),
-            crashes,
+            stability,
         })
         .collect()
 }
