@@ -2,10 +2,11 @@
 
 #![feature(panic_info_message)]
 
+use std::os::raw::c_char;
+
 use ctor::ctor;
 use objc::runtime::Object;
 use objc::runtime::Sel;
-use std::os::raw::c_char;
 
 mod cheats;
 mod extras;

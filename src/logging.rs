@@ -1,11 +1,12 @@
 //! Logging backend which logs over UDP and to a file.
 
+use std::{fs::File, io::Write, net, sync::Mutex};
+
 use cached::proc_macro::cached;
 use chrono::Local;
 use log::{Level, Metadata, Record};
 use once_cell::sync::OnceCell;
 use serde::{Deserialize, Serialize};
-use std::{fs::File, io::Write, net, sync::Mutex};
 
 #[derive(Clone, Copy, Serialize, Deserialize)]
 enum MessageType {

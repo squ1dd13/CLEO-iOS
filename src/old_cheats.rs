@@ -1,15 +1,17 @@
 //! Replaces the game's broken cheats system with our own system that integrates with the menu.
 
+use std::sync::{
+    atomic::{AtomicBool, Ordering},
+    Mutex,
+};
+
+use log::error;
+use once_cell::sync::Lazy;
+
 use crate::{
     call_original, hook,
     settings::Settings,
     ui::{self, RowData, TabData},
-};
-use log::error;
-use once_cell::sync::Lazy;
-use std::sync::{
-    atomic::{AtomicBool, Ordering},
-    Mutex,
 };
 
 pub struct Cheat {

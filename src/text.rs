@@ -1,11 +1,13 @@
 //! Exposes a primitive Rust API for the game's text system, and manages the loading
 //! of FXT language files.
 
-use crate::{call_original, files, targets};
-use log::warn;
-use once_cell::sync::Lazy;
 use std::collections::HashMap;
 use std::{os::raw::c_char, sync::Mutex};
+
+use log::warn;
+use once_cell::sync::Lazy;
+
+use crate::{call_original, files, targets};
 
 static CUSTOM_STRINGS: Lazy<Mutex<HashMap<String, Vec<u16>>>> =
     Lazy::new(|| Mutex::new(HashMap::new()));

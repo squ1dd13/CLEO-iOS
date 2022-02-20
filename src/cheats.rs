@@ -134,7 +134,7 @@ impl data::RowData<StateUpdate> for Cheat {
             Stability::Crashes => vec![
                 Cow::Borrowed(self.desc),
                 Cow::Borrowed("This cheat crashes the game."),
-            ]
+            ],
         }
     }
 
@@ -153,7 +153,7 @@ impl data::RowData<StateUpdate> for Cheat {
                 // Only show the orange tint on cheats that are disabled. All cheats start
                 // disabled (unless saved enabled), so the user will see this tint at least once
                 // before they decide to enable the cheat anyway.
-                Stability::Crashes => view::Tint::Orange
+                Stability::Crashes => view::Tint::Orange,
             },
         }
     }
@@ -307,7 +307,11 @@ fn cheats_vec() -> Vec<Cheat> {
         ("", "Debug (show tap to target)", Stable),
         ("", "Debug (show targeting)", Stable),
         ("INEEDSOMEHELP", "Give health, armour and $250,000", Stable),
-        ("TURNUPTHEHEAT", "Increase wanted level by two stars", Stable),
+        (
+            "TURNUPTHEHEAT",
+            "Increase wanted level by two stars",
+            Stable,
+        ),
         ("TURNDOWNTHEHEAT", "Clear wanted level", Stable),
         ("PLEASANTLYWARM", "Sunny weather", Stable),
         ("TOODAMNHOT", "Very sunny weather", Stable),
@@ -337,7 +341,11 @@ fn cheats_vec() -> Vec<Cheat> {
         ("WHEELSONLYPLEASE", "Invisible cars", Stable),
         ("STICKLIKEGLUE", "Improved suspension and handling", Stable),
         ("GOODBYECRUELWORLD", "Suicide", Stable),
-        ("DONTTRYANDSTOPME", "Traffic lights are always green", Stable),
+        (
+            "DONTTRYANDSTOPME",
+            "Traffic lights are always green",
+            Stable,
+        ),
         (
             "ALLDRIVERSARECRIMINALS",
             "All NPC drivers drive aggressively and have a wanted level",
@@ -351,7 +359,11 @@ fn cheats_vec() -> Vec<Cheat> {
         ("BUFFMEUP", "Maximum muscle", Stable),
         ("", "Maximum gambling skill", Stable),
         ("LEANANDMEAN", "Minimum fat and muscle", Stable),
-        ("BLUESUEDESHOES", "All pedestrians are Elvis Presley", Stable),
+        (
+            "BLUESUEDESHOES",
+            "All pedestrians are Elvis Presley",
+            Stable,
+        ),
         (
             "ATTACKOFTHEVILLAGEPEOPLE",
             "Pedestrians attack the player with guns and rockets",

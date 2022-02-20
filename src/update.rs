@@ -1,12 +1,14 @@
 //! Interfaces with the GitHub API to determine if a CLEO update is available, and manages
 //! the version cache.
 
-use crate::files;
-use once_cell::sync::Lazy;
 use std::{
     io::{Read, Write},
     sync::Mutex,
 };
+
+use once_cell::sync::Lazy;
+
+use crate::files;
 
 fn get_current_version() -> anyhow::Result<VersionNumber> {
     // This is why the Rust and .deb packages need the same version.
