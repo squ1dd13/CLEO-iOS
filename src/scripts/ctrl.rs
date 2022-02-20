@@ -257,7 +257,7 @@ impl Runtime {
 
         // Count the number of scripts that have severe or minor issues.
         // For simplicity, we count a script with any severe issues as having *only* severe issues,
-        // regardless of whether or not it has minor issues too.
+        // regardless of whether it has minor issues too.
         let (severe, minor) =
             rows.iter()
                 .fold((0, 0), |(severe, minor), row| match row.are_issues_bad() {
@@ -266,7 +266,7 @@ impl Runtime {
                     None => (severe, minor),
                 });
 
-        // Generate a warning message so we can give the user a heads-up about the issues.
+        // Generate a warning message to give the user a heads-up about the issues.
         // Showing this at the top of the menu makes it harder for them to miss problems.
         let warning = Self::warning_message(severe, minor);
 

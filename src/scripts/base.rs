@@ -4,7 +4,7 @@ use std::collections::BTreeSet;
 
 use anyhow::Result;
 
-/// Tells whether or not a script is running, and where the value came from.
+/// Tells whether a script is running, and where the value came from.
 #[derive(Clone, Copy)]
 pub enum State {
     /// A state automatically decided by CLEO.

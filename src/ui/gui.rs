@@ -338,7 +338,7 @@ fn show_update_prompt(screen: *mut u8) {
         // eq: MobileMenu::Load(...)
         hook::slide::<fn(*mut u8)>(0x100339838)(screen);
 
-        // Add our custom strings so we can use them in the menu.
+        // Add our custom strings, so we can use them in the menu.
         text::set_kv("CL_UPT", "Update Available");
         text::set_kv(
             "CL_UPM",

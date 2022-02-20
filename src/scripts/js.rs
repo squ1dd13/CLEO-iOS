@@ -140,7 +140,7 @@ impl Script {
     fn launch(&mut self) -> JoinHandle<()> {
         self.running = true;
 
-        // Clone this script so we don't have to recreate it if we need to run it again after it
+        // Clone this script, so we don't have to recreate it if we need to run it again after it
         // exits.
         // hack: Cloning the whole script is expensive and probably not necessary.
         let script = self.clone();
@@ -217,7 +217,7 @@ impl quick_js::console::ConsoleBackend for JsConsole {
         use quick_js::console::Level::*;
 
         // All JavaScript log messages are logged at the CLEO info level because an "error" at CLEO
-        // level is much more serious than an "error" inside a JavaScript script and we don't want
+        // level is much more serious than an "error" inside a JavaScript script, and we don't want
         // to pollute the log file. We still show the level with a string, though.
         let level_name = match level {
             Trace => "trace",
