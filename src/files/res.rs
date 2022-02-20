@@ -1,11 +1,12 @@
 //! Creates a flattened version of the CLEO directory and delegates to other modules for
 //! handling specific types of resources.
 
-use cached::proc_macro::cached;
 use std::{
     fmt::Display,
     path::{Path, PathBuf},
 };
+
+use cached::proc_macro::cached;
 
 /*
     Documents       The game's documents directory.

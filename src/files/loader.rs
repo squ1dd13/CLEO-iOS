@@ -1,8 +1,9 @@
 //! Implementation for CLEO's file swapping functionality.
 
-use once_cell::sync::Lazy;
 use std::collections::HashMap;
 use std::sync::Mutex;
+
+use once_cell::sync::Lazy;
 
 static PATH_SWAPS: Lazy<Mutex<HashMap<String, String>>> = Lazy::new(|| Mutex::new(HashMap::new()));
 
