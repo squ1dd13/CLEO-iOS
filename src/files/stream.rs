@@ -1,643 +1,243 @@
-//! Replaces parts of the game's streaming system to allow the loading of replacement files inside IMGs,
-//! and also manages the loaded replacements.
-// fixme: The `stream` module is messy, poorly documented and full of hacky code.
-// fixme: Opcode 0x04ee seems to break when animations have been swapped.
+//! Implements a new streaming system that allows resources to be swapped at runtime.
+//!
+//! We don't technically need to re-implement the whole system - we could write low-level code that
+//! interfaces with the game a lot, but the streaming system is multithreaded and the game uses
+//! global variables for all of it. Those two approaches don't work well together, and trying to
+//! write Rust code to interface with that just means a lot of unsafe code.
+//!
+//! Since the system is fairly simple, we just implement a safer and more stable Rust-based
+//! solution rather than attempting to work closely with game code.
 
-use std::{
-    collections::HashMap,
-    io::{Read, Seek, SeekFrom},
-    path::Path,
-    sync::Mutex,
-};
+use std::collections::HashMap;
+use std::ffi::CString;
+use std::fs::File;
+use std::io;
+use std::io::{BufReader, Read, Seek, SeekFrom};
+use std::path::{Path, PathBuf};
 
 use byteorder::{LittleEndian, ReadBytesExt};
-use libc::c_char;
-use once_cell::sync::Lazy;
+use crossbeam_channel::{Receiver, Sender, TryRecvError};
 
-use crate::{call_original, hook, targets};
+use crate::files::ModRes;
 
-fn zero_memory(ptr: *mut u8, bytes: usize) {
-    for i in 0..bytes {
-        unsafe {
-            ptr.add(i).write(0);
-        }
-    }
+/// Identifies a single stream to direct a request to.
+struct StreamId {
+    // Stuff
 }
 
-fn streaming_queue() -> &'static mut Queue {
-    unsafe {
-        hook::slide::<*mut Queue>(0x100939120)
-            .as_mut()
-            .expect("how tf how did we manage to slide and get zero?")
-    }
+/// Type for sizes or offsets that are measured in sectors rather than bytes.
+type Sectors = u32;
+
+/// A request for a specific resource to be loaded from a stream.
+struct Request {
+    /// The offset of the resource in the archive in sectors.
+    offset_sectors: Sectors,
+
+    /// The slice into which bytes will be read from the archive file. This will be filled, so
+    /// should be of the exact size required.
+    output: &'static mut [u8],
 }
 
-fn streams_array() -> *mut Stream {
-    hook::get_global(0x100939118)
+/// Information about a file that is loaded as a replacement for a resource from an archive.
+struct ResFile {
+    /// The name of the file, including its extension. This is mainly included for logging purposes.
+    name: String,
+
+    /// The handle of the open file.
+    ///
+    /// We need to keep resource files open so that the user cannot modify them while the game is
+    /// running, which could invalidate the file sizes we record when we load the streaming
+    /// system. Those file sizes are used to tell the game how much memory to allocate for
+    /// resources, so if they become invalid then we could end up with memory corruption.
+    file: File,
 }
 
-fn stream_init(stream_count: i32) {
-    // Zero the image handles.
-    zero_memory(hook::slide(0x100939140), 0x100);
+/// A structure responsible for loading resources from a particular archive.
+struct Stream {
+    /// The name (and extension) of the archive file backing this stream.
+    name: String,
 
-    // Zero the image names.
-    zero_memory(hook::slide(0x1006ac0e0), 2048);
+    /// The archive file that this stream is in charge of.
+    file: File,
 
-    // Write the stream count to the global count variable.
-    unsafe {
-        hook::slide::<*mut i32>(0x100939110).write(stream_count);
-    }
+    /// The receiving end of the channel used to send requests to this stream.
+    receiver: Receiver<Request>,
 
-    let streams = {
-        let streams_double_ptr: *mut *mut Stream = hook::slide(0x100939118);
-
-        unsafe {
-            // Allocate the stream array. Each stream structure is 48 (0x30) bytes.
-            let byte_count = stream_count as usize * 0x30;
-            let allocated = libc::malloc(byte_count).cast();
-            zero_memory(allocated, byte_count);
-
-            streams_double_ptr.write(allocated.cast());
-            *streams_double_ptr
-        }
-    };
-
-    let stream_struct_size = std::mem::size_of::<Stream>();
-    if stream_struct_size != 0x30 {
-        panic!(
-            "Incorrect size for Stream structure: expected 0x30, got {:#?}.",
-            stream_struct_size
-        );
-    }
-
-    for i in 0..stream_count as usize {
-        let stream: &mut Stream = unsafe { &mut *streams.add(i) };
-
-        // eq: OS_SemaphoreCreate()
-        stream.semaphore = hook::slide::<fn() -> *mut u8>(0x1004e8b18)();
-
-        // eq: OS_MutexCreate(...)
-        stream.mutex = hook::slide::<fn(usize) -> *mut u8>(0x1004e8a5c)(0x0);
-
-        if stream.semaphore.is_null() {
-            panic!("Stream {} semaphore is null!", i);
-        }
-
-        if stream.mutex.is_null() {
-            panic!("Stream {} mutex is null!", i);
-        }
-    }
-
-    *streaming_queue() = Queue::with_capacity(stream_count as u32 + 1);
-
-    unsafe {
-        // Create the global stream semaphore.
-        // eq: OS_SemaphoreCreate()
-        let semaphore = hook::slide::<fn() -> *mut u8>(0x1004e8b18)();
-
-        if semaphore.is_null() {
-            panic!("Failed to create global stream semaphore!");
-        }
-
-        // Write to the variable.
-        hook::slide::<*mut *mut u8>(0x1006ac8e0).write(semaphore);
-
-        // "CdStream"
-        let cd_stream_name: *const u8 = hook::slide(0x10058a2eb);
-        let global_stream_thread: *mut *mut u8 = hook::slide(0x100939138);
-
-        // Launch the thread.
-        let launch =
-            hook::slide::<fn(fn(usize), usize, u32, *const u8, i32, u32) -> *mut u8>(0x1004e8888);
-
-        // eq: OS_ThreadLaunch(...)
-        let thread = launch(stream_thread, 0x0, 3, cd_stream_name, 0, 3);
-
-        if thread.is_null() {
-            panic!("Failed to start streaming thread!");
-        }
-
-        global_stream_thread.write(thread);
-    }
+    /// A map containing the offsets of resources and the files to read data for those resources
+    /// from.
+    ///
+    /// A resource whose offset appears in this map will have its data loaded from the associated
+    /// file instead of from the main archive file.
+    swaps: HashMap<Sectors, ResFile>,
 }
 
-fn stream_thread(_: usize) {
-    log::trace!("Streaming thread started!");
+impl Stream {
+    /// Creates a new stream for an archive at the given path, returning the stream and the
+    /// sender that can be used to send requests to the stream.
+    fn new(archive_path: &impl AsRef<Path>) -> io::Result<(Stream, Sender<Request>)> {
+        let (sender, receiver) = crossbeam_channel::unbounded();
 
-    let mut image_names: Vec<Option<String>> = std::iter::repeat(None).take(32).collect();
+        let mut stream = Stream {
+            name: archive_path
+                .as_ref()
+                .file_name()
+                .and_then(|s| s.to_str())
+                .unwrap_or("unknown")
+                .to_lowercase(),
+            file: File::open(archive_path)?,
+            receiver,
+            swaps: HashMap::new(),
+        };
 
-    loop {
-        let stream_semaphore = hook::get_global(0x1006ac8e0);
+        stream.load_swaps()?;
 
-        // eq: OS_SemaphoreWait(...)
-        hook::slide::<fn(*mut u8)>(0x1004e8b84)(stream_semaphore);
+        Ok((stream, sender))
+    }
 
-        let queue = streaming_queue();
-        let streams = streams_array();
+    /// Reads the table of contents from the archive file in order to populate the swap map.
+    fn load_swaps(&mut self) -> io::Result<()> {
+        self.file.seek(SeekFrom::Start(0))?;
 
-        // Get the first stream index from the queue and then get a reference to the stream.
-        let stream_index = queue.first() as isize;
-        let mut stream = unsafe { &mut *streams.offset(stream_index) };
+        // Read the file identifier.
+        let ver2 = self.file.read_u32::<LittleEndian>()?;
 
-        // Mark the stream as in use.
-        stream.processing = true;
+        // Check against "VER2" (which is 4 bytes, so we use an integer to represent it).
+        if ver2 != 0x32524556 {
+            log::warn!("VER2 identifier not found at start of '{}'", self.name);
+        }
 
-        // A status of 0 means that the last read was successful.
-        if stream.status == 0 {
-            let stream_source = StreamSource::new(stream.img_index, stream.sector_offset);
+        // Read the entry count so that we can read the whole TOC into memory.
+        let entry_count = self.file.read_u32::<LittleEndian>()?;
 
-            let stream_index_usize = stream.img_index as usize;
+        // Load the whole table of contents into memory to speed up reading.
+        let mut toc_reader = {
+            let toc_bytes = entry_count as usize * 32;
 
-            // We cache image names because obtaining them is quite expensive.
-            let image_name = match &image_names[stream_index_usize] {
-                Some(name) => name,
-                None => {
-                    let image_name = unsafe {
-                        let name_ptr = hook::slide::<*mut i8>(0x1006ac0e0)
-                            .offset(stream.img_index as isize * 64);
+            let mut buf = vec![0; toc_bytes];
+            self.file.read_exact(&mut buf)?;
 
-                        let path_string = std::ffi::CStr::from_ptr(name_ptr)
-                            .to_str()
-                            .unwrap()
-                            .to_lowercase()
-                            .replace('\\', "/");
+            io::Cursor::new(buf)
+        };
 
-                        // The game actually uses paths from the PC version, but we only want the file names.
-                        Path::new(&path_string)
-                            .file_name()
-                            .unwrap()
-                            .to_str()
-                            .unwrap()
-                            .to_string()
-                    };
+        // Find the resource files that replace entries in this archive.
+        let swapped_names: HashMap<String, PathBuf> = super::res_iter()
+            .filter_map(|item| match item {
+                // Look for archive swap resources.
+                ModRes::ArchSwap(img_name, path) if img_name == self.name => Some((
+                    path.file_name().and_then(|s| s.to_str())?.to_lowercase(),
+                    path,
+                )),
+                _ => None,
+            })
+            .collect();
 
-                    let slot = &mut image_names[stream_index_usize];
-                    *slot = Some(image_name);
-                    slot.as_ref().unwrap()
+        // Read the entries from the table of contents to find ones that we need to swap.
+        for _ in 0..entry_count {
+            let entry_offset: Sectors = toc_reader.read_u32::<LittleEndian>()?;
+            let size: Sectors = toc_reader.read_u32::<LittleEndian>()?;
+
+            let name = {
+                // There are 24 bytes of space for the name, but it may end early with a null byte.
+                let mut name_buf = [0; 24];
+                toc_reader.read_exact(&mut name_buf)?;
+
+                // Take the part of the name that comes before the null byte.
+                let before_null: Vec<_> = name_buf.into_iter().take_while(|&b| b != 0).collect();
+                String::from_utf8_lossy(&before_null).to_lowercase()
+            };
+
+            // Check if we're swapping this resource.
+            let path = match swapped_names.get(&name) {
+                Some(p) => p,
+                None => continue,
+            };
+
+            let file = match File::open(path) {
+                Ok(f) => f,
+                Err(err) => {
+                    // We just log errors and move on, because we don't want to stop further
+                    // replacements loading.
+                    log::error!(
+                        "Failed to open resource replacement file '{}': {}",
+                        path.display(),
+                        err
+                    );
+
+                    continue;
                 }
             };
 
-            let read_custom = with_replacements(&mut |replacements| {
-                let replacements = replacements.get_mut(image_name)?;
-
-                let model_name = with_model_names(|models| models.get(&stream_source).cloned())?;
-
-                let folder_child = replacements.get_mut(&model_name)?;
-
-                // Reset the file to offset 0 so we are definitely reading from the start.
-                folder_child.reset();
-
-                let file = &mut folder_child.file;
-
-                let mut buffer = vec![0u8; stream.sectors_to_read as usize * 2048];
-
-                // read_exact here would cause a crash for models that don't have aligned sizes, since
-                //  we can't read enough to fill the whole buffer.
-                if let Err(err) = file.read(&mut buffer) {
-                    log::error!("Failed to read model data: {}", err);
-                    stream.status = 0xfe;
-                } else {
-                    unsafe {
-                        // todo: Read directly into streaming buffer rather than reading and copying.
-                        std::ptr::copy(buffer.as_ptr(), stream.buffer, buffer.len());
-                    }
-
-                    stream.status = 0;
-                }
-
-                Some(())
-            });
-
-            if read_custom.is_none() {
-                // Multiply the sector values by 2048 (the sector size) in order to get byte values.
-                let byte_offset = stream.sector_offset * 2048;
-                let bytes_to_read = stream.sectors_to_read * 2048;
-
-                // eq: OS_FileSetPosition(...)
-                hook::slide::<fn(*mut u8, u32) -> u32>(0x1004e51dc)(stream.file, byte_offset);
-
-                // eq: OS_FileRead(...)
-                let read_result = hook::slide::<fn(*mut u8, *mut u8, u32) -> u32>(0x1004e5300)(
-                    stream.file,
-                    stream.buffer,
-                    bytes_to_read,
-                );
-
-                stream.status = if read_result != 0 { 0xfe } else { 0 };
-            }
-        }
-
-        // Remove the queue entry we just processed so the next iteration processes the item after.
-        queue.remove_first();
-
-        // eq: pthread_mutex_lock(...)
-        hook::slide::<fn(*mut u8)>(0x1004fbd34)(stream.mutex);
-
-        stream.sectors_to_read = 0;
-
-        if stream.locked {
-            // eq: OS_SemaphorePost(...)
-            hook::slide::<fn(*mut u8)>(0x1004e8b5c)(stream.semaphore);
-        }
-
-        stream.processing = false;
-
-        // eq: pthread_mutex_unlock(...)
-        hook::slide::<fn(*mut u8)>(0x1004fbd40)(stream.mutex);
-    }
-}
-
-fn stream_read(
-    stream_index: u32,
-    buffer: *mut u8,
-    source: StreamSource,
-    sector_count: u32,
-) -> bool {
-    unsafe {
-        hook::slide::<*mut u32>(0x100939240).write(source.0 + sector_count);
-    }
-
-    let stream = unsafe { &mut *streams_array().offset(stream_index as isize) };
-
-    unsafe {
-        let handle_arr_base: *mut *mut u8 = hook::slide(0x100939140);
-        let handle_ptr: *mut u8 = *handle_arr_base.offset(source.image_index() as isize);
-
-        stream.file = handle_ptr;
-    }
-
-    if stream.sectors_to_read != 0 || stream.processing {
-        return false;
-    }
-
-    // Set up the stream for getting the resource we want.
-    stream.status = 0;
-    stream.sector_offset = source.sector_offset();
-    stream.sectors_to_read = sector_count;
-    stream.buffer = buffer;
-    stream.locked = false;
-    stream.img_index = source.image_index();
-
-    streaming_queue().add(stream_index as i32);
-
-    let stream_semaphore = hook::get_global(0x1006ac8e0);
-
-    // eq: OS_SemaphorePost(...)
-    hook::slide::<fn(*mut u8)>(0x1004e8b5c)(stream_semaphore);
-
-    true
-}
-
-fn stream_open(path: *const c_char, _: bool) -> i32 {
-    let handles: *mut *mut u8 = hook::slide(0x100939140);
-
-    // Find the first available place in the handles array.
-    let mut index = 0;
-
-    for i in 0..32isize {
-        unsafe {
-            if handles.offset(i).read().is_null() {
-                break;
-            }
-        }
-
-        index += 1;
-    }
-
-    if index == 32 {
-        log::error!("No available slot for image.");
-        return 0;
-    }
-
-    // eq: OS_FileOpen(...)
-    let file_open: fn(u64, *mut *mut u8, *const c_char, u64) = hook::slide(0x1004e4f94);
-    file_open(0, unsafe { handles.offset(index) }, path, 0);
-
-    unsafe {
-        if handles.offset(index).read().is_null() {
-            return 0;
-        }
-    }
-
-    let image_names: *mut i8 = hook::slide(0x1006ac0e0);
-
-    unsafe {
-        let dest = image_names.offset(index * 64);
-        libc::strcpy(dest, path.cast());
-    }
-
-    (index as i32) << 24
-}
-
-fn get_archive_path(path: &str) -> Option<(String, String)> {
-    let path = path.to_lowercase();
-    let absolute = std::path::Path::new(&super::loader::find_absolute_path(&path)?).to_owned();
-
-    Some((
-        absolute.display().to_string(),
-        absolute.file_name()?.to_str()?.to_lowercase(),
-    ))
-}
-
-fn with_model_names<T>(with: impl Fn(&mut HashMap<StreamSource, String>) -> T) -> T {
-    static NAMES: Lazy<Mutex<HashMap<StreamSource, String>>> =
-        Lazy::new(|| Mutex::new(HashMap::new()));
-
-    let mut locked = NAMES.lock();
-    with(locked.as_mut().unwrap())
-}
-
-type ArchiveReplacements = HashMap<String, HashMap<String, ArchiveFileReplacement>>;
-
-fn with_replacements<T>(with: &mut impl FnMut(&mut ArchiveReplacements) -> T) -> T {
-    static REPLACEMENTS: Lazy<Mutex<ArchiveReplacements>> =
-        Lazy::new(|| Mutex::new(HashMap::new()));
-
-    let mut locked = REPLACEMENTS.lock();
-    with(locked.as_mut().unwrap())
-}
-
-// fixme: Loading archives causes a visible delay during loading.
-fn load_archive_into_database(path: &str, img_id: i32) -> anyhow::Result<()> {
-    // We use a BufReader because we do many small reads.
-    let mut file = std::io::BufReader::new(std::fs::File::open(path)?);
-
-    let identifier = file.read_u32::<LittleEndian>()?;
-
-    // 0x32524556 is VER2 as an unsigned integer.
-    if identifier != 0x32524556 {
-        log::error!("Archive does not have a VER2 identifier! Processing will continue anyway.");
-    }
-
-    let entry_count = file.read_u32::<LittleEndian>()?;
-
-    log::info!("Archive has {} entries.", entry_count);
-
-    for _ in 0..entry_count {
-        let offset = file.read_u32::<LittleEndian>()?;
-
-        // Ignore the two u16 size values.
-        file.seek(SeekFrom::Current(4))?;
-
-        let name = {
-            let mut name_buf = [0u8; 24];
-            file.read_exact(&mut name_buf)?;
-
-            let name = unsafe { std::ffi::CStr::from_ptr(name_buf.as_ptr().cast()) }
-                .to_str()
-                .unwrap();
-
-            name.to_string()
-        };
-
-        let source = StreamSource::new(img_id as u8, offset);
-
-        with_model_names(|models| {
-            models.insert(source, name.clone());
-        });
-    }
-
-    Ok(())
-}
-
-fn load_directory(path_c: *const i8, archive_id: i32) {
-    let path = unsafe { std::ffi::CStr::from_ptr(path_c) }
-        .to_str()
-        .unwrap();
-
-    let (path, archive_name) = get_archive_path(path).expect("Unable to resolve path name.");
-
-    log::info!("Registering contents of archive '{}'.", archive_name);
-
-    if let Err(err) = load_archive_into_database(&path, archive_id) {
-        log::error!("Failed to load archive: {}", err);
-        call_original!(targets::load_cd_directory, path_c, archive_id);
-        return;
-    } else {
-        log::info!("Registered archive contents successfully.");
-    }
-
-    call_original!(targets::load_cd_directory, path_c, archive_id);
-
-    let model_info_arr: *mut ModelInfo = hook::slide(0x1006ac8f4);
-
-    with_model_names(|model_names| {
-        with_replacements(&mut |replacements| {
-            let replacement_map = if let Some(map) = replacements.get(&archive_name) {
-                map
-            } else {
-                return;
-            };
-
-            // 26316 is the total number of models in the model array.
-            for i in 0..26316 {
-                let info = unsafe { model_info_arr.offset(i as isize).as_mut().unwrap() };
-                let stream_source = StreamSource::new(info.img_id, info.cd_pos);
-
-                if let Some(name) = model_names.get_mut(&stream_source) {
-                    let name = name.to_lowercase();
-
-                    if let Some(child) = replacement_map.get(&name) {
-                        log::info!(
-                            "{} at ({}, {}) will be replaced",
-                            name,
-                            info.img_id,
-                            info.cd_pos
-                        );
-
-                        let size_segments = child.size_in_segments();
-                        info.cd_size = size_segments;
-                    }
-                }
-
-                // Increase the size of the streaming buffer to accommodate the model's data (if it isn't big enough
-                //  already).
-                let streaming_buffer_size: u32 =
-                    hook::get_global::<u32>(0x10072d320).max(info.cd_size as u32);
-
-                unsafe {
-                    *hook::slide::<*mut u32>(0x10072d320) = streaming_buffer_size;
-                }
-            }
-        });
-    });
-}
-
-struct ArchiveFileReplacement {
-    size_bytes: u32,
-
-    // We keep the file open so it can't be modified while the game is running, because that could cause
-    //  issues with the buffer size.
-    file: std::fs::File,
-}
-
-impl ArchiveFileReplacement {
-    fn reset(&mut self) {
-        if let Err(err) = self.file.seek(SeekFrom::Start(0)) {
-            log::error!(
-                "Could not seek to start of archive replacement file: {}",
-                err
-            );
-        }
-    }
-
-    fn size_in_segments(&self) -> u32 {
-        (self.size_bytes + 2047) / 2048
-    }
-}
-
-fn load_replacement(image_name: &str, path: &impl AsRef<Path>) -> anyhow::Result<()> {
-    with_replacements(&mut |replacements| {
-        let size = path.as_ref().metadata()?.len();
-
-        let replacement = ArchiveFileReplacement {
-            size_bytes: size as u32,
-            file: std::fs::File::open(&path)?,
-        };
-
-        let name = path
-            .as_ref()
-            .file_name()
-            .unwrap()
-            .to_str()
-            .unwrap()
-            .to_lowercase();
-
-        if let Some(map) = replacements.get_mut(image_name) {
-            map.insert(name, replacement);
-        } else {
-            let mut map = HashMap::new();
-            map.insert(name, replacement);
-
-            replacements.insert(image_name.into(), map);
+            // Link the offset of the resource to the file we'll actually get the resource bytes
+            // from.
+            self.swaps.insert(entry_offset, ResFile { name, file });
+
+            // todo: Ensure the game's model info for this resource has the correct size.
+            // todo: Update the allocation size for the shared resource buffer to account for the
+            //       replacement's size if it is larger than the current buffer size.
         }
 
         Ok(())
-    })
-}
-
-#[repr(C)]
-#[derive(Debug)]
-struct ModelInfo {
-    next_index: i16,
-    prev_index: i16,
-    next_index_on_cd: i16,
-    flags: u8,
-    img_id: u8,
-    cd_pos: u32,
-    cd_size: u32,
-    load_state: u8,
-    _pad: [u8; 3],
-}
-
-#[repr(C)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-struct StreamSource(u32);
-
-impl StreamSource {
-    fn new(image_index: u8, sector_offset: u32) -> StreamSource {
-        StreamSource(((image_index as u32) << 24) | sector_offset)
     }
 
-    fn image_index(&self) -> u8 {
-        // The top 8 bits encode the index of the image that the resource is from in the global
-        //  image handle array.
-        (self.0 >> 24) as u8
-    }
+    /// Attempts to process a single load request.
+    ///
+    /// If there are no requests waiting to be processed, this method will return `None`.
+    /// Otherwise, the request that was processed will be returned after the requested resource
+    /// has been loaded into its output slice.
+    fn proc_next(&mut self) -> io::Result<Option<Request>> {
+        // Get a single request, if there is one. Return early if not.
+        let request = match self.receiver.try_recv() {
+            Ok(req) => req,
+            Err(TryRecvError::Empty) => return Ok(None),
 
-    fn sector_offset(&self) -> u32 {
-        // The bottom 24 bits encode the number of sectors the resource is from the beginning of
-        //  the file.
-        self.0 & 0xffffff
-    }
-}
+            // If the error isn't that the receiver is empty, there's something very wrong.
+            Err(err) => panic!("error receiving request: {}", err),
+        };
 
-#[repr(C)]
-#[derive(Debug)]
-struct Stream {
-    sector_offset: u32,
-    sectors_to_read: u32,
-    buffer: *mut u8,
+        // If the resource has been swapped, read from the file instead.
+        if let Some(ResFile { name, file }) = self.swaps.get_mut(&request.offset_sectors) {
+            // Make sure we're reading from the beginning of the resource file.
+            file.seek(SeekFrom::Start(0))?;
 
-    // CLEO addition.
-    // hack: We shouldn't really need to add another field to Stream.
-    img_index: u8,
+            // Read the resource bytes. We don't use `read_exact` here because individual
+            // resource files may not use sector boundaries, so it's entirely possible that a
+            // valid swap would fail under `read_exact`.
+            let bytes_read = file.read(request.output)?;
 
-    locked: bool,
-    processing: bool,
-    _pad: u8,
-    status: u32,
-    semaphore: *mut u8,
-    mutex: *mut u8,
-    file: *mut u8,
-}
+            let bytes_expected = request.output.len();
+            let bytes_missing = bytes_expected - bytes_read;
 
-#[repr(C)]
-#[derive(Debug)]
-struct Queue {
-    data: *mut i32,
-    head: u32,
-    tail: u32,
-    capacity: u32,
-}
-
-impl Queue {
-    fn with_capacity(capacity: u32) -> Queue {
-        Queue {
-            data: unsafe { libc::malloc(capacity as usize * 4).cast() },
-            head: 0,
-            tail: 0,
-            capacity,
-        }
-    }
-
-    fn add(&mut self, value: i32) {
-        unsafe {
-            self.data.offset(self.tail as isize).write(value);
-        }
-
-        self.tail = (self.tail + 1) % self.capacity;
-    }
-
-    fn first(&self) -> i32 {
-        if self.head == self.tail {
-            -1
-        } else {
-            unsafe { self.data.offset(self.head as isize).read() }
-        }
-    }
-
-    fn remove_first(&mut self) {
-        if self.head != self.tail {
-            self.head = (self.head + 1) % self.capacity;
-        }
-    }
-}
-
-pub fn init() {
-    const CD_STREAM_INIT: hook::Target<fn(i32)> = hook::Target::Address(0x100177eb8);
-    CD_STREAM_INIT.hook_hard(stream_init);
-
-    type CdReadFn = fn(u32, *mut u8, StreamSource, u32) -> bool;
-    const CD_STREAM_READ: hook::Target<CdReadFn> = hook::Target::Address(0x100178048);
-    CD_STREAM_READ.hook_hard(stream_read);
-
-    const CD_STREAM_OPEN: hook::Target<fn(*const c_char, bool) -> i32> =
-        hook::Target::Address(0x1001782b0);
-    CD_STREAM_OPEN.hook_hard(stream_open);
-
-    targets::load_cd_directory::install(load_directory);
-
-    for res in super::res::res_iter() {
-        if let super::res::ModRes::ArchSwap(name, path) = res {
-            if let Err(err) = load_replacement(&name, &path) {
-                log::error!(
-                    "Failed to load archive replacement '{}' / '{}': {:?}",
-                    path.display(),
+            // If we're a whole sector off, then something might be up.
+            if bytes_missing >= 2048 {
+                log::warn!(
+                    "Expected to read {} bytes from '{}', but only read {} ({} missing)",
+                    bytes_expected,
                     name,
-                    err
+                    bytes_read,
+                    bytes_missing
                 );
             }
+
+            return Ok(Some(request));
         }
+
+        // Seek to the location of the resource in the archive file.
+        let offset_bytes = request.offset_sectors * 2048;
+        self.file.seek(SeekFrom::Start(offset_bytes as u64))?;
+
+        // Attempt to fill the output slice with the resource bytes.
+        self.file.read_exact(request.output)?;
+
+        // Return the fulfilled request.
+        Ok(Some(request))
     }
 }
+
+/// A manager for all of the currently-loaded streams. Responsible for routing requests and
+/// sending loaded data back to the game.
+struct StreamPool {
+    /// The streams that this pool controls.
+    streams: Vec<Stream>,
+}
+
+impl StreamPool {}
