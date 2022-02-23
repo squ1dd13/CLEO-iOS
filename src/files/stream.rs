@@ -14,6 +14,7 @@ use std::fs::File;
 use std::io;
 use std::io::{BufReader, Read, Seek, SeekFrom};
 use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicUsize, Ordering};
 
 use byteorder::{LittleEndian, ReadBytesExt};
 use crossbeam_channel::{Receiver, Sender, TryRecvError};
@@ -182,18 +183,24 @@ impl Stream {
     /// Attempts to process a single load request.
     ///
     /// If there are no requests waiting to be processed, this method will return `None`.
-    /// Otherwise, the request that was processed will be returned after the requested resource
-    /// has been loaded into its output slice.
-    fn proc_next(&mut self) -> io::Result<Option<Request>> {
+    fn proc_next(&mut self) -> Option<io::Result<Request>> {
         // Get a single request, if there is one. Return early if not.
         let request = match self.receiver.try_recv() {
             Ok(req) => req,
-            Err(TryRecvError::Empty) => return Ok(None),
+            Err(TryRecvError::Empty) => return None,
 
             // If the error isn't that the receiver is empty, there's something very wrong.
             Err(err) => panic!("error receiving request: {}", err),
         };
 
+        Some(self.proc_req(request))
+    }
+
+    /// Processes the given load request in the context of the current stream.
+    ///
+    /// If successful, this method will return the request after loading the data into the output
+    /// destination specified by the request. Upon failure, an error will be returned.
+    fn proc_req(&mut self, request: Request) -> io::Result<Request> {
         // If the resource has been swapped, read from the file instead.
         if let Some(ResFile { name, file }) = self.swaps.get_mut(&request.offset_sectors) {
             // Make sure we're reading from the beginning of the resource file.
@@ -218,7 +225,7 @@ impl Stream {
                 );
             }
 
-            return Ok(Some(request));
+            return Ok(request);
         }
 
         // Seek to the location of the resource in the archive file.
@@ -229,15 +236,43 @@ impl Stream {
         self.file.read_exact(request.output)?;
 
         // Return the fulfilled request.
-        Ok(Some(request))
+        Ok(request)
     }
 }
 
 /// A manager for all of the currently-loaded streams. Responsible for routing requests and
 /// sending loaded data back to the game.
-struct StreamPool {
-    /// The streams that this pool controls.
-    streams: Vec<Stream>,
+struct Manager {
+    /// A sender for each stream, allowing requests to be passed to the thread on which the
+    /// streams are operating.
+    senders: Vec<Sender<Request>>,
+
+    /// A sender for giving back processed requests. Errors will also be sent back.
+    output: Sender<io::Result<Request>>,
+
+    /// The thread on which the streams are reading files.
+    stream_thread: Option<std::thread::Thread>,
 }
 
-impl StreamPool {}
+impl Manager {
+    fn start_thread(&mut self) {
+        // Create the streams and get senders that we can use to communicate with them.
+        let (mut streams, senders): (Vec<Stream>, Vec<Sender<Request>>) = todo!();
+
+        let output = self.output.clone();
+
+        // Start a thread where we wait for load requests and act on them as they come.
+        // fixme: Constantly looping while waiting for new requests is wasteful.
+        std::thread::spawn(move || loop {
+            for stream in streams.iter_mut() {
+                if let Some(req_result) = stream.proc_next() {
+                    output
+                        .send(req_result)
+                        .expect("Unable to send back request handling result");
+                }
+            }
+        });
+    }
+}
+
+// todo: Attach our streaming stuff to the game's existing streaming interface.
