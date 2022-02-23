@@ -259,17 +259,18 @@ impl Manager {
         // Create the streams and get senders that we can use to communicate with them.
         let (mut streams, senders): (Vec<Stream>, Vec<Sender<Request>>) = todo!();
 
-        let output = self.output.clone();
+        // Clone the response sender so that we can use it from the new thread.
+        let response_sender = self.output.clone();
 
         // Start a thread where we wait for load requests and act on them as they come.
         // fixme: Constantly looping while waiting for new requests is wasteful.
         std::thread::spawn(move || loop {
-            for stream in streams.iter_mut() {
-                if let Some(req_result) = stream.proc_next() {
-                    output
-                        .send(req_result)
-                        .expect("Unable to send back request handling result");
-                }
+            // Process a waiting request from each stream that has one, and send the result from
+            // each back to the thread that wants the resources.
+            for proc_output in streams.iter_mut().filter_map(Stream::proc_next) {
+                response_sender
+                    .send(proc_output)
+                    .expect("Failed to send handled request");
             }
         });
     }
