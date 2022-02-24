@@ -8,13 +8,13 @@
 //! Since the system is fairly simple, we just implement a safer and more stable Rust-based
 //! solution rather than attempting to work closely with game code.
 
-use std::collections::HashMap;
-use std::ffi::CString;
-use std::fs::File;
-use std::io;
-use std::io::{BufReader, Read, Seek, SeekFrom};
-use std::path::{Path, PathBuf};
-use std::sync::atomic::{AtomicUsize, Ordering};
+use std::{
+    collections::HashMap,
+    fs::File,
+    io,
+    io::{Read, Seek, SeekFrom},
+    path::{Path, PathBuf},
+};
 
 use byteorder::{LittleEndian, ReadBytesExt};
 use crossbeam_channel::{Receiver, Sender, TryRecvError};
