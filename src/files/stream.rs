@@ -255,9 +255,14 @@ struct Manager {
 }
 
 impl Manager {
+    /// Start looking for requests for the streams to process on a background thread.
     fn start_thread(&mut self) {
         // Create the streams and get senders that we can use to communicate with them.
         let (mut streams, senders): (Vec<Stream>, Vec<Sender<Request>>) = todo!();
+
+        // Retain the senders we've created so that we can give requests to the streams from
+        // another method.
+        self.senders = senders;
 
         // Clone the response sender so that we can use it from the new thread.
         let response_sender = self.output.clone();
@@ -266,13 +271,21 @@ impl Manager {
         // fixme: Constantly looping while waiting for new requests is wasteful.
         std::thread::spawn(move || loop {
             // Process a waiting request from each stream that has one, and send the result from
-            // each back to the thread that wants the resources.
+            // each back to the thread that wants the resources. Two requests for the same stream
+            // will never be handled one after another unless no other streams have requests
+            // waiting - every other stream gets a chance to handle a request before the second
+            // request from a single stream is processed.
             for proc_output in streams.iter_mut().filter_map(Stream::proc_next) {
                 response_sender
                     .send(proc_output)
                     .expect("Failed to send handled request");
             }
         });
+    }
+
+    /// Send a request to the stream with the given index.
+    fn send_req(&mut self, stream_index: usize, request: Request) {
+        self.senders[stream_index].send(request).unwrap();
     }
 }
 
