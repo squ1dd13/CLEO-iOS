@@ -165,7 +165,7 @@ impl Runtime {
         script.set_state(base::State::Auto(true));
         runtime.add_script(Box::new(script));
 
-        crate::call_original!(crate::targets::init_stage_three, ptr);
+        crate::hooks::INIT_STAGE_3.original()(ptr);
     }
 
     fn tick_hook() {
@@ -183,7 +183,7 @@ impl Runtime {
     }
 
     fn reset_hook() {
-        crate::call_original!(crate::targets::reset_before_start);
+        crate::hooks::RESET_BEFORE_RESTART.original()();
 
         /*
             On reset:
@@ -353,8 +353,7 @@ impl data::RowData<StateUpdate> for ScriptRow {
 }
 
 pub fn init() {
-    crate::targets::init_stage_three::install(Runtime::load_hook);
+    crate::hooks::INIT_STAGE_3.install(Runtime::load_hook);
     crate::hooks::SCRIPT_TICK.install(Runtime::tick_hook);
-    // crate::targets::script_tick::install(Runtime::tick_hook);
-    crate::targets::reset_before_start::install(Runtime::reset_hook);
+    crate::hooks::RESET_BEFORE_RESTART.install(Runtime::reset_hook);
 }

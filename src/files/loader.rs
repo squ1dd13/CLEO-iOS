@@ -37,7 +37,8 @@ pub fn find_absolute_path(path: &impl AsRef<str>) -> Option<String> {
 }
 
 fn find_absolute_path_c(p1: i32, p2: *const u8, p3: i32) -> *const u8 {
-    let c_path = crate::call_original!(crate::targets::find_absolute_path, p1, p2, p3);
+    let c_path = crate::hooks::FIND_ABS_PATH.original()(p1, p2, p3);
+
     let resolved_path = unsafe { std::ffi::CStr::from_ptr(c_path.cast()) }
         .to_str()
         .ok();
@@ -82,7 +83,7 @@ fn load_replacement(path: &impl AsRef<std::path::Path>) -> anyhow::Result<()> {
 }
 
 pub fn init() {
-    crate::targets::find_absolute_path::install(find_absolute_path_c);
+    crate::hooks::FIND_ABS_PATH.install(find_absolute_path_c);
 
     for res in super::res::res_iter() {
         if let super::res::ModRes::Swap(path) = res {

@@ -14,7 +14,7 @@ use byteorder::{LittleEndian, ReadBytesExt};
 use libc::c_char;
 use once_cell::sync::Lazy;
 
-use crate::{call_original, hook, targets};
+use crate::hook;
 
 fn zero_memory(ptr: *mut u8, bytes: usize) {
     for i in 0..bytes {
@@ -411,13 +411,14 @@ fn load_directory(path_c: *const i8, archive_id: i32) {
 
     if let Err(err) = load_archive_into_database(&path, archive_id) {
         log::error!("Failed to load archive: {}", err);
-        call_original!(targets::load_cd_directory, path_c, archive_id);
-        return;
+        unimplemented!();
+        // call_original!(targets::load_cd_directory, path_c, archive_id);
     } else {
         log::info!("Registered archive contents successfully.");
     }
 
-    call_original!(targets::load_cd_directory, path_c, archive_id);
+    // call_original!(targets::load_cd_directory, path_c, archive_id);
+    unimplemented!();
 
     let model_info_arr: *mut ModelInfo = hook::slide(0x1006ac8f4);
 
@@ -626,7 +627,7 @@ pub fn init() {
         hook::Target::Address(0x1001782b0);
     CD_STREAM_OPEN.hook_hard(stream_open);
 
-    targets::load_cd_directory::install(load_directory);
+    // targets::load_cd_directory::install(load_directory);
 
     for res in super::res::res_iter() {
         if let super::res::ModRes::ArchSwap(name, path) = res {
@@ -640,4 +641,6 @@ pub fn init() {
             }
         }
     }
+
+    unimplemented!();
 }

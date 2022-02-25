@@ -4,7 +4,7 @@ use std::sync::atomic::Ordering;
 
 use libc::c_char;
 
-use crate::{call_original, hook, settings::Settings, targets};
+use crate::{hook, settings::Settings};
 
 // CTimer::GetCyclesPerMillisecond is called between the FPS limit being set and when it is enforced,
 //  so if we overwrite the limit here, our new value will be enforced.
@@ -15,7 +15,7 @@ fn cycles_per_millisecond() -> u32 {
         *hook::slide::<*mut u32>(0x1008f07b8) = if sixty_fps { 60 } else { 30 };
     }
 
-    call_original!(targets::cycles_per_millisecond)
+    crate::hooks::CYCLES_PER_MS.original()()
 }
 
 fn idle(p1: u64, p2: u64) {
@@ -24,7 +24,7 @@ fn idle(p1: u64, p2: u64) {
         *hook::slide::<*mut bool>(0x10081c519) = show_fps;
     }
 
-    call_original!(targets::idle, p1, p2);
+    crate::hooks::IDLE.original()(p1, p2);
 }
 
 #[repr(C)]
@@ -116,7 +116,7 @@ fn display_fps() {
 }
 
 fn write_fragment_shader(mask: u32) {
-    call_original!(crate::targets::write_fragment_shader, mask);
+    crate::hooks::WRITE_FRAG_SHADER.original()(mask);
 
     let real_address = crate::hook::slide::<*mut u8>(0x100934e68);
 
@@ -147,19 +147,12 @@ fn set_loading_messages(msg_1: *const c_char, msg_2: *const c_char) {
     }
 }
 
-// fn height_above_ceiling(veh: usize, f: f32, flight_model: usize) -> f32 {
-//     if Settings::shared().no_ceiling.load(Ordering::SeqCst) {
-//         -1.0
-//     } else {
-//         call_original!(targets::height_above_ceiling, veh, f, flight_model)
-//     }
-// }
-
 pub fn init() {
-    targets::idle::install(idle);
-    targets::cycles_per_millisecond::install(cycles_per_millisecond);
-    targets::write_fragment_shader::install(write_fragment_shader);
-    targets::display_fps::install(display_fps);
-    targets::loading_messages::install(set_loading_messages);
-    // targets::height_above_ceiling::install(height_above_ceiling);
+    use crate::hooks::*;
+
+    IDLE.install(idle);
+    CYCLES_PER_MS.install(cycles_per_millisecond);
+    WRITE_FRAG_SHADER.install(write_fragment_shader);
+    DISPLAY_FPS.install(display_fps);
+    REPORT_LOADING.install(set_loading_messages);
 }

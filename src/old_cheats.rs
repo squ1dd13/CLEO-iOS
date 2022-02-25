@@ -78,7 +78,7 @@ impl Cheat {
 
     fn run(&self) {
         if let Some(function) = self.get_function() {
-            log::info!("Calling cheat function {:?}", function);
+            // log::info!("Calling cheat function {:?}", function);
             function();
             return;
         }
@@ -289,7 +289,8 @@ If you don't want to risk breaking your save, back up your progress to a differe
 
 fn reset_cheats() {
     log::info!("Resetting cheats");
-    call_original!(crate::targets::reset_cheats);
+    unimplemented!();
+    // call_original!(crate::targets::reset_cheats);
 
     if !Settings::shared().save_cheats.load(Ordering::SeqCst) {
         log::info!("Cheat saving/loading is disabled.");
@@ -335,8 +336,8 @@ fn reset_cheats() {
 }
 
 pub fn init() {
-    crate::targets::do_cheats::install(do_cheats);
-    crate::targets::reset_cheats::install(reset_cheats);
+    // crate::targets::do_cheats::install(do_cheats);
+    // crate::targets::reset_cheats::install(reset_cheats);
 }
 
 // We have to include the codes because the game doesn't have the array.

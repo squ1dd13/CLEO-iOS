@@ -185,6 +185,7 @@ impl<FnType> Hook<FnType> {
     }
 
     /// Returns a pointer to the original implementation of the hooked function.
+    #[must_use]
     pub fn original(&self) -> FnType
     where
         FnType: Copy,

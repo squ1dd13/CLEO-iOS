@@ -9,8 +9,6 @@ use objc::{
     *,
 };
 
-use crate::{call_original, targets};
-
 #[repr(C)]
 #[derive(Clone, Copy)]
 pub struct CGSize {
@@ -389,7 +387,7 @@ fn show_update_prompt(screen: *mut u8) {
 //  show our update prompt when the game loads.
 fn init_for_title(screen: *mut u8) {
     // Set up the title menu.
-    call_original!(crate::targets::init_for_title, screen);
+    crate::hooks::INIT_MAIN_MENU.original()(screen);
 
     if crate::update::was_update_found() {
         // Create our prompt afterwards, so it's above the title menu.
@@ -413,6 +411,6 @@ pub fn init() {
         crate::hooks::LEGAL_SPLASH_GERMAN.install(legal_splash_did_load);
     }
 
-    targets::init_for_title::install(init_for_title);
-    targets::store_crash_fix::install(persistent_store_coordinator);
+    crate::hooks::INIT_MAIN_MENU.install(init_for_title);
+    crate::hooks::STORE_CRASH.install(persistent_store_coordinator);
 }

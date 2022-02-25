@@ -220,9 +220,9 @@ fn load_settings(menu_manager: u64) {
     }
 
     log::info!("Loading game settings");
-    crate::call_original!(crate::targets::load_settings, menu_manager);
+    crate::hooks::LOAD_SETTINGS.original()(menu_manager);
 }
 
 pub fn init() {
-    crate::targets::load_settings::install(load_settings);
+    crate::hooks::LOAD_SETTINGS.install(load_settings);
 }

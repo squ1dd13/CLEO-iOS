@@ -750,7 +750,7 @@ fn reachability_with_hostname(
 
             std::ptr::null_mut()
         } else {
-            crate::call_original!(crate::targets::button_hack, this_class, sel, hostname)
+            crate::hooks::BUTTON_HACK.original()(this_class, sel, hostname)
         }
     }
 }
@@ -767,7 +767,7 @@ fn add_button_handler(button: *mut Object, tag: ButtonTag) {
 }
 
 pub fn init() {
-    crate::targets::button_hack::install(reachability_with_hostname);
+    crate::hooks::BUTTON_HACK.install(reachability_with_hostname);
 
     MESSAGE_SENDER
         .set(Mutex::new(Menu::start_channel_polling()))

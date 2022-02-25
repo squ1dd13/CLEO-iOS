@@ -7,7 +7,7 @@ use std::{os::raw::c_char, sync::Mutex};
 use log::warn;
 use once_cell::sync::Lazy;
 
-use crate::{call_original, files, targets};
+use crate::files;
 
 static CUSTOM_STRINGS: Lazy<Mutex<HashMap<String, Vec<u16>>>> =
     Lazy::new(|| Mutex::new(HashMap::new()));
@@ -25,7 +25,7 @@ fn get_gxt_string(text_obj_ptr: usize, key: *const c_char) -> *const u16 {
         }
     }
 
-    return call_original!(targets::get_gxt_string, text_obj_ptr, key);
+    crate::hooks::GET_GXT_STR.original()(text_obj_ptr, key)
 }
 
 /// Add a key-value pair to the string map. Returns true if the key was already present. If the key is present, the value
@@ -64,7 +64,7 @@ fn generate_numberplate(chars: *mut u8, length: i32) -> bool {
         }
     }
 
-    call_original!(targets::gen_plate, chars, length)
+    crate::hooks::GEN_PLATE.original()(chars, length)
 }
 
 fn load_fxt(path: &impl AsRef<std::path::Path>) -> anyhow::Result<()> {
@@ -108,8 +108,8 @@ fn load_fxt(path: &impl AsRef<std::path::Path>) -> anyhow::Result<()> {
 }
 
 pub fn init() {
-    targets::get_gxt_string::install(get_gxt_string);
-    targets::gen_plate::install(generate_numberplate);
+    crate::hooks::GET_GXT_STR.install(get_gxt_string);
+    crate::hooks::GEN_PLATE.install(generate_numberplate);
 
     for resource in files::res_iter() {
         if let files::ModRes::KeyValFile(path) = resource {

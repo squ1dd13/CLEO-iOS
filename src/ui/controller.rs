@@ -59,7 +59,7 @@ pub fn _request_update() {
 }
 
 fn update_pads() {
-    crate::call_original!(crate::targets::update_pads);
+    crate::hooks::UPDATE_PADS.original()();
 
     let (current_state, previous_state) = unsafe {
         let ptr: *mut ControllerState = crate::hook::slide(0x1007baf5c);
@@ -134,5 +134,5 @@ fn update_pads() {
 }
 
 pub fn init() {
-    crate::targets::update_pads::install(update_pads);
+    crate::hooks::UPDATE_PADS.install(update_pads);
 }
