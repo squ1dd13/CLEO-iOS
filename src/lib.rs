@@ -23,7 +23,6 @@ fn initialise() {
     text::init();
     extras::init();
     scripts::init();
-    // old_cheats::init();
     cheats::init();
 }
 

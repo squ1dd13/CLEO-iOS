@@ -225,8 +225,6 @@ impl Manager {
 
         if state_balance > 0 {
             log::info!("State balance > 0, so cheat states need saving.");
-        } else {
-            log::info!("No overall changes to cheat states, so no save required.");
         }
     }
 
