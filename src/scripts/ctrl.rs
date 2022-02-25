@@ -178,7 +178,8 @@ impl Runtime {
             .update()
             .expect("Script runtime error");
 
-        crate::call_original!(crate::targets::script_tick);
+        crate::hooks::SCRIPT_TICK.original()();
+        // crate::call_original!(crate::targets::script_tick);
     }
 
     fn reset_hook() {
@@ -353,6 +354,7 @@ impl data::RowData<StateUpdate> for ScriptRow {
 
 pub fn init() {
     crate::targets::init_stage_three::install(Runtime::load_hook);
-    crate::targets::script_tick::install(Runtime::tick_hook);
+    crate::hooks::SCRIPT_TICK.install(Runtime::tick_hook);
+    // crate::targets::script_tick::install(Runtime::tick_hook);
     crate::targets::reset_before_start::install(Runtime::reset_hook);
 }

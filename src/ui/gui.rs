@@ -266,9 +266,9 @@ fn legal_splash_did_load(this: *mut Object, sel: Sel) {
         let _: () = msg_send![text, setCenter: text_centre];
 
         if !crate::hook::is_german_game() {
-            call_original!(targets::legal_splash, this, sel);
+            crate::hooks::LEGAL_SPLASH.original()(this, sel);
         } else {
-            call_original!(targets::legal_splash_german, this, sel);
+            crate::hooks::LEGAL_SPLASH_GERMAN.original()(this, sel);
         }
 
         let _: () = msg_send![backing, addSubview: state_label];
@@ -407,10 +407,10 @@ fn persistent_store_coordinator(_this: *mut Object, _sel: Sel) -> *const Object 
 
 pub fn init() {
     if !crate::hook::is_german_game() {
-        targets::legal_splash::install(legal_splash_did_load);
+        crate::hooks::LEGAL_SPLASH.install(legal_splash_did_load);
     } else {
         trace!("Correcting splash address for German game.");
-        targets::legal_splash_german::install(legal_splash_did_load);
+        crate::hooks::LEGAL_SPLASH_GERMAN.install(legal_splash_did_load);
     }
 
     targets::init_for_title::install(init_for_title);

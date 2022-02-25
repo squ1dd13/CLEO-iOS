@@ -20,16 +20,28 @@ mod text;
 mod ui;
 mod update;
 
+pub mod hooks {
+    use super::*;
+    use hook::Hook;
+
+    pub static SCRIPT_TICK: Hook<fn()> = Hook::new(0x1001d0f40);
+
+    pub static PROCESS_TOUCH: Hook<fn(f32, f32, f64, f32, ui::Stage)> = Hook::new(0x1004e831c);
+
+    pub static LEGAL_SPLASH: Hook<fn(*mut Object, sel: Sel)> = Hook::new(0x1000d7cac);
+    pub static LEGAL_SPLASH_GERMAN: Hook<fn(*mut Object, sel: Sel)> = Hook::new(0x1000c6b40);
+}
+
 mod targets {
     use super::*;
 
-    create_soft_target!(script_tick, 0x1001d0f40, fn());
-
-    create_soft_target!(
-        process_touch,
-        0x1004e831c,
-        fn(f32, f32, f64, f32, ui::Stage)
-    );
+    // create_soft_target!(script_tick, 0x1001d0f40, fn());
+    //
+    // create_soft_target!(
+    //     process_touch,
+    //     0x1004e831c,
+    //     fn(f32, f32, f64, f32, ui::Stage)
+    // );
 
     create_soft_target!(
         get_gxt_string,
@@ -37,8 +49,8 @@ mod targets {
         fn(usize, *const c_char) -> *const u16
     );
 
-    create_soft_target!(legal_splash, 0x1000d7cac, fn(*mut Object, sel: Sel));
-    create_soft_target!(legal_splash_german, 0x1000c6b40, fn(*mut Object, sel: Sel));
+    // create_soft_target!(legal_splash, 0x1000d7cac, fn(*mut Object, sel: Sel));
+    // create_soft_target!(legal_splash_german, 0x1000c6b40, fn(*mut Object, sel: Sel));
 
     create_soft_target!(
         store_crash_fix,

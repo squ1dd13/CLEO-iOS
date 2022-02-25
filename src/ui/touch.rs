@@ -234,9 +234,11 @@ impl Manager {
 
 fn proc_touch(x: f32, y: f32, time: f64, force: f32, stage: Stage) {
     Manager::shared().proc_event(Pos { x, y }, time, stage);
-    call_original!(targets::process_touch, x, y, time, force, stage);
+    crate::hooks::PROCESS_TOUCH.original()(x, y, time, force, stage);
+    // call_original!(targets::process_touch, x, y, time, force, stage);
 }
 
 pub fn init() {
-    targets::process_touch::install(proc_touch);
+    crate::hooks::PROCESS_TOUCH.install(proc_touch);
+    // targets::process_touch::install(proc_touch);
 }

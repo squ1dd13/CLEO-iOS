@@ -5,6 +5,11 @@ use anyhow::{Context, Result};
 use cached::proc_macro::cached;
 use dlopen::symbor::Library;
 use log::error;
+use once_cell::sync::Lazy;
+use parking_lot::Mutex;
+use std::borrow::{Borrow, BorrowMut};
+use std::cell::{Cell, RefCell, UnsafeCell};
+use std::ops::{Deref, DerefMut};
 
 fn get_single_symbol<T: Copy>(path: &str, sym_name: &str) -> Result<T> {
     let lib = Library::open(path).context("Failed to open hooking library")?;
@@ -140,6 +145,54 @@ macro_rules! create_hard_target {
             }
         }
     };
+}
+
+pub struct Hook<FuncType> {
+    address: usize,
+    original_fn: Mutex<Option<FuncType>>,
+}
+
+impl<FnType> Hook<FnType> {
+    /// Creates a new hook for a function with the specified address. This does not install the
+    /// hook.
+    pub const fn new(address: usize) -> Hook<FnType> {
+        Hook {
+            address,
+            original_fn: Mutex::new(None),
+        }
+    }
+
+    /// Returns the target address with the runtime ASLR slide. Assumes that the hooked function
+    /// is in image `0`.
+    fn address_with_slide(&self) -> usize {
+        self.address + get_image_aslr_offset(0)
+    }
+
+    /// The same as `address_with_slide`, except that the return type is the target function type.
+    fn address_fn(&self) -> FnType {
+        unsafe { std::mem::transmute_copy(&self.address_with_slide()) }
+    }
+
+    /// Replaces the target function's implementation with that of the function given. The
+    /// original function pointer can be obtained by calling `original()`.
+    pub fn install(&self, replacement: FnType) {
+        // Hook the function, storing a pointer to the original implementation.
+        get_hook_fn::<FnType>()(
+            self.address_fn(),
+            replacement,
+            self.original_fn.lock().deref_mut(),
+        );
+    }
+
+    /// Returns a pointer to the original implementation of the hooked function.
+    pub fn original(&self) -> FnType
+    where
+        FnType: Copy,
+    {
+        self.original_fn
+            .lock()
+            .expect("`original()` requires that an original function exists")
+    }
 }
 
 #[macro_export]
