@@ -4,7 +4,7 @@
 use std::sync::Mutex;
 
 use cached::proc_macro::cached;
-use objc::{runtime::Object, *};
+use objc::{*, runtime::Object};
 use once_cell::sync::OnceCell;
 
 use crate::ui::gui::CGRect;
@@ -231,11 +231,18 @@ impl Manager {
     }
 }
 
+crate::declare_hook!(
+    /// Handles touch events on the game canvas.
+    PROCESS_TOUCH,
+    fn(f32, f32, f64, f32, Stage),
+    0x1004e831c
+);
+
 fn proc_touch(x: f32, y: f32, time: f64, force: f32, stage: Stage) {
     Manager::shared().proc_event(Pos { x, y }, time, stage);
-    crate::hooks::PROCESS_TOUCH.original()(x, y, time, force, stage);
+    PROCESS_TOUCH.original()(x, y, time, force, stage);
 }
 
 pub fn init() {
-    crate::hooks::PROCESS_TOUCH.install(proc_touch);
+    PROCESS_TOUCH.install(proc_touch);
 }

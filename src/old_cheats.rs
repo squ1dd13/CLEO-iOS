@@ -9,7 +9,7 @@ use log::error;
 use once_cell::sync::Lazy;
 
 use crate::{
-    call_original, hook,
+    hook,
     settings::Settings,
     ui::{self, RowData, TabData},
 };

@@ -12,6 +12,13 @@ use crate::files;
 static CUSTOM_STRINGS: Lazy<Mutex<HashMap<String, Vec<u16>>>> =
     Lazy::new(|| Mutex::new(HashMap::new()));
 
+crate::declare_hook!(
+    /// Returns the UTF-16 string associated with the given UTF-8 key in the given text object.
+    GET_GXT_STR,
+    fn(usize, *const c_char) -> *const u16,
+    0x10044142c
+);
+
 fn get_gxt_string(text_obj_ptr: usize, key: *const c_char) -> *const u16 {
     if !key.is_null() {
         let key_str = unsafe { std::ffi::CStr::from_ptr(key) }.to_str();
@@ -25,7 +32,7 @@ fn get_gxt_string(text_obj_ptr: usize, key: *const c_char) -> *const u16 {
         }
     }
 
-    crate::hooks::GET_GXT_STR.original()(text_obj_ptr, key)
+    GET_GXT_STR.original()(text_obj_ptr, key)
 }
 
 /// Add a key-value pair to the string map. Returns true if the key was already present. If the key is present, the value
@@ -39,6 +46,13 @@ pub fn set_kv(key: &str, value: &str) -> bool {
 
     custom_strings.insert(key.into(), utf16).is_some()
 }
+
+crate::declare_hook!(
+    /// Generates a random number plate string of the given length.
+    GEN_PLATE,
+    fn(*mut u8, i32) -> bool,
+    0x10037ba2c
+);
 
 fn generate_numberplate(chars: *mut u8, length: i32) -> bool {
     let tick = unsafe {
@@ -64,7 +78,7 @@ fn generate_numberplate(chars: *mut u8, length: i32) -> bool {
         }
     }
 
-    crate::hooks::GEN_PLATE.original()(chars, length)
+    GEN_PLATE.original()(chars, length)
 }
 
 fn load_fxt(path: &impl AsRef<std::path::Path>) -> anyhow::Result<()> {
@@ -108,8 +122,8 @@ fn load_fxt(path: &impl AsRef<std::path::Path>) -> anyhow::Result<()> {
 }
 
 pub fn init() {
-    crate::hooks::GET_GXT_STR.install(get_gxt_string);
-    crate::hooks::GEN_PLATE.install(generate_numberplate);
+    GET_GXT_STR.install(get_gxt_string);
+    GEN_PLATE.install(generate_numberplate);
 
     for resource in files::res_iter() {
         if let files::ModRes::KeyValFile(path) = resource {

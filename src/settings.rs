@@ -1,8 +1,8 @@
 //! Manages the saving and loading of settings, as well as providing menu data and a thread-safe API.
 
 use std::sync::{
-    atomic::{AtomicBool, Ordering},
     Arc,
+    atomic::{AtomicBool, Ordering},
 };
 
 use once_cell::sync::OnceCell;
@@ -210,6 +210,13 @@ pub fn tab_data() -> ui::TabData {
     }
 }
 
+crate::declare_hook!(
+    /// Loads the game's settings from the `gta_sa.set` file.
+    LOAD_SETTINGS,
+    fn(u64),
+    0x1002ce8e4
+);
+
 fn load_settings(menu_manager: u64) {
     log::info!("Loading CLEO settings");
     Settings::load_shared();
@@ -220,9 +227,9 @@ fn load_settings(menu_manager: u64) {
     }
 
     log::info!("Loading game settings");
-    crate::hooks::LOAD_SETTINGS.original()(menu_manager);
+    LOAD_SETTINGS.original()(menu_manager);
 }
 
 pub fn init() {
-    crate::hooks::LOAD_SETTINGS.install(load_settings);
+    LOAD_SETTINGS.install(load_settings);
 }

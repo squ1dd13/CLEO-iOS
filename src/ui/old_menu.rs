@@ -4,15 +4,15 @@
 use std::{
     collections::HashMap,
     sync::{
-        mpsc::{self, Sender},
-        Arc, Mutex,
+        Arc,
+        mpsc::{self, Sender}, Mutex,
     },
 };
 
 use objc::{class, msg_send, runtime::Object, sel, sel_impl};
 use once_cell::{sync::OnceCell, unsync::Lazy};
 
-use super::gui::{self, create_ns_string, CGPoint, CGRect, CGSize};
+use super::gui::{self, CGPoint, CGRect, CGSize, create_ns_string};
 
 pub enum RowDetail {
     Info(String),
@@ -723,6 +723,13 @@ impl Menu {
     }
 }
 
+crate::declare_hook!(
+    /// An unused method that we hijack to use as a callback for various UIKit events.
+    BUTTON_HACK,
+    fn(*const Object, objc::runtime::Sel, *mut Object) -> *mut Object,
+    0x1004ebe70
+);
+
 fn reachability_with_hostname(
     this_class: *const Object,
     sel: objc::runtime::Sel,
@@ -750,7 +757,7 @@ fn reachability_with_hostname(
 
             std::ptr::null_mut()
         } else {
-            crate::hooks::BUTTON_HACK.original()(this_class, sel, hostname)
+            BUTTON_HACK.original()(this_class, sel, hostname)
         }
     }
 }
@@ -767,7 +774,7 @@ fn add_button_handler(button: *mut Object, tag: ButtonTag) {
 }
 
 pub fn init() {
-    crate::hooks::BUTTON_HACK.install(reachability_with_hostname);
+    BUTTON_HACK.install(reachability_with_hostname);
 
     MESSAGE_SENDER
         .set(Mutex::new(Menu::start_channel_polling()))

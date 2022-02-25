@@ -51,8 +51,8 @@ pub mod data {
 
 pub mod view {
     use objc::{
-        runtime::{Object, Sel},
         *,
+        runtime::Object,
     };
 
     use crate::ui::gui;

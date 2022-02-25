@@ -36,8 +36,17 @@ pub fn find_absolute_path(path: &impl AsRef<str>) -> Option<String> {
     ))
 }
 
+crate::declare_hook!(
+    /// Returns the real path to a game resource. As the iOS game is a port of the PC
+    /// version, it needs a way to translate the Windows paths that the game code uses into
+    /// paths that actually relate to real files on the device; this function does that.
+    FIND_ABS_PATH,
+    fn(i32, *const u8, i32) -> *const u8,
+    0x1004e4c48
+);
+
 fn find_absolute_path_c(p1: i32, p2: *const u8, p3: i32) -> *const u8 {
-    let c_path = crate::hooks::FIND_ABS_PATH.original()(p1, p2, p3);
+    let c_path = FIND_ABS_PATH.original()(p1, p2, p3);
 
     let resolved_path = unsafe { std::ffi::CStr::from_ptr(c_path.cast()) }
         .to_str()
@@ -83,7 +92,7 @@ fn load_replacement(path: &impl AsRef<std::path::Path>) -> anyhow::Result<()> {
 }
 
 pub fn init() {
-    crate::hooks::FIND_ABS_PATH.install(find_absolute_path_c);
+    FIND_ABS_PATH.install(find_absolute_path_c);
 
     for res in super::res::res_iter() {
         if let super::res::ModRes::Swap(path) = res {

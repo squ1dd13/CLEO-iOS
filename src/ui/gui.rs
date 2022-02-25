@@ -5,8 +5,8 @@ use std::os::raw::c_long;
 
 use log::trace;
 use objc::{
-    runtime::{Object, Sel},
     *,
+    runtime::{Object, Sel},
 };
 
 #[repr(C)]
@@ -119,6 +119,21 @@ pub fn exit_to_homescreen() {
         });
     }
 }
+
+crate::declare_hook!(
+    /// The Objective-C `viewDidLoad` method that sets up the legal splash screen shown when
+    /// the user opens the app. (This address is only valid for the non-DE version.)
+    LEGAL_SPLASH,
+    fn(*mut Object, sel: Sel),
+    0x1000d7cac
+);
+
+crate::declare_hook!(
+    /// Alternative of the above hook that is valid in the DE version of the game.
+    LEGAL_SPLASH_GERMAN,
+    fn(*mut Object, sel: Sel),
+    0x1000c6b40
+);
 
 fn legal_splash_did_load(this: *mut Object, sel: Sel) {
     log::info!("Showing splash screen.");
@@ -264,9 +279,9 @@ fn legal_splash_did_load(this: *mut Object, sel: Sel) {
         let _: () = msg_send![text, setCenter: text_centre];
 
         if !crate::hook::is_german_game() {
-            crate::hooks::LEGAL_SPLASH.original()(this, sel);
+            LEGAL_SPLASH.original()(this, sel);
         } else {
-            crate::hooks::LEGAL_SPLASH_GERMAN.original()(this, sel);
+            LEGAL_SPLASH_GERMAN.original()(this, sel);
         }
 
         let _: () = msg_send![backing, addSubview: state_label];
@@ -383,11 +398,19 @@ fn show_update_prompt(screen: *mut u8) {
     }
 }
 
+crate::declare_hook!(
+    /// Sets up the main menu and shows it to the user. We use this as a way to run code when
+    /// the menu system has finished initialising.
+    INIT_MAIN_MENU,
+    fn(*mut u8),
+    0x100339b44
+);
+
 // This function is responsible for setting up the main flow screen, so we use it to
 //  show our update prompt when the game loads.
 fn init_for_title(screen: *mut u8) {
     // Set up the title menu.
-    crate::hooks::INIT_MAIN_MENU.original()(screen);
+    INIT_MAIN_MENU.original()(screen);
 
     if crate::update::was_update_found() {
         // Create our prompt afterwards, so it's above the title menu.
@@ -395,9 +418,17 @@ fn init_for_title(screen: *mut u8) {
     }
 }
 
-// Fixes an annoying crash that happens just before the game exits. Normal users don't notice this crash (since
-// it's only when the game is killed) but jailbroken users that get notified when processes crash may find the
-// crash alerts annoying.
+crate::declare_hook!(
+    /// Normally crashes the game just before exit. We hook it so it doesn't crash and cause
+    /// unnecessary crash report notifications to be sent.
+    STORE_CRASH,
+    fn(*mut Object, Sel) -> *const Object,
+    0x100007c1c
+);
+
+// Fixes an annoying crash that happens just before the game exits. Unjailbroken users don't
+// notice this because they don't get notifications when processes crash, but jailbroken users
+// with a crash reporter tweak installed will get a notification for the crash.
 fn persistent_store_coordinator(_this: *mut Object, _sel: Sel) -> *const Object {
     trace!("-[SCAppDelegate persistentStoreCoordinator] called. Returning null to prevent crash.");
     std::ptr::null()
@@ -405,12 +436,12 @@ fn persistent_store_coordinator(_this: *mut Object, _sel: Sel) -> *const Object 
 
 pub fn init() {
     if !crate::hook::is_german_game() {
-        crate::hooks::LEGAL_SPLASH.install(legal_splash_did_load);
+        LEGAL_SPLASH.install(legal_splash_did_load);
     } else {
         trace!("Correcting splash address for German game.");
-        crate::hooks::LEGAL_SPLASH_GERMAN.install(legal_splash_did_load);
+        LEGAL_SPLASH_GERMAN.install(legal_splash_did_load);
     }
 
-    crate::hooks::INIT_MAIN_MENU.install(init_for_title);
-    crate::hooks::STORE_CRASH.install(persistent_store_coordinator);
+    INIT_MAIN_MENU.install(init_for_title);
+    STORE_CRASH.install(persistent_store_coordinator);
 }

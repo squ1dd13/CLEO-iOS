@@ -289,4 +289,12 @@ impl Manager {
     }
 }
 
+crate::declare_hook!(
+    /// Reads the table of contents from an archive and registers the resources found with
+    /// the appropriate systems.
+    LOAD_ARCHIVE,
+    fn(path: *const i8, archive_id: i32),
+    0x1002f0e18
+);
+
 // todo: Attach our streaming stuff to the game's existing streaming interface.

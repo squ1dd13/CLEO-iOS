@@ -4,7 +4,15 @@ use std::sync::atomic::Ordering;
 
 use libc::c_char;
 
-use crate::{hook, settings::Settings};
+use crate::{declare_hook, hook, settings::Settings};
+
+declare_hook!(
+    /// Returns some timer-related value. We hook this because it gives us a place to
+    /// manipulate the FPS target.
+    CYCLES_PER_MS,
+    fn() -> u32,
+    0x10026c9c0
+);
 
 // CTimer::GetCyclesPerMillisecond is called between the FPS limit being set and when it is enforced,
 //  so if we overwrite the limit here, our new value will be enforced.
@@ -15,8 +23,15 @@ fn cycles_per_millisecond() -> u32 {
         *hook::slide::<*mut u32>(0x1008f07b8) = if sixty_fps { 60 } else { 30 };
     }
 
-    crate::hooks::CYCLES_PER_MS.original()()
+    CYCLES_PER_MS.original()()
 }
+
+declare_hook!(
+    /// Updates a lot of the game's core systems (audio, graphics, menu, etc.) every frame.
+    IDLE,
+    fn(u64, u64),
+    0x100242c20
+);
 
 fn idle(p1: u64, p2: u64) {
     unsafe {
@@ -24,7 +39,7 @@ fn idle(p1: u64, p2: u64) {
         *hook::slide::<*mut bool>(0x10081c519) = show_fps;
     }
 
-    crate::hooks::IDLE.original()(p1, p2);
+    IDLE.original()(p1, p2);
 }
 
 #[repr(C)]
@@ -34,6 +49,14 @@ struct Rgba {
     blue: u8,
     alpha: u8,
 }
+
+declare_hook!(
+    /// Draws a string containing the current FPS to the screen. We completely replace the
+    /// game's implementation of this.
+    DISPLAY_FPS,
+    fn(),
+    0x100241cd8
+);
 
 fn display_fps() {
     let delta_time = crate::hook::slide::<fn() -> u32>(0x1004e8c70)();
@@ -115,8 +138,20 @@ fn display_fps() {
     crate::hook::slide::<fn(f32, f32, *const u16)>(0x1003809c8)(x, y, bytes.as_ptr());
 }
 
+declare_hook!(
+    /// Takes a bitmask and uses the individual bits to write a fragment shader line-by-line.
+    ///
+    /// Different bits indicate that different sets of pre-written source lines should be
+    /// added to the shader. This is either a form of compression, obfuscation, or both.
+    ///
+    /// The produced source is stored in the global fragment shader buffer.
+    WRITE_FRAG_SHADER,
+    fn(u32),
+    0x100137528
+);
+
 fn write_fragment_shader(mask: u32) {
-    crate::hooks::WRITE_FRAG_SHADER.original()(mask);
+    WRITE_FRAG_SHADER.original()(mask);
 
     let real_address = crate::hook::slide::<*mut u8>(0x100934e68);
 
@@ -138,6 +173,17 @@ fn write_fragment_shader(mask: u32) {
     }
 }
 
+declare_hook!(
+    /// Sets the primary and secondary loading messages.
+    ///
+    /// It would appear that at some point, the game showed these messages near the loading
+    /// bar, but this behaviour does not exist in the final game. We hook this so we can log
+    /// the messages.
+    REPORT_LOADING,
+    fn(*const c_char, *const c_char),
+    0x1002b5a78
+);
+
 fn set_loading_messages(msg_1: *const c_char, msg_2: *const c_char) {
     unsafe {
         let msg_1 = std::ffi::CStr::from_ptr(msg_1).to_str().unwrap_or("???");
@@ -148,11 +194,9 @@ fn set_loading_messages(msg_1: *const c_char, msg_2: *const c_char) {
 }
 
 pub fn init() {
-    use crate::hooks::*;
-
     IDLE.install(idle);
-    CYCLES_PER_MS.install(cycles_per_millisecond);
-    WRITE_FRAG_SHADER.install(write_fragment_shader);
     DISPLAY_FPS.install(display_fps);
+    CYCLES_PER_MS.install(cycles_per_millisecond);
     REPORT_LOADING.install(set_loading_messages);
+    WRITE_FRAG_SHADER.install(write_fragment_shader);
 }

@@ -3,7 +3,7 @@
 
 use std::sync::atomic::AtomicU16;
 
-use objc::{runtime::Object, *};
+use objc::{*, runtime::Object};
 
 // use crate::old_menu::MenuAction;
 
@@ -58,8 +58,15 @@ pub fn _request_update() {
     UPDATE_COUNTER.store(1000, std::sync::atomic::Ordering::Relaxed);
 }
 
+crate::declare_hook!(
+    /// Takes input from all connected game controllers.
+    UPDATE_PADS,
+    fn(),
+    0x100244908
+);
+
 fn update_pads() {
-    crate::hooks::UPDATE_PADS.original()();
+    UPDATE_PADS.original()();
 
     let (current_state, previous_state) = unsafe {
         let ptr: *mut ControllerState = crate::hook::slide(0x1007baf5c);
@@ -134,5 +141,5 @@ fn update_pads() {
 }
 
 pub fn init() {
-    crate::hooks::UPDATE_PADS.install(update_pads);
+    UPDATE_PADS.install(update_pads);
 }

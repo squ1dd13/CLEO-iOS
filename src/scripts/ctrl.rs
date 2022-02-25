@@ -8,7 +8,7 @@ use crossbeam_channel::{Receiver, Sender};
 use once_cell::sync::OnceCell;
 
 use crate::ui::menu::{
-    data::{self, RowData},
+    data::{self},
     view,
 };
 
@@ -16,6 +16,27 @@ use super::{
     base::{self, Script},
     js,
 };
+
+crate::declare_hook!(
+    /// Carries out the third stage of the game's loading sequence.
+    INIT_STAGE_3,
+    fn(usize),
+    0x1002f9b20
+);
+
+crate::declare_hook!(
+    /// Updates the script runtime. Called every frame.
+    SCRIPT_TICK,
+    fn(),
+    0x1001d0f40
+);
+
+crate::declare_hook!(
+    /// Resets various aspects of the game's internals to get it ready for loading a different save.
+    RESET_BEFORE_RESTART,
+    fn(),
+    0x1002ce55c
+);
 
 /// A message used to report an interaction with a script in the menu. Contains the script name and
 /// the state that the user switched it to.
@@ -165,7 +186,7 @@ impl Runtime {
         script.set_state(base::State::Auto(true));
         runtime.add_script(Box::new(script));
 
-        crate::hooks::INIT_STAGE_3.original()(ptr);
+        INIT_STAGE_3.original()(ptr);
     }
 
     fn tick_hook() {
@@ -178,12 +199,11 @@ impl Runtime {
             .update()
             .expect("Script runtime error");
 
-        crate::hooks::SCRIPT_TICK.original()();
-        // crate::call_original!(crate::targets::script_tick);
+        SCRIPT_TICK.original()();
     }
 
     fn reset_hook() {
-        crate::hooks::RESET_BEFORE_RESTART.original()();
+        RESET_BEFORE_RESTART.original()();
 
         /*
             On reset:
@@ -353,7 +373,7 @@ impl data::RowData<StateUpdate> for ScriptRow {
 }
 
 pub fn init() {
-    crate::hooks::INIT_STAGE_3.install(Runtime::load_hook);
-    crate::hooks::SCRIPT_TICK.install(Runtime::tick_hook);
-    crate::hooks::RESET_BEFORE_RESTART.install(Runtime::reset_hook);
+    INIT_STAGE_3.install(Runtime::load_hook);
+    SCRIPT_TICK.install(Runtime::tick_hook);
+    RESET_BEFORE_RESTART.install(Runtime::reset_hook);
 }

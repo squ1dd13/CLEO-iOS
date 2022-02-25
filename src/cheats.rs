@@ -272,15 +272,30 @@ pub fn tab_data() -> data::TabData<'static, StateUpdate, impl data::RowData<Stat
 }
 
 pub fn init() {
+    crate::declare_hook!(
+        /// Updates the cheat system. Called every frame. We completely replace this with our own
+        /// implementation because we re-implement the cheat system.
+        DO_CHEATS,
+        fn(),
+        0x1001a7f28
+    );
+
     // Hook the function that updates the cheat system. This is called once every tick.
-    crate::hooks::DO_CHEATS.install(|| {
+    DO_CHEATS.install(|| {
         Manager::shared_mut().update();
     });
 
+    crate::declare_hook!(
+        /// Resets the cheat system, ready for a new load.
+        RESET_CHEATS,
+        fn(),
+        0x1001a8194
+    );
+
     // Hook the function that resets the cheat states between games.
-    crate::hooks::RESET_CHEATS.install(|| {
+    RESET_CHEATS.install(|| {
         log::info!("Resetting cheats");
-        crate::hooks::RESET_CHEATS.original()();
+        RESET_CHEATS.original()();
         Manager::shared_mut().reset();
     });
 }

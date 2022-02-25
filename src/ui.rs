@@ -1,6 +1,5 @@
 pub use gui::{colours, exit_to_homescreen};
 pub use old_menu::{MenuMessage, RowData, RowDetail, TabData};
-pub use touch::Stage;
 
 mod controller;
 mod gui;

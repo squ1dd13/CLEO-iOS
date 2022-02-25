@@ -1,15 +1,14 @@
 //! Handles finding a hooking library, and provides types and macros for using the library
 //! to hook game code.
 
+use std::borrow::Borrow;
+use std::ops::{Deref, DerefMut};
+
 use anyhow::{Context, Result};
 use cached::proc_macro::cached;
 use dlopen::symbor::Library;
 use log::error;
-use once_cell::sync::Lazy;
 use parking_lot::Mutex;
-use std::borrow::{Borrow, BorrowMut};
-use std::cell::{Cell, RefCell, UnsafeCell};
-use std::ops::{Deref, DerefMut};
 
 fn get_single_symbol<T: Copy>(path: &str, sym_name: &str) -> Result<T> {
     let lib = Library::open(path).context("Failed to open hooking library")?;
@@ -194,6 +193,15 @@ impl<FnType> Hook<FnType> {
             .lock()
             .expect("`original()` requires that an original function exists")
     }
+}
+
+/// Expands to a declaration of a static `Hook` structure.
+#[macro_export]
+macro_rules! declare_hook {
+    ($(#[$meta:meta])* $name:ident, $sig:ty, $address:literal) => {
+        $(#[$meta])*
+        static $name: crate::hook::Hook<$sig> = crate::hook::Hook::new($address);
+    };
 }
 
 #[macro_export]
