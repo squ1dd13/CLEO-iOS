@@ -1,11 +1,10 @@
 //! Provides touch information to other modules, and directly controls the showing/hiding
 //! of the menu when related to touch events.
 
-use std::sync::Mutex;
-
 use cached::proc_macro::cached;
-use objc::{*, runtime::Object};
+use objc::{runtime::Object, *};
 use once_cell::sync::OnceCell;
+use parking_lot::Mutex;
 
 use crate::ui::gui::CGRect;
 
@@ -143,8 +142,8 @@ impl Manager {
 
     /// Locks the touch vector mutex and returns a guard that gives access to the vector. Take care
     /// to not call this twice without dropping the first guard returned.
-    fn touches(&self) -> std::sync::MutexGuard<Vec<Touch>> {
-        self.touches.lock().unwrap()
+    fn touches(&self) -> parking_lot::MutexGuard<Vec<Touch>> {
+        self.touches.lock()
     }
 
     /// Finds the touch closest to the given point. This is useful for tracking touches between

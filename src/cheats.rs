@@ -1,7 +1,8 @@
-use std::{borrow::Cow, sync::Mutex};
+use std::borrow::Cow;
 
 use crossbeam_channel::{Receiver, Sender};
 use once_cell::sync::Lazy;
+use parking_lot::Mutex;
 
 use crate::ui::menu::{data, view};
 
@@ -184,7 +185,7 @@ struct Manager {
 impl Manager {
     /// Returns a mutable reference to the shared cheat manager. This will create the manager if it
     /// doesn't already exist.
-    fn shared_mut<'mgr>() -> std::sync::MutexGuard<'mgr, Manager> {
+    fn shared_mut<'mgr>() -> parking_lot::MutexGuard<'mgr, Manager> {
         static SHARED: Lazy<Mutex<Manager>> = Lazy::new(|| {
             let (sender, receiver) = crossbeam_channel::unbounded();
 
@@ -195,7 +196,7 @@ impl Manager {
             })
         });
 
-        SHARED.lock().unwrap()
+        SHARED.lock()
     }
 
     /// Updates all of the cheats that require state changes.

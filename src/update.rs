@@ -1,12 +1,10 @@
 //! Interfaces with the GitHub API to determine if a CLEO update is available, and manages
 //! the version cache.
 
-use std::{
-    io::{Read, Write},
-    sync::Mutex,
-};
+use std::io::{Read, Write};
 
 use once_cell::sync::Lazy;
+use parking_lot::Mutex;
 
 use crate::files;
 
@@ -87,7 +85,7 @@ static CHECK_RESULT: Lazy<Mutex<Option<Result<bool, String>>>> = Lazy::new(|| Mu
 /// update check finished without errors and an update is available. Otherwise, returns
 /// `false`, logging any errors encountered.
 pub fn was_update_found() -> bool {
-    let result = CHECK_RESULT.lock().unwrap();
+    let result = CHECK_RESULT.lock();
 
     if result.is_none() {
         return false;
@@ -124,7 +122,7 @@ pub fn start_update_check() {
             Err(err) => Err(err.to_string()),
         };
 
-        *CHECK_RESULT.lock().unwrap() = Some(available);
+        *CHECK_RESULT.lock() = Some(available);
     });
 }
 

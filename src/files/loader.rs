@@ -1,14 +1,14 @@
 //! Implementation for CLEO's file swapping functionality.
 
 use std::collections::HashMap;
-use std::sync::Mutex;
 
 use once_cell::sync::Lazy;
+use parking_lot::Mutex;
 
 static PATH_SWAPS: Lazy<Mutex<HashMap<String, String>>> = Lazy::new(|| Mutex::new(HashMap::new()));
 
 fn swap_path(game_path: &str) -> String {
-    if let Some(swapped) = PATH_SWAPS.lock().unwrap().get(game_path) {
+    if let Some(swapped) = PATH_SWAPS.lock().get(game_path) {
         swapped.clone()
     } else {
         game_path.to_string()
@@ -83,7 +83,7 @@ fn load_replacement(path: &impl AsRef<std::path::Path>) -> anyhow::Result<()> {
         ));
     }
 
-    PATH_SWAPS.lock().unwrap().insert(
+    PATH_SWAPS.lock().insert(
         game_file_path.display().to_string(),
         path.as_ref().display().to_string(),
     );

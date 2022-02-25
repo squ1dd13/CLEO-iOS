@@ -2,10 +2,11 @@
 //! of FXT language files.
 
 use std::collections::HashMap;
-use std::{os::raw::c_char, sync::Mutex};
+use std::os::raw::c_char;
 
 use log::warn;
 use once_cell::sync::Lazy;
+use parking_lot::Mutex;
 
 use crate::files;
 
@@ -24,10 +25,8 @@ fn get_gxt_string(text_obj_ptr: usize, key: *const c_char) -> *const u16 {
         let key_str = unsafe { std::ffi::CStr::from_ptr(key) }.to_str();
 
         if let Ok(key_str) = key_str {
-            if let Ok(custom_strings) = CUSTOM_STRINGS.lock() {
-                if let Some(value) = custom_strings.get(key_str) {
-                    return value.as_ptr();
-                }
+            if let Some(value) = CUSTOM_STRINGS.lock().get(key_str) {
+                return value.as_ptr();
             }
         }
     }
@@ -38,7 +37,7 @@ fn get_gxt_string(text_obj_ptr: usize, key: *const c_char) -> *const u16 {
 /// Add a key-value pair to the string map. Returns true if the key was already present. If the key is present, the value
 /// will be overwritten.
 pub fn set_kv(key: &str, value: &str) -> bool {
-    let mut custom_strings = CUSTOM_STRINGS.lock().unwrap();
+    let mut custom_strings = CUSTOM_STRINGS.lock();
     let mut utf16: Vec<u16> = value.encode_utf16().collect();
 
     // The game expects the strings to be null-terminated.

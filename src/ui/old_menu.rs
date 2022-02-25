@@ -4,15 +4,15 @@
 use std::{
     collections::HashMap,
     sync::{
-        Arc,
-        mpsc::{self, Sender}, Mutex,
+        mpsc::{self, Sender},
+        Arc, Mutex,
     },
 };
 
 use objc::{class, msg_send, runtime::Object, sel, sel_impl};
 use once_cell::{sync::OnceCell, unsync::Lazy};
 
-use super::gui::{self, CGPoint, CGRect, CGSize, create_ns_string};
+use super::gui::{self, create_ns_string, CGPoint, CGRect, CGSize};
 
 pub enum RowDetail {
     Info(String),

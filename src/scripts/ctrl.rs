@@ -1,11 +1,12 @@
 //! Manages the script runtime. It is responsible for loading and controlling all
 //! scripts used by CLEO.
 
-use std::{borrow::Cow, collections::BTreeSet, sync::Mutex};
+use std::{borrow::Cow, collections::BTreeSet};
 
 use anyhow::{Context, Result};
 use crossbeam_channel::{Receiver, Sender};
 use once_cell::sync::OnceCell;
+use parking_lot::Mutex;
 
 use crate::ui::menu::{
     data::{self},
@@ -56,7 +57,7 @@ struct Runtime {
 }
 
 impl Runtime {
-    fn shared_mut<'rt>() -> std::sync::MutexGuard<'rt, Runtime> {
+    fn shared_mut<'rt>() -> parking_lot::MutexGuard<'rt, Runtime> {
         // Safety: This is safe because the scripts are never accessed from two threads at the same time.
         // (Game code uses them on the same thread that our hooks run.)
         unsafe impl Send for Runtime {}
@@ -75,7 +76,6 @@ impl Runtime {
                 })
             })
             .lock()
-            .unwrap()
     }
 
     fn add_script(&mut self, script: Box<dyn base::Script>) {

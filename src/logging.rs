@@ -1,11 +1,12 @@
 //! Logging backend which logs over UDP and to a file.
 
-use std::{fs::File, io::Write, net, sync::Mutex};
+use std::{fs::File, io::Write, net};
 
 use cached::proc_macro::cached;
 use chrono::Local;
 use log::{Level, Metadata, Record};
 use once_cell::sync::OnceCell;
+use parking_lot::Mutex;
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Copy, Serialize, Deserialize)]
@@ -101,8 +102,8 @@ impl Logger {
             time: Local::now().format("%Y-%m-%d %H:%M:%S%.3f").to_string(),
         };
 
-        if let Some(Err(err)) = MSG_SENDER.get().map(|s| s.lock().map(|s| s.send(message))) {
-            log::error!("error in log sender chain: {}", err);
+        if let Some(Err(err)) = MSG_SENDER.get().map(|m| m.lock().send(message)) {
+            log::error!("error sending log message: {}", err);
         }
     }
 }
