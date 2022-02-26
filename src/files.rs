@@ -8,6 +8,6 @@ mod stream;
 
 pub fn init() {
     loader::init();
-    // old_stream::init();
+    stream::init();
     res::init();
 }
