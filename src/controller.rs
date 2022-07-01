@@ -60,10 +60,10 @@ pub fn _request_update() {
 fn update_pads() {
     crate::call_original!(crate::targets::update_pads);
 
-    let (current_state, previous_state) = unsafe {
+    let (current_state, previous_state) = {
         let ptr: *mut ControllerState = crate::hook::slide(0x1007baf5c);
 
-        let refs = (ptr.offset(0).as_mut(), ptr.offset(1).as_ref());
+        let refs = unsafe{ (ptr.offset(0).as_mut(), ptr.offset(1).as_ref()) };
 
         if refs.0.is_none() || refs.1.is_none() {
             log::error!("Null controller state!");
