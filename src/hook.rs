@@ -55,15 +55,15 @@ fn gen_shit_hook_fn<FuncType>() -> fn(FuncType, FuncType, &mut Option<FuncType>)
             options: 0,
         };
 
-        unsafe {
+        
             let hook_fn: fn(*const ShitFunctionHook<FuncType>, i32) -> i32 =
-                std::mem::transmute(get_shit_raw_hook_fn().expect("need a hook function"));
+                unsafe { std::mem::transmute(get_shit_raw_hook_fn().expect("need a hook function")) };
             let struct_ptr: *const ShitFunctionHook<FuncType> = &hook_struct;
 
             if hook_fn(struct_ptr, 1) != 1 {
                 error!("Hook failed!");
             }
-        }
+        
     }
 }
 
@@ -78,8 +78,8 @@ fn get_hook_fn<FuncType>() -> fn(FuncType, FuncType, &mut Option<FuncType>) {
     // Reinterpret cast the address to get a function pointer.
     // We get the address as a usize so that it can be cached once and then reused
     //  to get different signatures.
+    let addr_ptr: *const usize = &raw;
     unsafe {
-        let addr_ptr: *const usize = &raw;
         *(addr_ptr as *const fn(FuncType, FuncType, &mut Option<FuncType>))
     }
 }
@@ -183,8 +183,8 @@ macro_rules! call_original {
 }
 
 pub fn slide<T: Copy>(address: usize) -> T {
+    let addr_ptr: *const usize = &(address + crate::hook::get_image_aslr_offset(0));
     unsafe {
-        let addr_ptr: *const usize = &(address + crate::hook::get_image_aslr_offset(0));
         *(addr_ptr as *const T)
     }
 }

@@ -50,9 +50,9 @@ fn stream_init(stream_count: i32) {
     let streams = {
         let streams_double_ptr: *mut *mut Stream = hook::slide(0x100939118);
 
+        // Allocate the stream array. Each stream structure is 48 (0x30) bytes.
+        let byte_count = stream_count as usize * 0x30;
         unsafe {
-            // Allocate the stream array. Each stream structure is 48 (0x30) bytes.
-            let byte_count = stream_count as usize * 0x30;
             let allocated = libc::malloc(byte_count).cast();
             zero_memory(allocated, byte_count);
 
@@ -89,14 +89,14 @@ fn stream_init(stream_count: i32) {
 
     *streaming_queue() = Queue::with_capacity(stream_count as u32 + 1);
 
-    unsafe {
-        // Create the global stream semaphore.
-        // eq: OS_SemaphoreCreate()
-        let semaphore = hook::slide::<fn() -> *mut u8>(0x1004e8b18)();
+    // Create the global stream semaphore.
+    // eq: OS_SemaphoreCreate()
+    let semaphore = hook::slide::<fn() -> *mut u8>(0x1004e8b18)();
 
-        if semaphore.is_null() {
-            panic!("Failed to create global stream semaphore!");
-        }
+    if semaphore.is_null() {
+        panic!("Failed to create global stream semaphore!");
+    }
+    unsafe {
 
         // Write to the variable.
         hook::slide::<*mut *mut u8>(0x1006ac8e0).write(semaphore);
@@ -258,12 +258,12 @@ fn stream_read(
 
     let stream = unsafe { &mut *streams_array().offset(stream_index as isize) };
 
-    unsafe {
+    
         let handle_arr_base: *mut *mut u8 = hook::slide(0x100939140);
-        let handle_ptr: *mut u8 = *handle_arr_base.offset(source.image_index() as isize);
+        let handle_ptr: *mut u8 = unsafe { *handle_arr_base.offset(source.image_index() as isize) };
 
         stream.file = handle_ptr;
-    }
+    
 
     if stream.sectors_to_read != 0 || stream.processing {
         return false;

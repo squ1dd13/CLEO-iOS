@@ -9,20 +9,20 @@ use crate::{call_original, hook, settings::Settings, targets};
 // CTimer::GetCyclesPerMillisecond is called between the FPS limit being set and when it is enforced,
 //  so if we overwrite the limit here, our new value will be enforced.
 fn cycles_per_millisecond() -> u32 {
-    unsafe {
-        let sixty_fps = Settings::shared().sixty_fps.load(Ordering::SeqCst);
+    
+        let sixty_fps = unsafe { Settings::shared().sixty_fps.load(Ordering::SeqCst) };
 
         *hook::slide::<*mut u32>(0x1008f07b8) = if sixty_fps { 60 } else { 30 };
-    }
+    
 
     call_original!(targets::cycles_per_millisecond)
 }
 
 fn idle(p1: u64, p2: u64) {
-    unsafe {
-        let show_fps = Settings::shared().show_fps.load(Ordering::SeqCst);
+    
+        let show_fps = unsafe { Settings::shared().show_fps.load(Ordering::SeqCst) };
         *hook::slide::<*mut bool>(0x10081c519) = show_fps;
-    }
+    
 
     call_original!(targets::idle, p1, p2);
 }
@@ -92,9 +92,9 @@ fn display_fps() {
         alpha: 255,
     });
 
-    let fps = unsafe {
-        let delta_last_frame = *delta_times.offset((*current_delta - 1) % 40);
-        let delta_this_frame = *delta_times.offset(*current_delta % 40);
+    let fps = {
+        let delta_last_frame = unsafe { *delta_times.offset((*current_delta - 1) % 40) };
+        let delta_this_frame = unsafe { *delta_times.offset(*current_delta % 40) };
         let delta = delta_last_frame - delta_this_frame;
 
         39000.0 / delta as f32
