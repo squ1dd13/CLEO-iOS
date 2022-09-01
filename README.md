@@ -33,6 +33,10 @@ a new release available. If there is one, a message will be displayed with the o
 To update CLEO, simply follow the above steps with the newer .deb. The package manager will handle the update,
 and your mods will remain in place.
 
+## Building
+
+Developers: see the bottom of the README for instructions on how to build CLEO.
+
 ## Menu
 
 The CLEO menu (or just "the menu") is used to control scripts, cheats and CLEO's own
@@ -278,6 +282,66 @@ If you need help with something, please join the Discord server so
 we can assist you there. Also, don't forget that you can read
 through the step-by-step instructions on this page if you can't
 remember how to do something.
+
+## Building
+
+**Ignore this section if you are not a developer.**
+
+CLEO is typically built using the `build.sh` script in the main directory. This script compiles
+the Rust code and produces a dynamic library (`.dylib`), but it can also do a couple of other
+things.
+* `--release` will build a release version of the tweak. If you don't specify this, the tweak
+  will be built in debug mode. The output of a release build is
+  `target/aarch64-apple-ios/release/cleo.dylib`. Debug builds go in
+  `target/aarch64-apple-ios/debug`.
+* `--package` will create `cleo.deb` in the same folder as `cleo.dylib`. This can be used to
+  install the tweak.
+* `--install` will install the tweak to a device. If you use `--package`, this will copy
+  `cleo.deb` to the device and install it. Otherwise, it will just copy `cleo.dylib` onto the
+  device, overwriting the previous `.dylib`. **If the device doesn't have CLEO installed yet, use
+  `--package` on the first install.**
+
+`build.sh` relies on a few environment variables to work. In order to use `--install`, you must
+first set `CLEO_INSTALL_HOST` to either the hostname or IP address of the device the tweak should
+be installed to. This should be pretty much platform-independent.
+
+`CLEO_IOS_TOOLCHAIN_PATH` and `CLEO_IOS_SDK_PATH` will vary between systems, so see below for what
+you might need to do for them.
+
+### Rust setup
+You will need to install Rust on your system before compiling CLEO (since it's written in Rust).
+If you don't have it installed already, go to https://www.rust-lang.org/learn/get-started and
+follow the instructions there.
+
+I build CLEO with the `nightly` toolchain. If you get start a shell in the CLEO folder, you can
+use `rustup override set nightly` to set the toolchain to nightly for that directory.
+
+You'll need to have the `aarch64-apple-ios` target too, so run `rustup target add
+aarch64-apple-ios` to set that up.
+
+### Linux
+I use Manjaro and a fairly simple build setup for compiling CLEO.
+
+Unless you already have a toolchain for cross-compiling to iOS, you'll need to set one up before
+you try to build CLEO.
+
+I use [Sam Bingner's Linux iOS toolchain](https://github.com/sbingner/llvm-project), which has
+worked for me on both Ubuntu and Manjaro, and I've been using it since the original C++ CLEO. You
+can install it by downloading the `.tar.lzma` file from the latest release and extracting it into a
+folder somewhere on your system. You can then set `CLEO_IOS_TOOLCHAIN_PATH` to the path to wherever
+you extracted it. The folder at `$CLEO_IOS_TOOLCHAIN_PATH` should contain `bin`, `include`, and a
+few other folders. I have my toolchain path set to `/home/squ1dd13/projects/ios/toolchain`.
+
+You'll also need an iOS SDK. I currently build against an iOS 13.2 SDK. I can't remember where I
+got it from, but there are loads of places you can get iOS SDKs. You should end up with a folder
+called `iPhoneOSxx.x.sdk` (or just `iPhoneOS.sdk`). The path to this folder is what you should set
+`CLEO_IOS_SDK_PATH` to. Mine is `/home/squ1dd13/projects/ios/iPhoneOS.sdk`.
+
+The only major dependency is the iOS toolchain itself, but making packages requires `dpkg-deb`,
+which may or may not be installed on your system already. (On Manjaro, so I had to use `yay -S
+dpkg` for that to work.)
+
+Installing to a device uses `scp`, so make sure you have that too.
 
 ## Thanks to...
 
