@@ -314,8 +314,9 @@ If you don't have it installed already, go to https://www.rust-lang.org/learn/ge
 follow the instructions there. If you do have it installed, it might be worth running `rustup
 update` to ensure you're on the latest version.
 
-I build CLEO with the `nightly` toolchain. If you get start a shell in the CLEO folder, you can
-use `rustup override set nightly` to set the toolchain to nightly for that directory.
+CLEO needs features that are only available in the `nightly` toolchain. If you get start a shell in
+the CLEO folder, you can use `rustup override set nightly` to set the toolchain to nightly for that
+directory.
 
 You'll need to have the `aarch64-apple-ios` target too, so run `rustup target add
 aarch64-apple-ios` to set that up.
