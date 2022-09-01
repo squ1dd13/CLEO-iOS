@@ -311,7 +311,8 @@ you might need to do for them.
 ### Rust setup
 You will need to install Rust on your system before compiling CLEO (since it's written in Rust).
 If you don't have it installed already, go to https://www.rust-lang.org/learn/get-started and
-follow the instructions there.
+follow the instructions there. If you do have it installed, it might be worth running `rustup
+update` to ensure you're on the latest version.
 
 I build CLEO with the `nightly` toolchain. If you get start a shell in the CLEO folder, you can
 use `rustup override set nightly` to set the toolchain to nightly for that directory.
