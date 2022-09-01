@@ -320,43 +320,53 @@ things.
 first set `CLEO_INSTALL_HOST` to either the hostname or IP address of the device the tweak should
 be installed to. This should be pretty much platform-independent.
 
-`CLEO_IOS_TOOLCHAIN_PATH` and `CLEO_IOS_SDK_PATH` will vary between systems, so see below for what
-you might need to do for them.
+You'll need a few tools, so see below for how you can get them on your platform.
+* Apple's build of `clang`
+* `ldid`
+* `dpkg-deb`
 
 ### Linux
-I use Manjaro and a fairly simple build setup for compiling CLEO.
-
-Unless you already have a toolchain for cross-compiling to iOS, you'll need to set one up before
-you try to build CLEO.
+On my Manjaro machine there was not a lot of setup required to build CLEO. The main thing you need
+is an iOS toolchain.
 
 I use [Sam Bingner's Linux iOS toolchain](https://github.com/sbingner/llvm-project), which has
 worked for me on both Ubuntu and Manjaro, and I've been using it since the original C++ CLEO. You
 can install it by downloading the `.tar.lzma` file from the latest release and extracting it into a
-folder somewhere on your system. You can then set `CLEO_IOS_TOOLCHAIN_PATH` to the path to wherever
-you extracted it. The folder at `$CLEO_IOS_TOOLCHAIN_PATH` should contain `bin`, `include`, and a
-few other folders. I have my toolchain path set to `/home/squ1dd13/projects/ios/toolchain`.
+folder somewhere on your system.
+
+This toolchain contains both `ldid` and Apple's build of `clang`. Once you've extracted it, just
+set `CLEO_CLANG` and `CLEO_LDID` to the paths to those tools in the toolchain. They can be found
+inside the `bin` folder.
+
+For example, I use the following:
+* `CLEO_CLANG="/home/squ1dd13/projects/ios/toolchain/bin/clang"`
+* `CLEO_LDID="/home/squ1dd13/projects/ios/toolchain/bin/ldid"`
 
 You'll also need an iOS SDK. I currently build against an iOS 13.2 SDK. I can't remember where I
 got it from, but there are loads of places you can get iOS SDKs. You should end up with a folder
 called `iPhoneOSxx.x.sdk` (or just `iPhoneOS.sdk`). The path to this folder is what you should set
-`CLEO_IOS_SDK_PATH` to. Mine is `/home/squ1dd13/projects/ios/iPhoneOS.sdk`.
+`CLEO_IOS_SDK` to. Mine is `/home/squ1dd13/projects/ios/iPhoneOS.sdk`.
 
-The only major dependency is the iOS toolchain itself, but making packages requires `dpkg-deb`,
-which may or may not be installed on your system already. (On Manjaro, so I had to use `yay -S
-dpkg` for that to work.)
+I had to manually get `dpkg-deb` on my Manjaro system, but that was as simple as `yay -S dpkg`. If
+you don't have this already, you'll need to find out how to get it for your specific distro.
 
 Installation to a device requires `scp`, so make sure you have that too.
 
 ## Thanks to...
 
-- [Seemann](https://github.com/x87) for offering support and info, and for letting this project officially
-  be a part of [CLEO](http://cleo.li/).
-- [Alexander Blade](http://www.dev-c.com/) for creating CLEO Android, and for publishing information on
-  his Android-specific opcodes [here](https://gtaforums.com/topic/663125-android-cleo-android/).
+- [Seemann](https://github.com/x87) for offering support and info, and for letting this project
+  officially be a part of [CLEO](http://cleo.li/).
+- [Alexander Blade](http://www.dev-c.com/) for creating CLEO Android, and for publishing
+  information on his Android-specific opcodes
+  [here](https://gtaforums.com/topic/663125-android-cleo-android/).
 - [DK22Pac](https://github.com/DK22Pac) and all the others who have contributed to
-  [plugin-sdk](https://github.com/DK22Pac/plugin-sdk), which has been very helpful for creating game structures.
-- All those who have contributed to the [gta-reversed](https://github.com/codenulls/gta-reversed) project, which has been a valuable
-  resource for building my understanding of some of the more complex systems that are in both the PC and iOS versions.
+  [plugin-sdk](https://github.com/DK22Pac/plugin-sdk), which has been very helpful for creating
+  game structures.
+- All those who have contributed to the [gta-reversed](https://github.com/codenulls/gta-reversed)
+  project, which has been a valuable resource for building my understanding of some of the more
+  complex systems that are in both the PC and iOS versions.
 - oliver#1219 for gifting me the other GTA games to help with getting CLEO working on those too.
-- Members of the CLEO iOS [Discord server](https://discord.gg/cXwkTUasJU) for reporting bugs, helping investigate them and testing fixes.
-- The GTA modding community in general for doing so much of the research which made CLEO iOS possible!
+- Members of the CLEO iOS [Discord server](https://discord.gg/cXwkTUasJU) for reporting bugs,
+  helping investigate them and testing fixes.
+- The GTA modding community in general for doing so much of the research which made CLEO iOS
+  possible!

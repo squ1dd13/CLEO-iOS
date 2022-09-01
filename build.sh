@@ -1,26 +1,6 @@
 #!/bin/bash
 
-# CLEO iOS build script
-#
-# You must set CLEO_IOS_TOOLCHAIN_PATH and CLEO_IOS_SDK_PATH before using this script. If you're on
-# macOS, you probably have everything you need already, and you can set those to existing
-# directories on your system. If you're on Linux, you can use
-# https://github.com/sbingner/llvm-project as your iOS toolchain and it should work out-of-the-box.
-#
-# Here are my values:
-#  CLEO_IOS_TOOLCHAIN_PATH="/home/squ1dd13/projects/ios/toolchain"
-#        CLEO_IOS_SDK_PATH="/home/squ1dd13/projects/ios/iPhoneOS.sdk"
-#
-# Additionally, if you wish to install the tweak to a device after building it, you must supply an
-# IP address or hostname with CLEO_INSTALL_HOST.
-
-# We use Clang for converting the archive that `cargo build` produces into a dynamic library.
-# It is necessary for whatever version of Clang we use to support the "arm64-apple-darwin"
-# architecture, which is why we use Clang from the iOS toolchain.
-CLANG_PATH="$CLEO_IOS_TOOLCHAIN_PATH/bin/clang"
-
-# We use ldid for signing our dylib.
-LDID_PATH="$CLEO_IOS_TOOLCHAIN_PATH/bin/ldid"
+# See README.md for information on how to use this script.
 
 CLEO_DIR="$(pwd)"
 
@@ -53,11 +33,11 @@ rm -f cleo.dylib
 echo "=> Creating dynamic library..."
 
 # Use Clang to convert the archive to a dynamic library.
-$CLANG_PATH -fpic -shared -Wl,-all_load libcleo.a -o cleo.dylib -isysroot $CLEO_IOS_SDK_PATH -target arm64-apple-darwin -framework CoreFoundation -framework Security || exit 2
+$CLEO_CLANG -fpic -shared -Wl,-all_load libcleo.a -o cleo.dylib -isysroot $CLEO_IOS_SDK -target arm64-apple-darwin -framework CoreFoundation -framework Security || exit 2
 
 echo "=> Signing..."
 
-$LDID_PATH -S cleo.dylib || exit 3
+$CLEO_LDID -S cleo.dylib || exit 3
 
 if [[ $* == *--package* ]]; then
     echo "=> Creating package directory..."
