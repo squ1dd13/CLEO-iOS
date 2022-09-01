@@ -287,6 +287,21 @@ remember how to do something.
 
 **Ignore this section if you are not a developer.**
 
+### Rust setup
+You will need to install Rust on your system before compiling CLEO (since it's written in Rust).
+If you don't have it installed already, go to https://www.rust-lang.org/learn/get-started and
+follow the instructions there. If you do have it installed, it might be worth running `rustup
+update` to ensure you're on the latest version.
+
+CLEO needs features that are only available in the `nightly` toolchain. If you get start a shell in
+the CLEO folder, you can use `rustup override set nightly` to set the toolchain to nightly for that
+directory.
+
+You'll need to have the `aarch64-apple-ios` target too, so run `rustup target add
+aarch64-apple-ios` to set that up.
+
+### `build.sh`
+
 CLEO is typically built using the `build.sh` script in the main directory. This script compiles
 the Rust code and produces a dynamic library (`.dylib`), but it can also do a couple of other
 things.
@@ -307,19 +322,6 @@ be installed to. This should be pretty much platform-independent.
 
 `CLEO_IOS_TOOLCHAIN_PATH` and `CLEO_IOS_SDK_PATH` will vary between systems, so see below for what
 you might need to do for them.
-
-### Rust setup
-You will need to install Rust on your system before compiling CLEO (since it's written in Rust).
-If you don't have it installed already, go to https://www.rust-lang.org/learn/get-started and
-follow the instructions there. If you do have it installed, it might be worth running `rustup
-update` to ensure you're on the latest version.
-
-CLEO needs features that are only available in the `nightly` toolchain. If you get start a shell in
-the CLEO folder, you can use `rustup override set nightly` to set the toolchain to nightly for that
-directory.
-
-You'll need to have the `aarch64-apple-ios` target too, so run `rustup target add
-aarch64-apple-ios` to set that up.
 
 ### Linux
 I use Manjaro and a fairly simple build setup for compiling CLEO.
@@ -343,7 +345,7 @@ The only major dependency is the iOS toolchain itself, but making packages requi
 which may or may not be installed on your system already. (On Manjaro, so I had to use `yay -S
 dpkg` for that to work.)
 
-Installing to a device uses `scp`, so make sure you have that too.
+Installation to a device requires `scp`, so make sure you have that too.
 
 ## Thanks to...
 
