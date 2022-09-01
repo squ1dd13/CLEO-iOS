@@ -16,7 +16,8 @@ building_dylib = sys.platform == "darwin"
 
 if building_dylib:
     # Override the "staticlib" that we set in Cargo.toml.
-    build_cmd.append('--config lib.crate-type["cdylib"]')
+    # bug: This just doesn't work.
+    build_cmd.append('--config lib.crate-type[\\"cdylib\\"]')
 
 build_cmd.append("build --target aarch64-apple-ios")
 
@@ -88,12 +89,12 @@ if not building_dylib:
 
     force_system(clang_cmd, "clang")
 
-    ldid_cmd = [double_quoted(force_var("CLEO_LDID")), "-S", dylib_path]
-    ldid_cmd = " ".join(ldid_cmd)
+# At this point, we should have a dylib at `dylib_path`, regardless of platform.
 
-    force_system(ldid_cmd, "ldid")
+ldid_cmd = [double_quoted(force_var("CLEO_LDID")), "-S", dylib_path]
+ldid_cmd = " ".join(ldid_cmd)
 
-# At this point, we should have a dylib at `dylib_path`, regardless of how we got it.
+force_system(ldid_cmd, "ldid")
 
 package = "--package" in args
 install = "--install" in args

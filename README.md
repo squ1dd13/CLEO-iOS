@@ -300,9 +300,9 @@ directory.
 You'll need to have the `aarch64-apple-ios` target too, so run `rustup target add
 aarch64-apple-ios` to set that up.
 
-### `build.sh`
+### `build.py`
 
-CLEO is typically built using the `build.sh` script in the main directory. This script compiles
+CLEO is typically built using the `build.py` script in the main directory. This script compiles
 the Rust code and produces a dynamic library (`.dylib`), but it can also do a couple of other
 things.
 * `--release` will build a release version of the tweak. If you don't specify this, the tweak
@@ -311,23 +311,21 @@ things.
   `target/aarch64-apple-ios/debug`.
 * `--package` will create `cleo.deb` in the same folder as `cleo.dylib`. This can be used to
   install the tweak.
-* `--install` will install the tweak to a device. If you use `--package`, this will copy
-  `cleo.deb` to the device and install it. Otherwise, it will just copy `cleo.dylib` onto the
-  device, overwriting the previous `.dylib`. **If the device doesn't have CLEO installed yet, use
-  `--package` on the first install.**
+* `--install` will install the tweak to a device. If you use `--package`, this will copy `cleo.deb`
+  to the device and install it. Otherwise, it will just copy `cleo.dylib` and `cleo.plist` onto the
+  device, overwriting the previous versions of those files. **If the device doesn't have CLEO
+  installed yet, use `--package` on the first install.**
 
-`build.sh` relies on a few environment variables to work. In order to use `--install`, you must
+`build.py` relies on a few environment variables to work. In order to use `--install`, you must
 first set `CLEO_INSTALL_HOST` to either the hostname or IP address of the device the tweak should
-be installed to. This should be pretty much platform-independent.
+be installed to. There are other variables too, but the values for these depend on your platform.
 
-You'll need a few tools, so see below for how you can get them on your platform.
-* Apple's build of `clang`
-* `ldid`
-* `dpkg-deb`
+See below for platform-specific instructions.
 
 ### Linux
 On my Manjaro machine there was not a lot of setup required to build CLEO. The main thing you need
-is an iOS toolchain.
+is an iOS toolchain, because we need `clang` and `ldid` in order to create a .dylib from the .ar
+file that `rustc` gives us.
 
 I use [Sam Bingner's Linux iOS toolchain](https://github.com/sbingner/llvm-project), which has
 worked for me on both Ubuntu and Manjaro, and I've been using it since the original C++ CLEO. You
@@ -351,6 +349,27 @@ I had to manually get `dpkg-deb` on my Manjaro system, but that was as simple as
 you don't have this already, you'll need to find out how to get it for your specific distro.
 
 Installation to a device requires `scp`, so make sure you have that too.
+
+### macOS
+
+`rustc` can produce `.dylib` files on macOS. `build.py` tells it to do that when it detects a macOS
+system, but for whatever reason, this override doesn't work and the build process goes the same as
+on Linux, producing an AR archive. You can change `crate-type = ["staticlib"]` to `crate-type =
+["cdylib"]` in `Cargo.toml`, and you will get a .dylib from `rustc`.
+
+If you don't already have it, you can get `dpkg` from Homebrew with `brew install dpkg`. This
+installs the `dpkg-deb` command. You don't need `clang` for building on macOS, but you will need
+`ldid`. This can be installed with `brew install ldid`. Once you have it, just set `CLEO_LDID` to
+the path to the installed executable.
+
+For some reason, versions of the tweak built with macOS crash on startup. It appears to be
+something to do with the panic hook that CLEO installs, but it's unclear as to what differs between
+Linux and macOS builds that would cause that.
+
+### Windows
+
+I'd recommend using WSL and following the Linux guide. If anyone gets CLEO built on Windows without
+using WSL, please feel free to add an explanation here.
 
 ## Thanks to...
 
