@@ -133,7 +133,7 @@ macro_rules! create_hard_target {
             #[allow(unused_imports)]
             use super::*;
 
-            const TARGET: crate::hook::Target<$sig> = crate::hook::Target::Address($addr);
+            const TARGET: $crate::hook::Target<$sig> = $crate::hook::Target::Address($addr);
 
             pub fn install(replacement: $sig) {
                 TARGET.hook_hard(replacement);
@@ -150,7 +150,7 @@ macro_rules! create_soft_target {
             #[allow(unused_imports)]
             use super::*;
 
-            const TARGET: crate::hook::Target<$sig> = crate::hook::Target::Address($addr);
+            const TARGET: $crate::hook::Target<$sig> = $crate::hook::Target::Address($addr);
             pub static mut ORIGINAL: Option<$sig> = None;
 
             pub fn install(replacement: $sig) {

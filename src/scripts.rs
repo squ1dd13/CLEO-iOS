@@ -399,13 +399,6 @@ impl Script {
             Script::Csa { script, state: _ } => script,
         }
     }
-
-    pub fn get_cleo_script(&self) -> &CleoScript {
-        match self {
-            Script::Csi(script) => script,
-            Script::Csa { script, state: _ } => script,
-        }
-    }
 }
 
 // hack: Scripts should be properly thread-safe.
@@ -413,7 +406,7 @@ unsafe impl Sync for Script {}
 unsafe impl Send for Script {}
 
 impl Script {
-    fn update_all(scripts: &mut Vec<Script>) {
+    fn update_all(scripts: &mut [Script]) {
         for script in scripts.iter_mut() {
             let script = match script {
                 Script::Csi(script) => script,

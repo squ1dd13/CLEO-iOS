@@ -233,7 +233,7 @@ pub fn init() {
     crate::targets::init_for_title::install(init_for_title);
 }
 
-#[derive(Default, Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+#[derive(Default, Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct Release {
     pub url: String,
     pub assets_url: String,
@@ -255,7 +255,7 @@ pub struct Release {
     pub body: String,
 }
 
-#[derive(Default, Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+#[derive(Default, Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct Author {
     pub login: String,
     pub id: i64,
@@ -278,7 +278,7 @@ pub struct Author {
     pub site_admin: bool,
 }
 
-#[derive(Default, Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+#[derive(Default, Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct Asset {
     pub url: String,
     pub id: i64,
@@ -295,7 +295,7 @@ pub struct Asset {
     pub browser_download_url: String,
 }
 
-#[derive(Default, Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+#[derive(Default, Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct Uploader {
     pub login: String,
     pub id: i64,

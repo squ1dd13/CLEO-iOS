@@ -41,7 +41,7 @@ impl Pointer {
     }
 
     fn absolute(&self) -> u64 {
-        self.0.abs() as u64
+        self.0.unsigned_abs()
     }
 }
 
@@ -404,16 +404,12 @@ fn disassemble(
 fn get_commands() -> &'static HashMap<u16, Command> {
     static COMMANDS_CELL: OnceCell<HashMap<u16, Command>> = OnceCell::new();
 
-    COMMANDS_CELL.get_or_init(|| {
-        let loaded = match load_all_commands() {
-            Ok(l) => l,
-            Err(err) => {
-                log::error!("Error loading commands: {}", err);
-                return HashMap::new();
-            }
-        };
-
-        loaded
+    COMMANDS_CELL.get_or_init(|| match load_all_commands() {
+        Ok(l) => l,
+        Err(err) => {
+            log::error!("Error loading commands: {}", err);
+            HashMap::new()
+        }
     })
 }
 

@@ -1,6 +1,5 @@
 //! Logging backend which logs over UDP and to a file.
 
-use cached::proc_macro::cached;
 use chrono::Local;
 use log::{Level, Metadata, Record};
 use once_cell::sync::OnceCell;
@@ -21,23 +20,6 @@ struct Message {
     msg_type: MessageType,
     string: String,
     time: String,
-}
-
-#[cached]
-fn get_proc_name() -> String {
-    let cur_exec = std::env::current_exe();
-
-    // Get the name of the current process, or "???" if we can't get the name.
-    if let Ok(path) = cur_exec {
-        String::from(
-            path.file_name()
-                .unwrap_or_else(|| std::ffi::OsStr::new("???"))
-                .to_str()
-                .unwrap_or("???"),
-        )
-    } else {
-        String::from("???")
-    }
 }
 
 impl Message {

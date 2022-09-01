@@ -1,7 +1,8 @@
 //! Replaces parts of the game's streaming system to allow the loading of replacement files inside IMGs,
 //! and also manages the loaded replacements.
-// fixme: The `stream` module is messy, poorly documented and full of hacky code.
-// fixme: Opcode 0x04ee seems to break when animations have been swapped.
+
+// hack: The `stream` module is messy, poorly documented and full of hacky code.
+// bug: Opcode 0x04ee seems to break when animations have been swapped.
 
 use std::{
     collections::HashMap,
@@ -468,8 +469,8 @@ pub fn init() {
     const CD_STREAM_INIT: hook::Target<fn(i32)> = hook::Target::Address(0x100177eb8);
     CD_STREAM_INIT.hook_hard(stream_init);
 
-    const CD_STREAM_READ: hook::Target<fn(u32, *mut u8, StreamSource, u32) -> bool> =
-        hook::Target::Address(0x100178048);
+    type StreamReadFn = fn(u32, *mut u8, StreamSource, u32) -> bool;
+    const CD_STREAM_READ: hook::Target<StreamReadFn> = hook::Target::Address(0x100178048);
     CD_STREAM_READ.hook_hard(stream_read);
 
     const CD_STREAM_OPEN: hook::Target<fn(*const c_char, bool) -> i32> =

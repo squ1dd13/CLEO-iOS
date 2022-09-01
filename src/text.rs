@@ -24,7 +24,7 @@ fn get_gxt_string(text_obj_ptr: usize, key: *const c_char) -> *const u16 {
         }
     }
 
-    return call_original!(targets::get_gxt_string, text_obj_ptr, key);
+    call_original!(targets::get_gxt_string, text_obj_ptr, key)
 }
 
 /// Add a key-value pair to the string map. Returns true if the key was already present. If the key is present, the value
