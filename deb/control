@@ -7,6 +7,6 @@ Replaces: com.squ1dd13.csios, com.squ1dd13.zinc
 Version: 2.1.2
 Architecture: iphoneos-arm
 Description: CLEO for GTA:SA. Now with extra Rust!
-Maintainer: Squ1dd13
-Author: Squ1dd13
+Maintainer: squ1dd13
+Author: squ1dd13
 Section: Tweaks
