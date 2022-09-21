@@ -165,5 +165,3 @@ elif install:
     copy_to_device(
         host, dylib_path, "/Library/MobileSubstrate/DynamicLibraries/CLEO.dylib"
     )
-
-    pass
