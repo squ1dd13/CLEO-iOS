@@ -68,16 +68,25 @@ fn gen_shit_hook_fn<FuncType>() -> fn(FuncType, FuncType, &mut Option<FuncType>)
 }
 
 fn get_hook_fn<FuncType>() -> fn(FuncType, FuncType, &mut Option<FuncType>) {
-    // Use libhooker if found.
-    if get_shit_raw_hook_fn().is_ok() {
-        return gen_shit_hook_fn();
+    let shit_hook = get_shit_raw_hook_fn();
+
+    match shit_hook {
+        Ok(_) => {
+            log::info!("found libhooker and hooking function, so we'll use that");
+            return gen_shit_hook_fn();
+        }
+
+        Err(err) => log::warn!("cannot use libhooker: {:?}", err),
     }
 
     let raw = get_raw_hook_fn().expect("get_hook_fn: get_raw_hook_fn failed");
 
+    log::info!("found substrate/substitute: {:#x}", raw);
+
     // Reinterpret cast the address to get a function pointer.
     // We get the address as a usize so that it can be cached once and then reused
     //  to get different signatures.
+    // hack: manual transmute
     unsafe {
         let addr_ptr: *const usize = &raw;
         *(addr_ptr as *const fn(FuncType, FuncType, &mut Option<FuncType>))
