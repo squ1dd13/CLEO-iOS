@@ -6,6 +6,8 @@ use dlopen::symbor::Library;
 use eyre::Context;
 use log::error;
 
+const GAME_SLIDE_INDEX: u32 = 1;
+
 fn get_single_symbol<T: Copy>(path: &str, sym_name: &str) -> eyre::Result<T> {
     let lib = Library::open(path).wrap_err_with(|| format!("failed to open library {}", path))?;
     let symbol = unsafe { lib.symbol::<T>(sym_name) }
@@ -32,9 +34,16 @@ fn get_aslr_offset_fn() -> eyre::Result<fn(u32) -> usize> {
 }
 
 #[cached]
-pub fn get_image_aslr_offset(image: u32) -> usize {
+fn get_aslr_offset(image: u32) -> usize {
     let function = get_aslr_offset_fn().expect("Failed to get ASLR offset function!");
     function(image)
+}
+
+pub fn get_game_aslr_offset() -> usize {
+    // Pre iOS 15, game code uses the ALSR slide for image 0. From iOS 15, we have to use image 1.
+    // The value we need is always the smaller of the two, so find that instead of checking the iOS
+    // version.
+    get_aslr_offset(0).min(get_aslr_offset(1))
 }
 
 #[repr(C)]
@@ -136,12 +145,12 @@ impl<FuncType: std::fmt::Debug> Target<FuncType> {
             Target::_Function(func) => unsafe { std::mem::transmute_copy(func) },
 
             Target::Address(addr) => {
-                let aslr_offset = get_image_aslr_offset(0);
+                let aslr_offset = get_game_aslr_offset();
                 addr + aslr_offset
             }
 
             Target::_ForeignAddress(addr, image) => {
-                let aslr_offset = get_image_aslr_offset(*image);
+                let aslr_offset = get_aslr_offset(*image);
                 addr + aslr_offset
             }
         }
@@ -220,8 +229,7 @@ macro_rules! call_original {
 }
 
 pub fn slide<T: Copy>(address: usize) -> T {
-    let slide = crate::hook::get_image_aslr_offset(0);
-    log::debug!("addr = {:#x} + {:#x}", address, slide);
+    let slide = crate::hook::get_game_aslr_offset();
 
     unsafe {
         let addr_ptr: *const usize = &(address + slide);
@@ -230,12 +238,6 @@ pub fn slide<T: Copy>(address: usize) -> T {
 }
 
 pub fn get_global<T: Copy>(address: usize) -> T {
-    log::debug!(
-        "getting *({:#x} + {:#x})",
-        address,
-        crate::hook::get_image_aslr_offset(0)
-    );
-
     let slid: *const T = slide(address);
     unsafe { *slid }
 }
@@ -273,8 +275,12 @@ pub fn hook_objc(
         log::debug!("Created selectors {selector}/{orig_selector}.");
 
         let target_meth = objc::runtime::class_getInstanceMethod(class, target_sel);
+        let target_impl_addr = objc::runtime::method_getImplementation(target_meth) as usize;
 
-        log::debug!("Found target method.");
+        log::debug!(
+            "Found target method with implementation {:#x}.",
+            target_impl_addr,
+        );
 
         let type_enc = objc::runtime::method_getTypeEncoding(target_meth);
 
@@ -322,7 +328,7 @@ pub fn generate_backtrace() -> String {
     // Generate a resolved backtrace. The symbol names aren't always correct, but we
     //  should still display them because they are helpful for Rust functions.
     let resolved = backtrace::Backtrace::new();
-    let slide = get_image_aslr_offset(0) as u64;
+    let slide = get_game_aslr_offset() as u64;
 
     let mut lines = vec![
         format!("ASLR offset for image 0 is {:#x}.", slide),

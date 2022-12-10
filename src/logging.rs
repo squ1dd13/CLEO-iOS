@@ -147,31 +147,29 @@ pub fn init() {
     .map(|_| log::set_max_level(log::LevelFilter::max()))
     .unwrap();
 
+    let (sender, receiver) = std::sync::mpsc::channel();
+
+    // fixme: MSG_SENDER may be being set too late for some launches.
+    MSG_SENDER.set(Mutex::new(sender)).unwrap();
+
+    // Only attempt to connect over UDP if we're in debug mode.
+    let socket = if cfg!(feature = "debug") {
+        net::UdpSocket::bind("0.0.0.0:0").ok()
+    } else {
+        None
+    };
+
+    let mut file = File::create(crate::resources::get_log_path()).unwrap();
+
     // Start receiving log messages on a background thread. This eliminates the massive performance
     //  impact of writing to files/sockets in normal game code.
-    std::thread::spawn(|| {
-        let (sender, receiver) = std::sync::mpsc::channel();
+    std::thread::spawn(move || loop {
+        let msg = receiver.recv().unwrap();
+        msg.write_to_file(&mut file);
 
-        // fixme: MSG_SENDER may be being set too late for some launches.
-        MSG_SENDER.set(Mutex::new(sender)).unwrap();
-
-        // Only attempt to connect over UDP if we're in debug mode.
-        let socket = if cfg!(feature = "debug") {
-            net::UdpSocket::bind("0.0.0.0:0").ok()
-        } else {
-            None
-        };
-
-        let mut file = File::create(crate::resources::get_log_path()).unwrap();
-
-        loop {
-            let msg = receiver.recv().unwrap();
-            msg.write_to_file(&mut file);
-
-            if let Some(socket) = &socket {
-                if let Some(bin) = msg.pack() {
-                    let _ = socket.send_to(&bin, "192.168.1.183:4568");
-                }
+        if let Some(socket) = &socket {
+            if let Some(bin) = msg.pack() {
+                let _ = socket.send_to(&bin, "192.168.1.183:4568");
             }
         }
     });

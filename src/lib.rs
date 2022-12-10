@@ -113,32 +113,29 @@ mod targets {
     create_soft_target!(init_stage_three, 0x1002f9b20, fn(usize));
 }
 
+fn test_fn() {
+    log::info!("not hooked :(");
+}
+
 fn initialise() {
+    log::info!(
+        "game ASLR slide is {:#x}",
+        crate::hook::get_game_aslr_offset(),
+    );
+
     // stream::init();
-    // update::init();
-    // loader::init();
-    // settings::init();
+    update::init();
+    loader::init();
+    settings::init();
     gui::init();
-    // menu::init();
-    // touch::init();
-    // text::init();
-    // extras::init();
-    // scripts::init();
-    // cheats::init();
-    // controller::init();
-    // resources::init();
-
-    // std::thread::sleep(std::time::Duration::from_secs(2));
-
-    // let splash_addr: *mut fn(u64, u64) = crate::hook::slide(0x10061d408);
-
-    // unsafe {
-    //     fn alt_splash(_x: u64, _y: u64) {
-    //         log::info!("splash hooked!");
-    //     }
-
-    //     *splash_addr = alt_splash;
-    // }
+    menu::init();
+    touch::init();
+    text::init();
+    extras::init();
+    scripts::init();
+    cheats::init();
+    controller::init();
+    resources::init();
 }
 
 #[ctor]
