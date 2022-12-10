@@ -39,6 +39,11 @@ fn get_aslr_offset(image: u32) -> usize {
     function(image)
 }
 
+/// Returns `true` if image 0's slide is not the slide for game code.
+pub fn has_weird_aslr() -> bool {
+    get_aslr_offset(0) != get_game_aslr_offset()
+}
+
 pub fn get_game_aslr_offset() -> usize {
     // Pre iOS 15, game code uses the ALSR slide for image 0. From iOS 15, we have to use image 1.
     // The value we need is always the smaller of the two, so find that instead of checking the iOS
