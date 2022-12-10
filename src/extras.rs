@@ -156,6 +156,8 @@ fn set_loading_messages(msg_1: *const c_char, msg_2: *const c_char) {
 // }
 
 pub fn init() {
+    log::info!("installing extra hooks...");
+
     targets::idle::install(idle);
     targets::cycles_per_millisecond::install(cycles_per_millisecond);
     targets::write_fragment_shader::install(write_fragment_shader);

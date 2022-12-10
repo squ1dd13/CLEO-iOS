@@ -259,11 +259,8 @@ fn legal_splash_did_load(this: *mut Object, sel: Sel) {
         let _: () = msg_send![state_label, setCenter: state_centre];
         let _: () = msg_send![text, setCenter: text_centre];
 
-        if !crate::hook::is_german_game() {
-            call_original!(targets::legal_splash, this, sel);
-        } else {
-            call_original!(targets::legal_splash_german, this, sel);
-        }
+        // Call the original implementation of viewDidLoad.
+        let _: () = msg_send![this, origViewDidLoad];
 
         let _: () = msg_send![backing, addSubview: state_label];
         let _: () = msg_send![state_label, release];
@@ -347,12 +344,19 @@ fn persistent_store_coordinator(_this: *mut Object, _sel: Sel) -> *const Object 
 }
 
 pub fn init() {
-    if !crate::hook::is_german_game() {
-        targets::legal_splash::install(legal_splash_did_load);
-    } else {
-        trace!("Correcting splash address for German game.");
-        targets::legal_splash_german::install(legal_splash_did_load);
-    }
+    log::info!("installing GUI hooks...");
 
-    targets::store_crash_fix::install(persistent_store_coordinator);
+    crate::hook::hook_objc(
+        "LegalSplash",
+        "viewDidLoad",
+        "origViewDidLoad",
+        legal_splash_did_load as *const (),
+    );
+
+    crate::hook::hook_objc(
+        "SCAppDelegate",
+        "persistentStoreCoordinator",
+        "origPersistentStoreCoordinator",
+        persistent_store_coordinator as *const (),
+    );
 }

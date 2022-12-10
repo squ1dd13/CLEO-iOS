@@ -278,6 +278,8 @@ pub fn get_documents_path(resource_name: &str) -> PathBuf {
 }
 
 pub fn init() {
+    log::info!("initialising resources...");
+
     let cleo_path = find_cleo_dir_path();
 
     log::info!("Creating 'Replace' folder...");

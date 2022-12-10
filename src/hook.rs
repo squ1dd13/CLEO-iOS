@@ -37,6 +37,31 @@ pub fn get_image_aslr_offset(image: u32) -> usize {
     function(image)
 }
 
+#[repr(C)]
+enum ShitHookError {
+    Ok,
+    SelNotFound,
+    FuncTooShort,
+    BadInstruction,
+    PagingError,
+    NoSymbol,
+}
+
+impl std::fmt::Display for ShitHookError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let s = match self {
+            ShitHookError::Ok => "hook successful",
+            ShitHookError::SelNotFound => "objective-c selector not found",
+            ShitHookError::FuncTooShort => "function too short to hook",
+            ShitHookError::BadInstruction => "bad instruction found at start of function",
+            ShitHookError::PagingError => "error handling memory pages",
+            ShitHookError::NoSymbol => "no symbol given",
+        };
+
+        f.write_str(s)
+    }
+}
+
 // Represents libhooker's struct LHFunctionHook.
 #[repr(C)]
 struct ShitFunctionHook<FuncType> {
@@ -56,12 +81,19 @@ fn gen_shit_hook_fn<FuncType>() -> fn(FuncType, FuncType, &mut Option<FuncType>)
         };
 
         unsafe {
-            let hook_fn: fn(*const ShitFunctionHook<FuncType>, i32) -> i32 =
+            let hook_fn: fn(*const ShitFunctionHook<FuncType>, i32) -> ShitHookError =
                 std::mem::transmute(get_shit_raw_hook_fn().expect("need a hook function"));
             let struct_ptr: *const ShitFunctionHook<FuncType> = &hook_struct;
 
-            if hook_fn(struct_ptr, 1) != 1 {
-                error!("Hook failed!");
+            let res = hook_fn(struct_ptr, 1);
+
+            // SelNotFound is the default return value: we hook one function and if there are no
+            // errors the return value should be the number of functions hooked, which is 1, which
+            // is SelNotFound. If the return value is something else, there's an error. Ignoring
+            // SelNotFound is fine because LHHookFunctions does not deal with selectors and thus
+            // could never return that error.
+            if !matches!(res, ShitHookError::SelNotFound) {
+                error!("hook failed: {}", res);
             }
         }
     }
@@ -70,18 +102,11 @@ fn gen_shit_hook_fn<FuncType>() -> fn(FuncType, FuncType, &mut Option<FuncType>)
 fn get_hook_fn<FuncType>() -> fn(FuncType, FuncType, &mut Option<FuncType>) {
     let shit_hook = get_shit_raw_hook_fn();
 
-    match shit_hook {
-        Ok(_) => {
-            log::info!("found libhooker and hooking function, so we'll use that");
-            return gen_shit_hook_fn();
-        }
-
-        Err(err) => log::warn!("cannot use libhooker: {:?}", err),
+    if let Ok(_) = shit_hook {
+        return gen_shit_hook_fn();
     }
 
     let raw = get_raw_hook_fn().expect("get_hook_fn: get_raw_hook_fn failed");
-
-    log::info!("found substrate/substitute: {:#x}", raw);
 
     // Reinterpret cast the address to get a function pointer.
     // We get the address as a usize so that it can be cached once and then reused
@@ -93,7 +118,8 @@ fn get_hook_fn<FuncType>() -> fn(FuncType, FuncType, &mut Option<FuncType>) {
     }
 }
 
-pub enum Target<FuncType> {
+#[derive(Debug)]
+pub enum Target<FuncType: std::fmt::Debug> {
     /// A function pointer.
     _Function(FuncType),
 
@@ -104,7 +130,7 @@ pub enum Target<FuncType> {
     _ForeignAddress(usize, u32),
 }
 
-impl<FuncType> Target<FuncType> {
+impl<FuncType: std::fmt::Debug> Target<FuncType> {
     fn get_absolute(&self) -> usize {
         match self {
             Target::_Function(func) => unsafe { std::mem::transmute_copy(func) },
@@ -126,10 +152,12 @@ impl<FuncType> Target<FuncType> {
     }
 
     pub fn hook_hard(&self, replacement: FuncType) {
+        log::debug!("installing hard hook on target {:?}", self);
         get_hook_fn::<FuncType>()(self.get_as_fn(), replacement, &mut None);
     }
 
     pub fn hook_soft(&self, replacement: FuncType, original_out: &mut Option<FuncType>) {
+        log::debug!("installing soft hook on target {:?}", self);
         get_hook_fn::<FuncType>()(self.get_as_fn(), replacement, original_out);
     }
 }
@@ -192,15 +220,94 @@ macro_rules! call_original {
 }
 
 pub fn slide<T: Copy>(address: usize) -> T {
+    let slide = crate::hook::get_image_aslr_offset(0);
+    log::debug!("addr = {:#x} + {:#x}", address, slide);
+
     unsafe {
-        let addr_ptr: *const usize = &(address + crate::hook::get_image_aslr_offset(0));
+        let addr_ptr: *const usize = &(address + slide);
         *(addr_ptr as *const T)
     }
 }
 
 pub fn get_global<T: Copy>(address: usize) -> T {
+    log::debug!(
+        "getting *({:#x} + {:#x})",
+        address,
+        crate::hook::get_image_aslr_offset(0)
+    );
+
     let slid: *const T = slide(address);
     unsafe { *slid }
+}
+
+// hack: this is a really shit API. it's just here until `hook` gets rewritten from the ground up.
+pub fn hook_objc(
+    class_name: impl AsRef<str>,
+    selector: impl AsRef<str>,
+    orig_selector: impl AsRef<str>,
+    replacement: *const (),
+) {
+    let class_name = class_name.as_ref();
+    let selector = selector.as_ref();
+    let orig_selector = orig_selector.as_ref();
+
+    log::debug!(
+        "Hooking [{class_name} {selector}] with implementation {:#x} (orig -> {orig_selector})",
+        replacement as usize
+    );
+
+    unsafe {
+        use objc::runtime::*;
+
+        let class_name_c = std::ffi::CString::new(class_name).unwrap();
+        let selector_c = std::ffi::CString::new(selector).unwrap();
+        let orig_selector_c = std::ffi::CString::new(orig_selector).unwrap();
+
+        let class = objc::runtime::objc_getClass(class_name_c.into_raw());
+
+        log::debug!("Found class {class_name}.");
+
+        let target_sel = objc::runtime::sel_registerName(selector_c.into_raw());
+        let renamed_sel = objc::runtime::sel_registerName(orig_selector_c.into_raw());
+
+        log::debug!("Created selectors {selector}/{orig_selector}.");
+
+        let target_meth = objc::runtime::class_getInstanceMethod(class, target_sel);
+
+        log::debug!("Found target method.");
+
+        let type_enc = objc::runtime::method_getTypeEncoding(target_meth);
+
+        log::debug!(
+            "Found target type encoding: {}",
+            std::ffi::CStr::from_ptr(type_enc)
+                .to_string_lossy()
+                .as_ref()
+        );
+
+        let success = objc::runtime::class_addMethod(
+            std::mem::transmute(class),
+            renamed_sel,
+            std::mem::transmute(replacement),
+            type_enc as *const i8,
+        ) as bool;
+
+        if success {
+            log::debug!("Added method for {orig_selector} to class.");
+        } else {
+            log::error!("Failed to add method for {orig_selector}.");
+            return;
+        }
+
+        let new_meth = objc::runtime::class_getInstanceMethod(class, renamed_sel);
+
+        objc::runtime::method_exchangeImplementations(
+            target_meth as *mut Method,
+            new_meth as *mut Method,
+        );
+
+        log::debug!("Successfully swapped method implementations. Enjoy!");
+    }
 }
 
 pub fn is_german_game() -> bool {

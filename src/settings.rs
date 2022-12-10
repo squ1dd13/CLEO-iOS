@@ -224,5 +224,6 @@ fn load_settings(menu_manager: u64) {
 }
 
 pub fn init() {
+    log::info!("installing settings hook...");
     crate::targets::load_settings::install(load_settings);
 }

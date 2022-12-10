@@ -111,6 +111,8 @@ fn is_update_available() -> eyre::Result<bool> {
 }
 
 pub fn start_update_check() {
+    log::info!("checking for updates...");
+
     std::thread::spawn(|| {
         let available = is_update_available();
 
@@ -230,6 +232,7 @@ fn init_for_title(screen: *mut u8) {
 }
 
 pub fn init() {
+    log::info!("installing update hook...");
     crate::targets::init_for_title::install(init_for_title);
 }
 

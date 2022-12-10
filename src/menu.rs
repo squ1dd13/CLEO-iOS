@@ -1,7 +1,7 @@
 //! Provides a touch interface and accompanying logic to allow the user to interact with scripts, cheats and settings.
 
 use crate::gui::{self, create_ns_string, CGPoint, CGRect, CGSize};
-use objc::{class, msg_send, runtime::Object, sel, sel_impl};
+use objc::{class, msg_send, runtime::Object, sel};
 use once_cell::{sync::OnceCell, unsync::Lazy};
 use std::{
     collections::HashMap,
@@ -762,8 +762,11 @@ fn add_button_handler(button: *mut Object, tag: ButtonTag) {
 }
 
 pub fn init() {
+    log::info!("installing menu hook...");
+
     crate::targets::button_hack::install(reachability_with_hostname);
 
+    log::info!("starting menu poll...");
     MESSAGE_SENDER
         .set(Mutex::new(Menu::start_channel_polling()))
         .unwrap();

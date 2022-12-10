@@ -133,5 +133,6 @@ fn update_pads() {
 }
 
 pub fn init() {
+    log::info!("installing controller hook...");
     crate::targets::update_pads::install(update_pads);
 }

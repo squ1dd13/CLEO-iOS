@@ -107,6 +107,7 @@ pub fn load_fxt(path: &impl AsRef<std::path::Path>) -> eyre::Result<()> {
 }
 
 pub fn init() {
+    log::info!("installing text hooks...");
     targets::get_gxt_string::install(get_gxt_string);
     targets::gen_plate::install(generate_numberplate);
 }

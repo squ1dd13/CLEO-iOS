@@ -333,6 +333,7 @@ fn reset_cheats() {
 }
 
 pub fn init() {
+    log::info!("installing cheat hooks...");
     crate::targets::do_cheats::install(do_cheats);
     crate::targets::reset_cheats::install(reset_cheats);
 }

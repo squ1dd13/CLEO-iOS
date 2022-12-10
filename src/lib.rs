@@ -114,19 +114,31 @@ mod targets {
 }
 
 fn initialise() {
-    stream::init();
-    update::init();
-    loader::init();
-    settings::init();
+    // stream::init();
+    // update::init();
+    // loader::init();
+    // settings::init();
     gui::init();
-    menu::init();
-    touch::init();
-    text::init();
-    extras::init();
-    scripts::init();
-    cheats::init();
-    controller::init();
-    resources::init();
+    // menu::init();
+    // touch::init();
+    // text::init();
+    // extras::init();
+    // scripts::init();
+    // cheats::init();
+    // controller::init();
+    // resources::init();
+
+    // std::thread::sleep(std::time::Duration::from_secs(2));
+
+    // let splash_addr: *mut fn(u64, u64) = crate::hook::slide(0x10061d408);
+
+    // unsafe {
+    //     fn alt_splash(_x: u64, _y: u64) {
+    //         log::info!("splash hooked!");
+    //     }
+
+    //     *splash_addr = alt_splash;
+    // }
 }
 
 #[ctor]
@@ -136,11 +148,11 @@ fn load() {
 
     log::info!(
         r#"
- 
-                         Welcome to CLEO iOS!                        
-             Written by @squ1dd13 (squ1dd13dev@gmail.com).           
-        Made with ❤️ in Great Britain. Proudly written in Rust.       
-  Check out the GitHub repo at https://github.com/squ1dd13/CLEO-iOS. 
+
+                         Welcome to CLEO iOS!
+             Written by @squ1dd13 (squ1dd13dev@gmail.com).
+        Made with ❤️ in Great Britain. Proudly written in Rust.
+  Check out the GitHub repo at https://github.com/squ1dd13/CLEO-iOS.
  Need support? Join the Discord server! https://discord.gg/cXwkTUasJU
 "#
     );

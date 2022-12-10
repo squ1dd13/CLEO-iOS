@@ -243,5 +243,6 @@ fn process_touch(x: f32, y: f32, timestamp: f64, force: f32, touch_type: TouchTy
 }
 
 pub fn init() {
+    log::info!("installing touch hook...");
     targets::process_touch::install(process_touch);
 }

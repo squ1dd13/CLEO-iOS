@@ -104,6 +104,11 @@ static MSG_SENDER: OnceCell<Mutex<std::sync::mpsc::Sender<Message>>> = OnceCell:
 fn install_panic_hook() {
     // Install the panic hook so we can print useful stuff rather than just exiting on a panic.
     std::panic::set_hook(Box::new(|info: &std::panic::PanicInfo| {
+        let _ = std::fs::write(
+            crate::resources::get_documents_path("PANIC.txt"),
+            crate::hook::generate_backtrace(),
+        );
+
         // If we can't get the message from info.message, we try to downcast the payload to &str.
         let message = if let Some(message) = info.message() {
             Some(message.to_string())

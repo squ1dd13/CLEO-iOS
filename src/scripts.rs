@@ -862,6 +862,8 @@ pub fn tab_data_csi() -> menu::TabData {
 }
 
 pub fn init() {
+    log::info!("installing script hooks...");
+
     targets::script_tick::install(script_update);
     targets::reset_before_start::install(script_reset);
     targets::init_stage_three::install(init_stage_three);
