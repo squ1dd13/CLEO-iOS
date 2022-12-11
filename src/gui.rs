@@ -121,7 +121,7 @@ pub fn exit_to_homescreen() {
 }
 
 fn legal_splash_did_load(this: *mut Object, sel: Sel) {
-    log::info!("Showing splash screen.");
+    log::info!("Setting up splash screen.");
 
     // All of this code draws the numberplate splash screen. I'm too lazy to embed an image
     //  and use a UIImageView, so the numberplate is made from scratch with UIViews and UILabels.
@@ -297,6 +297,8 @@ fn legal_splash_did_load(this: *mut Object, sel: Sel) {
         let _: () = msg_send![view, addSubview: label];
         let _: () = msg_send![label, release];
     }
+
+    log::info!("Finished setting up splash screen.");
 }
 
 pub fn create_label(
