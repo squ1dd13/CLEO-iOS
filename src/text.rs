@@ -48,7 +48,7 @@ fn generate_numberplate(chars: *mut u8, length: i32) -> bool {
 
     if length == 8 {
         let custom_plate = match tick {
-            2 => Some(b"EULEN JA"),
+            2 => Some(b"EULE NJA"),
             4 => Some(b"SQUI DDY"),
             0 => Some(b"CLEO IOS"),
             _ => None,
