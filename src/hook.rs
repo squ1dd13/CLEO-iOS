@@ -301,7 +301,7 @@ pub fn hook_objc(
             renamed_sel,
             std::mem::transmute(replacement),
             type_enc as *const i8,
-        ) as bool;
+        ) == YES;
 
         if success {
             log::debug!("Added method for {orig_selector} to class.");

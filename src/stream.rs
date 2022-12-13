@@ -74,18 +74,10 @@ fn stream_init(stream_count: i32) {
         let stream: &mut Stream = unsafe { &mut *streams.add(i) };
 
         // eq: OS_SemaphoreCreate()
-        stream.semaphore = hook::slide::<fn() -> *mut u8>(0x1004e8b18)();
+        stream.semaphore = hook::slide::<fn() -> &'static mut Semaphore>(0x1004e8b18)();
 
         // eq: OS_MutexCreate(...)
-        stream.mutex = hook::slide::<fn(usize) -> *mut u8>(0x1004e8a5c)(0x0);
-
-        if stream.semaphore.is_null() {
-            panic!("Stream {} semaphore is null!", i);
-        }
-
-        if stream.mutex.is_null() {
-            panic!("Stream {} mutex is null!", i);
-        }
+        stream.request_mutex = hook::slide::<fn(usize) -> &'static mut GameMutex>(0x1004e8a5c)(0x0);
     }
 
     *streaming_queue() = Queue::with_capacity(stream_count as u32 + 1);
@@ -111,7 +103,7 @@ fn stream_init(stream_count: i32) {
             hook::slide::<fn(fn(usize), usize, u32, *const u8, i32, u32) -> *mut u8>(0x1004e8888);
 
         // eq: OS_ThreadLaunch(...)
-        let thread = launch(stream_thread, 0x0, 3, cd_stream_name, 0, 3);
+        let thread = launch(streaming_thread, 0x0, 3, cd_stream_name, 0, 3);
 
         if thread.is_null() {
             panic!("Failed to start streaming thread!");
@@ -121,131 +113,343 @@ fn stream_init(stream_count: i32) {
     }
 }
 
-fn stream_thread(_: usize) {
-    log::trace!("Streaming thread started!");
+/// Opaque type used to refer to semaphores used by the game.
+#[derive(Debug)]
+struct Semaphore;
 
-    let mut image_names: Vec<Option<String>> = std::iter::repeat(None).take(32).collect();
+impl Semaphore {
+    /// Blocks until the semaphore count becomes greater than zero, then decrements it and returns.
+    fn wait(&mut self) {
+        hook::slide::<fn(&mut Semaphore)>(0x1004e8b84)(self);
+    }
 
-    loop {
-        let stream_semaphore = hook::get_global(0x1006ac8e0);
-
-        // eq: OS_SemaphoreWait(...)
-        hook::slide::<fn(*mut u8)>(0x1004e8b84)(stream_semaphore);
-
-        let queue = streaming_queue();
-        let streams = streams_array();
-
-        // Get the first stream index from the queue and then get a reference to the stream.
-        let stream_index = queue.first() as isize;
-        let mut stream = unsafe { &mut *streams.offset(stream_index) };
-
-        // Mark the stream as in use.
-        stream.processing = true;
-
-        // A status of 0 means that the last read was successful.
-        if stream.status == 0 {
-            let stream_source = StreamSource::new(stream.img_index, stream.sector_offset);
-
-            let stream_index_usize = stream.img_index as usize;
-
-            // We cache image names because obtaining them is quite expensive.
-            let image_name = match &image_names[stream_index_usize] {
-                Some(name) => name,
-                None => {
-                    let image_name = unsafe {
-                        let name_ptr = hook::slide::<*mut i8>(0x1006ac0e0)
-                            .offset(stream.img_index as isize * 64);
-
-                        let path_string = std::ffi::CStr::from_ptr(name_ptr)
-                            .to_str()
-                            .unwrap()
-                            .to_lowercase()
-                            .replace('\\', "/");
-
-                        // The game actually uses paths from the PC version, but we only want the file names.
-                        Path::new(&path_string)
-                            .file_name()
-                            .unwrap()
-                            .to_str()
-                            .unwrap()
-                            .to_string()
-                    };
-
-                    let slot = &mut image_names[stream_index_usize];
-                    *slot = Some(image_name);
-                    slot.as_ref().unwrap()
-                }
-            };
-
-            let read_custom = with_replacements(&mut |replacements| {
-                let replacements = replacements.get_mut(image_name)?;
-
-                let model_name = with_model_names(|models| models.get(&stream_source).cloned())?;
-
-                let folder_child = replacements.get_mut(&model_name)?;
-
-                // Reset the file to offset 0 so we are definitely reading from the start.
-                folder_child.reset();
-
-                let file = &mut folder_child.file;
-
-                let mut buffer = vec![0u8; stream.sectors_to_read as usize * 2048];
-
-                // read_exact here would cause a crash for models that don't have aligned sizes, since
-                //  we can't read enough to fill the whole buffer.
-                if let Err(err) = file.read(&mut buffer) {
-                    log::error!("Failed to read model data: {}", err);
-                    stream.status = 0xfe;
-                } else {
-                    unsafe {
-                        // todo: Read directly into streaming buffer rather than reading and copying.
-                        std::ptr::copy(buffer.as_ptr(), stream.buffer, buffer.len());
-                    }
-
-                    stream.status = 0;
-                }
-
-                Some(())
-            });
-
-            if read_custom.is_none() {
-                // Multiply the sector values by 2048 (the sector size) in order to get byte values.
-                let byte_offset = stream.sector_offset * 2048;
-                let bytes_to_read = stream.sectors_to_read * 2048;
-
-                // eq: OS_FileSetPosition(...)
-                hook::slide::<fn(*mut u8, u32) -> u32>(0x1004e51dc)(stream.file, byte_offset);
-
-                // eq: OS_FileRead(...)
-                let read_result = hook::slide::<fn(*mut u8, *mut u8, u32) -> u32>(0x1004e5300)(
-                    stream.file,
-                    stream.buffer,
-                    bytes_to_read,
-                );
-
-                stream.status = if read_result != 0 { 0xfe } else { 0 };
-            }
-        }
-
-        // Remove the queue entry we just processed so the next iteration processes the item after.
-        queue.remove_first();
-
-        // eq: pthread_mutex_lock(...)
-        hook::slide::<fn(*mut u8)>(0x1004fbd34)(stream.mutex);
-
-        stream.sectors_to_read = 0;
-
-        if stream.locked {
-            // eq: OS_SemaphorePost(...)
-            hook::slide::<fn(*mut u8)>(0x1004e8b5c)(stream.semaphore);
-        }
-
-        stream.processing = false;
-
-        // eq: pthread_mutex_unlock(...)
-        hook::slide::<fn(*mut u8)>(0x1004fbd40)(stream.mutex);
+    /// Increments the semaphore count.
+    fn post(&mut self) {
+        hook::slide::<fn(&mut Semaphore)>(0x1004e8b5c)(self);
     }
 }
+
+/// A queue of streams.
+///
+/// When data is requested from a stream, the stream is added to the queue and the stream queue
+/// semaphore is incremented.
+struct GlobalStreamQueue {
+    /// The global stream queue semaphore.
+    semaphore: &'static mut Semaphore,
+
+    /// The global queue of stream indices that represent the streams in this queue.
+    index_queue: &'static mut Queue,
+}
+
+impl GlobalStreamQueue {
+    /// Obtains the global queue.
+    fn global() -> GlobalStreamQueue {
+        GlobalStreamQueue {
+            semaphore: unsafe {
+                hook::get_global::<*mut Semaphore>(0x1006ac8e0)
+                    .as_mut()
+                    .unwrap()
+            },
+
+            index_queue: unsafe { hook::slide::<*mut Queue>(0x100939120).as_mut().unwrap() },
+        }
+    }
+
+    /// Returns a mutable reference to the next stream to be serviced, removing it from the queue.
+    /// Blocks if there are no streams waiting.
+    fn pop_blocking(&mut self) -> &'static mut Stream {
+        self.semaphore.wait();
+
+        // Get the stream index from the queue and remove it.
+        let stream_index = self.index_queue.first() as usize;
+        self.index_queue.remove_first();
+
+        // Find the stream corresponding to the index.
+        unsafe { &mut *streams_array().add(stream_index) }
+    }
+}
+
+/// Opaque type used for referring to game mutexes.
+#[derive(Debug)]
+struct GameMutex;
+
+impl GameMutex {
+    /// Locks the mutex, blocking if necessary.
+    fn lock(&mut self) {
+        hook::slide::<fn(&mut GameMutex)>(0x1004fbd34)(self);
+    }
+
+    /// Unlocks the mutex.
+    fn unlock(&mut self) {
+        hook::slide::<fn(&mut GameMutex)>(0x1004fbd40)(self);
+    }
+}
+
+/// Opaque type used when referring to the file handles that the game uses.
+#[derive(Debug)]
+struct FileHandle;
+
+impl FileHandle {
+    /// Reads `count` bytes from the file and stores them at `output`.
+    fn read(&mut self, output: *mut u8, count: usize) -> u32 {
+        hook::slide::<fn(&mut FileHandle, *mut u8, usize) -> u32>(0x1004e5300)(self, output, count)
+    }
+
+    /// Seeks `position` bytes from the start of the file.
+    fn seek_to(&mut self, position: usize) -> u32 {
+        hook::slide::<fn(&mut FileHandle, usize) -> u32>(0x1004e51dc)(self, position)
+    }
+}
+
+/// Describes the position and size of a resource in an image file.
+#[derive(Clone, Copy)]
+struct ImageRegion {
+    /// The offset of the resource from the start of its parent image file.
+    offset_sectors: usize,
+
+    /// The size of the resource, in sectors.
+    size_sectors: usize,
+}
+
+impl ImageRegion {
+    /// Returns the offset of the region in bytes.
+    fn offset_bytes(self) -> usize {
+        self.offset_sectors * 2048
+    }
+
+    /// Returns the size of the region in bytes.
+    fn size_bytes(self) -> usize {
+        self.size_sectors * 2048
+    }
+}
+
+impl Stream {
+    /// Returns the location in the image file of the requested resource.
+    fn file_region(&self) -> ImageRegion {
+        ImageRegion {
+            offset_sectors: self.sector_offset as usize,
+            size_sectors: self.sectors_to_read as usize,
+        }
+    }
+
+    /// Returns `true` if the stream did not encounter an error on the most recent read.
+    fn is_ok(&self) -> bool {
+        self.status == 0
+    }
+
+    /// Loads the data from `region` in the stream's image file into the stream's buffer.
+    fn load_region(&mut self, region: ImageRegion) -> eyre::Result<()> {
+        // Seek to the start of the requested region in the image file.
+        let seek_err = self.image_file.seek_to(region.offset_bytes());
+
+        if seek_err != 0 {
+            return Err(eyre::format_err!(
+                "Unable to seek to offset {}",
+                region.offset_bytes()
+            ));
+        }
+
+        // Fill the buffer with all of the data from the requested region.
+        let read_err = self.image_file.read(self.buffer, region.size_bytes());
+
+        if read_err != 0 {
+            Err(eyre::format_err!(
+                "Unable to read {} bytes at {}",
+                region.size_bytes(),
+                region.offset_bytes()
+            ))
+        } else {
+            Ok(())
+        }
+    }
+
+    /// Locates the data requested and copies it into the stream's output buffer.
+    fn load_request(&mut self) -> eyre::Result<()> {
+        self.load_region(self.file_region())
+    }
+
+    /// Sets the stream to the processing state.
+    fn enter_processing_state(&mut self) {
+        self.processing = true;
+    }
+
+    /// Sets the stream back to the idle state and clears request information.
+    fn exit_processing_state(&mut self) {
+        self.request_mutex.lock();
+
+        self.sectors_to_read = 0;
+
+        if self.post_when_finished {
+            self.semaphore.post();
+        }
+
+        self.processing = false;
+
+        self.request_mutex.unlock();
+    }
+
+    /// Handles a request for data on this stream.
+    fn handle_request(&mut self) -> eyre::Result<()> {
+        self.enter_processing_state();
+
+        // Load the requested data if the previous read was successful.
+        let result = if self.is_ok() {
+            self.load_request()
+        } else {
+            Ok(())
+        };
+
+        if result.is_err() {
+            self.status = 0xfe;
+        }
+
+        self.exit_processing_state();
+
+        result
+    }
+}
+
+fn streaming_thread(_: usize) {
+    log::info!("Streaming thread started");
+
+    let mut queue = GlobalStreamQueue::global();
+
+    loop {
+        // Handle stream requests as they arrive.
+        let stream = queue.pop_blocking();
+
+        if let Err(err) = stream.handle_request() {
+            log::error!("Streaming error: {:?}", err);
+        }
+    }
+}
+
+// fn stream_thread(_: usize) {
+//     log::trace!("Streaming thread started!");
+
+//     let mut image_names: Vec<Option<String>> = std::iter::repeat(None).take(32).collect();
+
+//     loop {
+//         let stream_semaphore = hook::get_global(0x1006ac8e0);
+
+//         // eq: OS_SemaphoreWait(...)
+//         hook::slide::<fn(*mut u8)>(0x1004e8b84)(stream_semaphore);
+
+//         let queue = streaming_queue();
+//         let streams = streams_array();
+
+//         // Get the first stream index from the queue and then get a reference to the stream.
+//         let stream_index = queue.first() as isize;
+//         let mut stream = unsafe { &mut *streams.offset(stream_index) };
+
+//         // Mark the stream as in use.
+//         stream.processing = true;
+
+//         // A status of 0 means that the last read was successful.
+//         if stream.status == 0 {
+//             let stream_source =
+//                 StreamSource::new(stream._do_not_use_img_index, stream.sector_offset);
+
+//             let stream_index_usize = stream._do_not_use_img_index as usize;
+
+//             // We cache image names because obtaining them is quite expensive.
+//             let image_name = match &image_names[stream_index_usize] {
+//                 Some(name) => name,
+//                 None => {
+//                     let image_name = unsafe {
+//                         let name_ptr = hook::slide::<*mut i8>(0x1006ac0e0)
+//                             .offset(stream._do_not_use_img_index as isize * 64);
+
+//                         let path_string = std::ffi::CStr::from_ptr(name_ptr)
+//                             .to_str()
+//                             .unwrap()
+//                             .to_lowercase()
+//                             .replace('\\', "/");
+
+//                         // The game actually uses paths from the PC version, but we only want the file names.
+//                         Path::new(&path_string)
+//                             .file_name()
+//                             .unwrap()
+//                             .to_str()
+//                             .unwrap()
+//                             .to_string()
+//                     };
+
+//                     let slot = &mut image_names[stream_index_usize];
+//                     *slot = Some(image_name);
+//                     slot.as_ref().unwrap()
+//                 }
+//             };
+
+//             let read_custom = with_replacements(&mut |replacements| {
+//                 let replacements = replacements.get_mut(image_name)?;
+
+//                 let model_name = with_model_names(|models| models.get(&stream_source).cloned())?;
+
+//                 let folder_child = replacements.get_mut(&model_name)?;
+
+//                 // Reset the file to offset 0 so we are definitely reading from the start.
+//                 folder_child.reset();
+
+//                 let file = &mut folder_child.file;
+
+//                 let mut buffer = vec![0u8; stream.sectors_to_read as usize * 2048];
+
+//                 // read_exact here would cause a crash for models that don't have aligned sizes, since
+//                 //  we can't read enough to fill the whole buffer.
+//                 if let Err(err) = file.read(&mut buffer) {
+//                     log::error!("Failed to read model data: {}", err);
+//                     stream.status = 0xfe;
+//                 } else {
+//                     unsafe {
+//                         // todo: Read directly into streaming buffer rather than reading and copying.
+//                         std::ptr::copy(buffer.as_ptr(), stream.buffer, buffer.len());
+//                     }
+
+//                     stream.status = 0;
+//                 }
+
+//                 Some(())
+//             });
+
+//             if read_custom.is_none() {
+//                 // Multiply the sector values by 2048 (the sector size) in order to get byte values.
+//                 let byte_offset = stream.sector_offset * 2048;
+//                 let bytes_to_read = stream.sectors_to_read * 2048;
+
+//                 // eq: OS_FileSetPosition(...)
+//                 hook::slide::<fn(*mut u8, u32) -> u32>(0x1004e51dc)(stream.image_file, byte_offset);
+
+//                 // eq: OS_FileRead(...)
+//                 let read_result = hook::slide::<fn(*mut u8, *mut u8, u32) -> u32>(0x1004e5300)(
+//                     stream.image_file,
+//                     stream.buffer,
+//                     bytes_to_read,
+//                 );
+
+//                 stream.status = if read_result != 0 { 0xfe } else { 0 };
+//             }
+//         }
+
+//         // Remove the queue entry we just processed so the next iteration processes the item after.
+//         queue.remove_first();
+
+//         // eq: pthread_mutex_lock(...)
+//         hook::slide::<fn(*mut u8)>(0x1004fbd34)(stream.request_mutex);
+
+//         stream.sectors_to_read = 0;
+
+//         if stream.post_when_finished {
+//             // eq: OS_SemaphorePost(...)
+//             hook::slide::<fn(*mut u8)>(0x1004e8b5c)(stream.semaphore);
+//         }
+
+//         stream.processing = false;
+
+//         // eq: pthread_mutex_unlock(...)
+//         hook::slide::<fn(*mut u8)>(0x1004fbd40)(stream.request_mutex);
+//     }
+// }
 
 fn stream_read(
     stream_index: u32,
@@ -263,7 +467,7 @@ fn stream_read(
         let handle_arr_base: *mut *mut u8 = hook::slide(0x100939140);
         let handle_ptr: *mut u8 = *handle_arr_base.offset(source.image_index() as isize);
 
-        stream.file = handle_ptr;
+        stream.image_file = &mut *(handle_ptr as *mut FileHandle);
     }
 
     if stream.sectors_to_read != 0 || stream.processing {
@@ -275,8 +479,8 @@ fn stream_read(
     stream.sector_offset = source.sector_offset();
     stream.sectors_to_read = sector_count;
     stream.buffer = buffer;
-    stream.locked = false;
-    stream.img_index = source.image_index();
+    stream.post_when_finished = false;
+    stream._do_not_use_img_index = source.image_index();
 
     streaming_queue().add(stream_index as i32);
 
@@ -455,7 +659,7 @@ fn load_directory(path_c: *const i8, archive_id: i32) {
                 // Increase the size of the streaming buffer to accommodate the model's data (if it isn't big enough
                 //  already).
                 let streaming_buffer_size: u32 =
-                    hook::get_global::<u32>(0x10072d320).max(info.cd_size as u32);
+                    hook::get_global::<u32>(0x10072d320).max(info.cd_size);
 
                 unsafe {
                     *hook::slide::<*mut u32>(0x10072d320) = streaming_buffer_size;
@@ -580,15 +784,15 @@ struct Stream {
 
     // CLEO addition.
     // hack: We shouldn't really need to add another field to Stream.
-    img_index: u8,
+    _do_not_use_img_index: u8,
 
-    locked: bool,
+    post_when_finished: bool,
     processing: bool,
     _pad: u8,
     status: u32,
-    semaphore: *mut u8,
-    mutex: *mut u8,
-    file: *mut u8,
+    semaphore: &'static mut Semaphore,
+    request_mutex: &'static mut GameMutex,
+    image_file: &'static mut FileHandle,
 }
 
 #[repr(C)]
