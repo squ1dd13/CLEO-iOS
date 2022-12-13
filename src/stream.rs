@@ -309,6 +309,8 @@ impl Stream {
     }
 }
 
+/// The function that runs on the streaming thread. This is responsible for the actual loading of
+/// resource data from the image files on disk.
 fn streaming_thread(_: usize) {
     log::info!("Streaming thread started");
 
@@ -323,133 +325,6 @@ fn streaming_thread(_: usize) {
         }
     }
 }
-
-// fn stream_thread(_: usize) {
-//     log::trace!("Streaming thread started!");
-
-//     let mut image_names: Vec<Option<String>> = std::iter::repeat(None).take(32).collect();
-
-//     loop {
-//         let stream_semaphore = hook::get_global(0x1006ac8e0);
-
-//         // eq: OS_SemaphoreWait(...)
-//         hook::slide::<fn(*mut u8)>(0x1004e8b84)(stream_semaphore);
-
-//         let queue = streaming_queue();
-//         let streams = streams_array();
-
-//         // Get the first stream index from the queue and then get a reference to the stream.
-//         let stream_index = queue.first() as isize;
-//         let mut stream = unsafe { &mut *streams.offset(stream_index) };
-
-//         // Mark the stream as in use.
-//         stream.processing = true;
-
-//         // A status of 0 means that the last read was successful.
-//         if stream.status == 0 {
-//             let stream_source =
-//                 StreamSource::new(stream._do_not_use_img_index, stream.sector_offset);
-
-//             let stream_index_usize = stream._do_not_use_img_index as usize;
-
-//             // We cache image names because obtaining them is quite expensive.
-//             let image_name = match &image_names[stream_index_usize] {
-//                 Some(name) => name,
-//                 None => {
-//                     let image_name = unsafe {
-//                         let name_ptr = hook::slide::<*mut i8>(0x1006ac0e0)
-//                             .offset(stream._do_not_use_img_index as isize * 64);
-
-//                         let path_string = std::ffi::CStr::from_ptr(name_ptr)
-//                             .to_str()
-//                             .unwrap()
-//                             .to_lowercase()
-//                             .replace('\\', "/");
-
-//                         // The game actually uses paths from the PC version, but we only want the file names.
-//                         Path::new(&path_string)
-//                             .file_name()
-//                             .unwrap()
-//                             .to_str()
-//                             .unwrap()
-//                             .to_string()
-//                     };
-
-//                     let slot = &mut image_names[stream_index_usize];
-//                     *slot = Some(image_name);
-//                     slot.as_ref().unwrap()
-//                 }
-//             };
-
-//             let read_custom = with_replacements(&mut |replacements| {
-//                 let replacements = replacements.get_mut(image_name)?;
-
-//                 let model_name = with_model_names(|models| models.get(&stream_source).cloned())?;
-
-//                 let folder_child = replacements.get_mut(&model_name)?;
-
-//                 // Reset the file to offset 0 so we are definitely reading from the start.
-//                 folder_child.reset();
-
-//                 let file = &mut folder_child.file;
-
-//                 let mut buffer = vec![0u8; stream.sectors_to_read as usize * 2048];
-
-//                 // read_exact here would cause a crash for models that don't have aligned sizes, since
-//                 //  we can't read enough to fill the whole buffer.
-//                 if let Err(err) = file.read(&mut buffer) {
-//                     log::error!("Failed to read model data: {}", err);
-//                     stream.status = 0xfe;
-//                 } else {
-//                     unsafe {
-//                         // todo: Read directly into streaming buffer rather than reading and copying.
-//                         std::ptr::copy(buffer.as_ptr(), stream.buffer, buffer.len());
-//                     }
-
-//                     stream.status = 0;
-//                 }
-
-//                 Some(())
-//             });
-
-//             if read_custom.is_none() {
-//                 // Multiply the sector values by 2048 (the sector size) in order to get byte values.
-//                 let byte_offset = stream.sector_offset * 2048;
-//                 let bytes_to_read = stream.sectors_to_read * 2048;
-
-//                 // eq: OS_FileSetPosition(...)
-//                 hook::slide::<fn(*mut u8, u32) -> u32>(0x1004e51dc)(stream.image_file, byte_offset);
-
-//                 // eq: OS_FileRead(...)
-//                 let read_result = hook::slide::<fn(*mut u8, *mut u8, u32) -> u32>(0x1004e5300)(
-//                     stream.image_file,
-//                     stream.buffer,
-//                     bytes_to_read,
-//                 );
-
-//                 stream.status = if read_result != 0 { 0xfe } else { 0 };
-//             }
-//         }
-
-//         // Remove the queue entry we just processed so the next iteration processes the item after.
-//         queue.remove_first();
-
-//         // eq: pthread_mutex_lock(...)
-//         hook::slide::<fn(*mut u8)>(0x1004fbd34)(stream.request_mutex);
-
-//         stream.sectors_to_read = 0;
-
-//         if stream.post_when_finished {
-//             // eq: OS_SemaphorePost(...)
-//             hook::slide::<fn(*mut u8)>(0x1004e8b5c)(stream.semaphore);
-//         }
-
-//         stream.processing = false;
-
-//         // eq: pthread_mutex_unlock(...)
-//         hook::slide::<fn(*mut u8)>(0x1004fbd40)(stream.request_mutex);
-//     }
-// }
 
 fn stream_read(
     stream_index: u32,
