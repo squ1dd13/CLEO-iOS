@@ -136,7 +136,7 @@ impl CleoScript {
             return;
         }
 
-        let game_time: u32 = hook::get_global(0x1007d3af8);
+        let game_time: u32 = hook::deref_global(0x1007d3af8);
 
         if self.game_script.wakeup_time > game_time {
             // Don't wake up yet.

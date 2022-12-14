@@ -409,7 +409,7 @@ fn set_game_timer_paused(want_pause: bool) {
     let var_ptr = crate::hook::slide::<*mut bool>(0x1007d3b34);
 
     if want_pause {
-        let currently_paused: bool = crate::hook::get_global(0x1007d3b34);
+        let currently_paused: bool = crate::hook::deref_global(0x1007d3b34);
 
         if currently_paused {
             unsafe {

@@ -242,7 +242,7 @@ pub fn slide<T: Copy>(address: usize) -> T {
     }
 }
 
-pub fn get_global<T: Copy>(address: usize) -> T {
+pub fn deref_global<T: Copy>(address: usize) -> T {
     let slid: *const T = slide(address);
     unsafe { *slid }
 }

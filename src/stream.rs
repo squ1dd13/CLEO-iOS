@@ -114,6 +114,11 @@ fn stream_init(stream_count: i32) {
 struct Semaphore;
 
 impl Semaphore {
+    /// Creates a new semaphore using game code and returns a mutable reference to it.
+    fn new_mut() -> &'static mut Semaphore {
+        hook::slide::<fn() -> &'static mut Semaphore>(0x1004e8b18)()
+    }
+
     /// Blocks until the semaphore count becomes greater than zero, then decrements it and returns.
     fn wait(&mut self) {
         hook::slide::<fn(&mut Semaphore)>(0x1004e8b84)(self);
@@ -142,7 +147,7 @@ impl GlobalStreamQueue {
     fn global() -> GlobalStreamQueue {
         GlobalStreamQueue {
             semaphore: unsafe {
-                hook::get_global::<*mut Semaphore>(0x1006ac8e0)
+                hook::deref_global::<*mut Semaphore>(0x1006ac8e0)
                     .as_mut()
                     .unwrap()
             },
@@ -176,6 +181,11 @@ impl GlobalStreamQueue {
 struct GameMutex;
 
 impl GameMutex {
+    /// Creates a new mutex using game code and returns a mutable reference to it.
+    fn new_mut() -> &'static mut GameMutex {
+        hook::slide::<fn(usize) -> &'static mut GameMutex>(0x1004e8a5c)(0x0)
+    }
+
     /// Locks the mutex, blocking if necessary.
     fn lock(&mut self) {
         hook::slide::<fn(&mut GameMutex)>(0x1004fbd34)(self);
@@ -231,8 +241,8 @@ struct ImageHandle(FileHandle);
 
 impl ImageHandle {
     /// Returns a slice of mutable references to the game's image handles.
-    fn images() -> &'static mut [&'static mut ImageHandle] {
-        let image_handle_ptrs: *mut &'static mut ImageHandle = hook::slide(0x100939140);
+    fn images() -> &'static mut [Option<&'static mut ImageHandle>] {
+        let image_handle_ptrs: *mut Option<&'static mut ImageHandle> = hook::slide(0x100939140);
 
         unsafe { std::slice::from_raw_parts_mut(image_handle_ptrs, 8) }
     }
@@ -244,9 +254,66 @@ impl ImageHandle {
 }
 
 impl Stream {
+    /// Creates a new stream with no image file.
+    fn new() -> Stream {
+        Stream {
+            sector_offset: 0,
+            sectors_to_read: 0,
+            buffer: std::ptr::null_mut(),
+            _do_not_use_img_index: 0,
+            in_use: false,
+            processing: false,
+            _pad: 0,
+            status: 0,
+            semaphore: Semaphore::new_mut(),
+            request_mutex: GameMutex::new_mut(),
+            image_file: None,
+        }
+    }
+
+    /// Returns a mutable reference to the global stream count.
+    fn stream_count_mut() -> &'static mut u32 {
+        unsafe { &mut *hook::slide::<*mut u32>(0x100939110) }
+    }
+
+    /// Returns a pointer to a block of allocated memory of a suitable size for storing `count`
+    /// streams. The memory is allocated using `malloc`.
+    fn allocate_streams(count: usize) -> *mut Stream {
+        let stream_object_size = std::mem::size_of::<Stream>();
+
+        if stream_object_size != 0x30 {
+            panic!(
+                "Stream structure should be of size 0x30, not {:#x}",
+                stream_object_size
+            );
+        }
+
+        unsafe { libc::malloc(stream_object_size * count).cast() }
+    }
+
+    /// Creates `count` empty streams and stores them in the game's memory. The streams can be
+    /// accessed using the `streams` method.
+    fn create_streams(count: usize) {
+        // Set the global stream count, which will also set the length of the global stream slice.
+        *Stream::stream_count_mut() = count as u32;
+
+        // Allocate the stream array.
+        unsafe {
+            let stream_array_pointer: *mut *mut Stream = hook::slide(0x100939118);
+            *stream_array_pointer = Stream::allocate_streams(count);
+        }
+
+        // Get the global stream slice. Note that this is currently full of junk data, since we
+        // only just allocated it.
+        let streams = Stream::streams();
+
+        // Initialise all of the streams.
+        streams.fill_with(Stream::new);
+    }
+
     /// Returns a mutable slice of the game's streams.
     fn streams() -> &'static mut [Stream] {
-        let stream_array: *mut Stream = hook::get_global(0x100939118);
+        let stream_array: *mut Stream = hook::deref_global(0x100939118);
         let stream_count: usize = unsafe { *hook::slide::<*mut i32>(0x100939110) } as usize;
 
         unsafe { std::slice::from_raw_parts_mut(stream_array, stream_count) }
@@ -281,11 +348,10 @@ impl Stream {
 
     /// Loads the data from `region` in the stream's image file into the stream's buffer.
     fn load_region(&mut self, region: ImageRegion) -> eyre::Result<()> {
+        let image_file = self.image_file.as_mut().expect("Stream has no image file");
+
         // Seek to the start of the requested region in the image file.
-        let seek_err = self
-            .image_file
-            .file_handle_mut()
-            .seek_to(region.offset_bytes());
+        let seek_err = image_file.file_handle_mut().seek_to(region.offset_bytes());
 
         if seek_err != 0 {
             return Err(eyre::format_err!(
@@ -295,8 +361,7 @@ impl Stream {
         }
 
         // Fill the buffer with all of the data from the requested region.
-        let read_err = self
-            .image_file
+        let read_err = image_file
             .file_handle_mut()
             .read(self.buffer, region.size_bytes());
 
@@ -382,7 +447,7 @@ impl Stream {
 
         self.clear_error();
 
-        self.image_file = image;
+        self.image_file = Some(image);
         self.set_region(region);
 
         self.buffer = buffer;
@@ -419,7 +484,9 @@ fn try_stream_request(
     Stream::set_global_position(image_index, region);
 
     let stream = &mut Stream::streams()[stream_index];
-    let image = &mut ImageHandle::images()[image_index];
+    let image = ImageHandle::images()[image_index]
+        .as_mut()
+        .expect("Image not loaded");
 
     let request_result = stream.request_load(image, region, buffer);
 
@@ -624,7 +691,7 @@ fn load_directory(path_c: *const i8, archive_id: i32) {
                 // Increase the size of the streaming buffer to accommodate the model's data (if it isn't big enough
                 //  already).
                 let streaming_buffer_size: u32 =
-                    hook::get_global::<u32>(0x10072d320).max(info.cd_size);
+                    hook::deref_global::<u32>(0x10072d320).max(info.cd_size);
 
                 unsafe {
                     *hook::slide::<*mut u32>(0x10072d320) = streaming_buffer_size;
@@ -757,7 +824,7 @@ struct Stream {
     status: u32,
     semaphore: &'static mut Semaphore,
     request_mutex: &'static mut GameMutex,
-    image_file: &'static mut ImageHandle,
+    image_file: Option<&'static mut ImageHandle>,
 }
 
 #[repr(C)]
