@@ -32,10 +32,6 @@ fn streaming_queue() -> &'static mut Queue {
     }
 }
 
-fn streams_array() -> *mut Stream {
-    hook::get_global(0x100939118)
-}
-
 fn stream_init(stream_count: i32) {
     // Zero the image handles.
     zero_memory(hook::slide(0x100939140), 0x100);
@@ -103,7 +99,7 @@ fn stream_init(stream_count: i32) {
             hook::slide::<fn(fn(usize), usize, u32, *const u8, i32, u32) -> *mut u8>(0x1004e8888);
 
         // eq: OS_ThreadLaunch(...)
-        let thread = launch(streaming_thread, 0x0, 3, cd_stream_name, 0, 3);
+        let thread = launch(streaming_thread_hook, 0x0, 3, cd_stream_name, 0, 3);
 
         if thread.is_null() {
             panic!("Failed to start streaming thread!");
@@ -165,7 +161,13 @@ impl GlobalStreamQueue {
         self.index_queue.remove_first();
 
         // Find the stream corresponding to the index.
-        unsafe { &mut *streams_array().add(stream_index) }
+        &mut Stream::streams()[stream_index]
+    }
+
+    /// Adds the given stream index to the queue.
+    fn push_index(&mut self, stream_index: usize) {
+        self.index_queue.add(stream_index as i32);
+        self.semaphore.post();
     }
 }
 
@@ -223,7 +225,42 @@ impl ImageRegion {
     }
 }
 
+/// An image file handle.
+#[derive(Debug)]
+struct ImageHandle(FileHandle);
+
+impl ImageHandle {
+    /// Returns a slice of mutable references to the game's image handles.
+    fn images() -> &'static mut [&'static mut ImageHandle] {
+        let image_handle_ptrs: *mut &'static mut ImageHandle = hook::slide(0x100939140);
+
+        unsafe { std::slice::from_raw_parts_mut(image_handle_ptrs, 8) }
+    }
+
+    /// Returns a mutable reference to the underlying file handle.
+    fn file_handle_mut(&mut self) -> &mut FileHandle {
+        &mut self.0
+    }
+}
+
 impl Stream {
+    /// Returns a mutable slice of the game's streams.
+    fn streams() -> &'static mut [Stream] {
+        let stream_array: *mut Stream = hook::get_global(0x100939118);
+        let stream_count: usize = unsafe { *hook::slide::<*mut i32>(0x100939110) } as usize;
+
+        unsafe { std::slice::from_raw_parts_mut(stream_array, stream_count) }
+    }
+
+    /// Stores the end of the given resource region as the current stream request position.
+    fn set_global_position(image_index: usize, region: ImageRegion) {
+        let source = StreamSource::new(image_index as u8, region.offset_sectors as u32);
+
+        unsafe {
+            hook::slide::<*mut u32>(0x100939240).write(source.0 + region.size_sectors as u32);
+        }
+    }
+
     /// Returns the location in the image file of the requested resource.
     fn file_region(&self) -> ImageRegion {
         ImageRegion {
@@ -237,10 +274,18 @@ impl Stream {
         self.status == 0
     }
 
+    /// Returns `true` if this stream is currently processing a request or has unloaded data.
+    fn is_busy(&self) -> bool {
+        self.sectors_to_read != 0 || self.processing
+    }
+
     /// Loads the data from `region` in the stream's image file into the stream's buffer.
     fn load_region(&mut self, region: ImageRegion) -> eyre::Result<()> {
         // Seek to the start of the requested region in the image file.
-        let seek_err = self.image_file.seek_to(region.offset_bytes());
+        let seek_err = self
+            .image_file
+            .file_handle_mut()
+            .seek_to(region.offset_bytes());
 
         if seek_err != 0 {
             return Err(eyre::format_err!(
@@ -250,7 +295,10 @@ impl Stream {
         }
 
         // Fill the buffer with all of the data from the requested region.
-        let read_err = self.image_file.read(self.buffer, region.size_bytes());
+        let read_err = self
+            .image_file
+            .file_handle_mut()
+            .read(self.buffer, region.size_bytes());
 
         if read_err != 0 {
             Err(eyre::format_err!(
@@ -279,7 +327,7 @@ impl Stream {
 
         self.sectors_to_read = 0;
 
-        if self.post_when_finished {
+        if self.in_use {
             self.semaphore.post();
         }
 
@@ -289,7 +337,7 @@ impl Stream {
     }
 
     /// Handles a request for data on this stream.
-    fn handle_request(&mut self) -> eyre::Result<()> {
+    fn handle_current_request(&mut self) -> eyre::Result<()> {
         self.enter_processing_state();
 
         // Load the requested data if the previous read was successful.
@@ -307,12 +355,46 @@ impl Stream {
 
         result
     }
+
+    /// Clears the error code if there is one set.
+    fn clear_error(&mut self) {
+        self.status = 0;
+    }
+
+    /// Sets the location of the next file read within the current image to `region`.
+    fn set_region(&mut self, region: ImageRegion) {
+        self.sector_offset = region.offset_sectors as u32;
+        self.sectors_to_read = region.size_sectors as u32;
+    }
+
+    /// Requests that the stream loads the data from `region` from `image` into `buffer`. Returns
+    /// an error if the stream is currently busy.
+    fn request_load(
+        &mut self,
+        image: &'static mut ImageHandle,
+        region: ImageRegion,
+        buffer: *mut u8,
+    ) -> eyre::Result<()> {
+        if self.is_busy() {
+            log::trace!("not ready");
+            return Err(eyre::Error::msg("Stream is busy"));
+        }
+
+        self.clear_error();
+
+        self.image_file = image;
+        self.set_region(region);
+
+        self.buffer = buffer;
+        self.in_use = false;
+
+        Ok(())
+    }
 }
 
-/// The function that runs on the streaming thread. This is responsible for the actual loading of
-/// resource data from the image files on disk.
-fn streaming_thread(_: usize) {
-    log::info!("Streaming thread started");
+/// Waits for requests for data from the streams and handles them.
+fn poll_stream_queue() {
+    log::info!("Polling for stream requests...");
 
     let mut queue = GlobalStreamQueue::global();
 
@@ -320,51 +402,59 @@ fn streaming_thread(_: usize) {
         // Handle stream requests as they arrive.
         let stream = queue.pop_blocking();
 
-        if let Err(err) = stream.handle_request() {
+        if let Err(err) = stream.handle_current_request() {
             log::error!("Streaming error: {:?}", err);
         }
     }
 }
 
-fn stream_read(
+/// Requests a resource load from a specific stream and image, returning `false` if the selected
+/// stream is not ready for a new request.
+fn try_stream_request(
+    stream_index: usize,
+    image_index: usize,
+    buffer: *mut u8,
+    region: ImageRegion,
+) -> bool {
+    Stream::set_global_position(image_index, region);
+
+    let stream = &mut Stream::streams()[stream_index];
+    let image = &mut ImageHandle::images()[image_index];
+
+    let request_result = stream.request_load(image, region, buffer);
+
+    if request_result.is_err() {
+        return false;
+    }
+
+    let mut queue = GlobalStreamQueue::global();
+    queue.push_index(stream_index);
+
+    true
+}
+
+/// Replacement for the game's streaming thread function. This function is given to game code to
+/// run on a new thread when the streaming system has been initialised.
+fn streaming_thread_hook(_: usize) {
+    poll_stream_queue();
+}
+
+/// Hook for `CdStreamRead`.
+fn stream_read_hook(
     stream_index: u32,
     buffer: *mut u8,
     source: StreamSource,
     sector_count: u32,
 ) -> bool {
-    unsafe {
-        hook::slide::<*mut u32>(0x100939240).write(source.0 + sector_count);
-    }
-
-    let stream = unsafe { &mut *streams_array().offset(stream_index as isize) };
-
-    unsafe {
-        let handle_arr_base: *mut *mut u8 = hook::slide(0x100939140);
-        let handle_ptr: *mut u8 = *handle_arr_base.offset(source.image_index() as isize);
-
-        stream.image_file = &mut *(handle_ptr as *mut FileHandle);
-    }
-
-    if stream.sectors_to_read != 0 || stream.processing {
-        return false;
-    }
-
-    // Set up the stream for getting the resource we want.
-    stream.status = 0;
-    stream.sector_offset = source.sector_offset();
-    stream.sectors_to_read = sector_count;
-    stream.buffer = buffer;
-    stream.post_when_finished = false;
-    stream._do_not_use_img_index = source.image_index();
-
-    streaming_queue().add(stream_index as i32);
-
-    let stream_semaphore = hook::get_global(0x1006ac8e0);
-
-    // eq: OS_SemaphorePost(...)
-    hook::slide::<fn(*mut u8)>(0x1004e8b5c)(stream_semaphore);
-
-    true
+    try_stream_request(
+        stream_index as usize,
+        source.image_index() as usize,
+        buffer,
+        ImageRegion {
+            offset_sectors: source.sector_offset() as usize,
+            size_sectors: sector_count as usize,
+        },
+    )
 }
 
 fn stream_open(path: *const c_char, _: bool) -> i32 {
@@ -552,7 +642,7 @@ pub fn init() {
 
     type StreamReadFn = fn(u32, *mut u8, StreamSource, u32) -> bool;
     const CD_STREAM_READ: hook::Target<StreamReadFn> = hook::Target::Address(0x100178048);
-    CD_STREAM_READ.hook_hard(stream_read);
+    CD_STREAM_READ.hook_hard(stream_read_hook);
 
     const CD_STREAM_OPEN: hook::Target<fn(*const c_char, bool) -> i32> =
         hook::Target::Address(0x1001782b0);
@@ -661,13 +751,13 @@ struct Stream {
     // hack: We shouldn't really need to add another field to Stream.
     _do_not_use_img_index: u8,
 
-    post_when_finished: bool,
+    in_use: bool,
     processing: bool,
     _pad: u8,
     status: u32,
     semaphore: &'static mut Semaphore,
     request_mutex: &'static mut GameMutex,
-    image_file: &'static mut FileHandle,
+    image_file: &'static mut ImageHandle,
 }
 
 #[repr(C)]
