@@ -114,10 +114,6 @@ mod targets {
     create_soft_target!(init_stage_three, 0x1002f9b20, fn(usize));
 }
 
-fn test_fn() {
-    log::info!("not hooked :(");
-}
-
 fn initialise() {
     log::info!(
         "game ASLR slide is {:#x}",

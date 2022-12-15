@@ -6,12 +6,14 @@
 
 use std::{
     collections::HashMap,
+    ffi::CStr,
     io::{Read, Seek, SeekFrom},
     path::Path,
     sync::Mutex,
 };
 
 use byteorder::{LittleEndian, ReadBytesExt};
+use eyre::Context;
 use libc::c_char;
 
 use crate::{call_original, hook, targets};
@@ -161,6 +163,30 @@ impl GameMutex {
 struct FileHandle;
 
 impl FileHandle {
+    /// Opens the file at `path` (in `data_area`) with `mode`.
+    fn open(path: &CStr, data_area: u64, mode: u64) -> eyre::Result<&'static mut FileHandle> {
+        let func: fn(u64, *mut *mut FileHandle, *const c_char, u64) = hook::slide(0x1004e4f94);
+
+        // Create a null pointer for the function to write the resulting file handle pointer to.
+        let mut handle_ptr: *mut FileHandle = std::ptr::null_mut();
+
+        // Call the function.
+        func(data_area, &mut handle_ptr, path.as_ptr(), 0);
+
+        // Convert the handle to a reference, or `None` if it is null.
+        let handle = unsafe { handle_ptr.as_mut() };
+
+        // If the handle is null, there was an error opening the file.
+        handle.ok_or_else(|| {
+            eyre::format_err!(
+                "Unable to open file '{}' in data area {} with mode {:#x}",
+                path.to_str().unwrap_or("<unrepresentable>"),
+                data_area,
+                mode
+            )
+        })
+    }
+
     /// Reads `count` bytes from the file and stores them at `output`.
     fn read(&mut self, output: *mut u8, count: usize) -> u32 {
         hook::slide::<fn(&mut FileHandle, *mut u8, usize) -> u32>(0x1004e5300)(self, output, count)
@@ -194,15 +220,20 @@ impl ImageRegion {
     }
 }
 
-/// An image file handle.
-#[derive(Debug)]
-struct Image(FileHandle);
+/// Represents the combination of an image file handle and a name.
+struct Image {
+    /// The file handle for this image.
+    handle: &'static mut Option<&'static mut ImageHandle>,
+
+    /// The character array for this image's name.
+    name_bytes: &'static mut [u8; 64],
+}
 
 impl Image {
-    /// Clears all image name and file handle data from memory.
+    /// Clears all image data from memory.
     fn clear_all() {
         // Clear the image handles.
-        for handle in Image::handles() {
+        for handle in ImageHandle::handles() {
             *handle = None;
         }
 
@@ -212,25 +243,94 @@ impl Image {
         }
     }
 
-    /// Returns a slice of mutable references to the game's image handles.
-    fn handles() -> &'static mut [Option<&'static mut Image>] {
-        let image_handle_ptrs: *mut Option<&'static mut Image> = hook::slide(0x100939140);
+    /// Sets the image's handle to `file_handle`.
+    fn set_file_handle(&mut self, handle: &'static mut FileHandle) {
+        // SAFETY: We can transmute here because `Image` and `FileHandle` are exactly the same
+        // thing, and we only use different types in order to define different methods for
+        // them.
+        let image_handle =
+            unsafe { std::mem::transmute::<&'_ mut FileHandle, &'_ mut ImageHandle>(handle) };
 
-        unsafe { std::slice::from_raw_parts_mut(image_handle_ptrs, 8) }
+        *self.handle = Some(image_handle);
+    }
+
+    /// Sets the image's name to `name`
+    fn set_name(&mut self, name: impl AsRef<CStr>) {
+        // Get the bytes from the path string, including the null pointer so after the copy the
+        // string terminates in the right place.
+        let path_chars = name.as_ref().to_bytes_with_nul();
+
+        // Copy the image name into game memory.
+        self.name_bytes[..path_chars.len()].copy_from_slice(path_chars);
+    }
+
+    /// Attempts to open the image at `path`, returning the resulting file handle.
+    fn open_file(path: impl AsRef<CStr>) -> eyre::Result<&'static mut FileHandle> {
+        // Create a new handle by opening the file.
+        let open_result = FileHandle::open(path.as_ref(), 0, 0);
+
+        open_result.wrap_err_with(|| {
+            format!(
+                "When opening archive image '{}'",
+                path.as_ref().to_str().unwrap_or("<unrepresentable>")
+            )
+        })
+    }
+
+    /// Attempts to open the archive file at `path`, returning the index of the resulting image
+    /// data in the game's image array.
+    fn add_archive(path: impl AsRef<CStr>) -> eyre::Result<usize> {
+        // Find the first empty image slot, or return an error.
+        let (index, mut image) = Image::images_mut()
+            .enumerate()
+            .find(|(_, Image { handle, .. })| handle.is_none())
+            .ok_or(eyre::format_err!(
+                "Cannot add new image file because there are no free image slots"
+            ))?;
+
+        // Open the file.
+        let opened_handle = Image::open_file(&path)?;
+
+        // Update the image data.
+        image.set_file_handle(opened_handle);
+        image.set_name(path);
+
+        Ok(index)
+    }
+
+    /// Returns an iterator over the game's images.
+    fn images_mut() -> impl Iterator<Item = Image> {
+        ImageHandle::handles()
+            .iter_mut()
+            .zip(Image::image_name_bytes().iter_mut())
+            .map(|(handle, name_bytes)| Image { handle, name_bytes })
     }
 
     /// Returns a slice of mutable references to the game's image name character arrays.
-    fn image_name_bytes() -> &'static mut [[u8; 32]] {
-        let image_name_arr: *mut [u8; 32] = hook::slide(0x1006ac0e0);
+    fn image_name_bytes() -> &'static mut [[u8; 64]] {
+        let image_name_arr: *mut [u8; 64] = hook::slide(0x1006ac0e0);
 
-        unsafe { std::slice::from_raw_parts_mut(image_name_arr, 64) }
+        unsafe { std::slice::from_raw_parts_mut(image_name_arr, 32) }
     }
 
     /// Returns an iterator over the game's image name array.
-    fn image_names() -> impl Iterator<Item = &'static std::ffi::CStr> {
-        Image::image_name_bytes().iter_mut().map(|bytes| {
-            std::ffi::CStr::from_bytes_until_nul(bytes).expect("Invalid image name in array")
-        })
+    fn image_names() -> impl Iterator<Item = &'static CStr> {
+        Image::image_name_bytes()
+            .iter_mut()
+            .map(|bytes| CStr::from_bytes_until_nul(bytes).expect("Invalid image name in array"))
+    }
+}
+
+/// An image file handle.
+#[derive(Debug)]
+struct ImageHandle(FileHandle);
+
+impl ImageHandle {
+    /// Returns a slice of mutable references to the game's image handles.
+    fn handles() -> &'static mut [Option<&'static mut ImageHandle>] {
+        let image_handle_ptrs: *mut Option<&'static mut ImageHandle> = hook::slide(0x100939140);
+
+        unsafe { std::slice::from_raw_parts_mut(image_handle_ptrs, 8) }
     }
 
     /// Returns a mutable reference to the underlying file handle.
@@ -264,7 +364,7 @@ impl Stream {
 
     /// Returns the global stream count.
     fn global_count() -> u32 {
-        unsafe { hook::deref_global(0x100939110) }
+        hook::deref_global(0x100939110)
     }
 
     /// Returns a pointer to a block of allocated memory of a suitable size for storing `count`
@@ -427,7 +527,7 @@ impl Stream {
     /// an error if the stream is currently busy.
     fn request_load(
         &mut self,
-        image: &'static mut Image,
+        image: &'static mut ImageHandle,
         region: ImageRegion,
         buffer: *mut u8,
     ) -> eyre::Result<()> {
@@ -475,7 +575,7 @@ fn try_stream_request(
     Stream::set_global_position(image_index, region);
 
     let stream = &mut Stream::streams()[stream_index];
-    let image = Image::handles()[image_index]
+    let image = ImageHandle::handles()[image_index]
         .as_mut()
         .expect("Image not loaded");
 
@@ -520,45 +620,21 @@ fn stream_read_hook(
     )
 }
 
-fn stream_open(path: *const c_char, _: bool) -> i32 {
-    let handles: *mut *mut u8 = hook::slide(0x100939140);
-
-    // Find the first available place in the handles array.
-    let mut index = 0;
-
-    for i in 0..32isize {
-        unsafe {
-            if handles.offset(i).read().is_null() {
-                break;
-            }
-        }
-
-        index += 1;
-    }
-
-    if index == 32 {
-        log::error!("No available slot for image.");
-        return 0;
-    }
-
-    // eq: OS_FileOpen(...)
-    let file_open: fn(u64, *mut *mut u8, *const c_char, u64) = hook::slide(0x1004e4f94);
-    file_open(0, unsafe { handles.offset(index) }, path, 0);
-
-    unsafe {
-        if handles.offset(index).read().is_null() {
+/// Hook for `CdStreamOpen`.
+fn stream_open_hook(path: *const c_char, _: bool) -> i32 {
+    // Try to add the archive.
+    let index = match Image::add_archive(unsafe { CStr::from_ptr(path) }) {
+        Ok(index) => index,
+        Err(err) => {
+            log::error!("Couldn't add image file: {:?}", err);
             return 0;
         }
-    }
+    };
 
-    let image_names: *mut i8 = hook::slide(0x1006ac0e0);
+    // Create and return the stream position for the start of the image.
+    let start = StreamSource::new(index as u8, 0);
 
-    unsafe {
-        let dest = image_names.offset(index * 64);
-        libc::strcpy(dest, path.cast());
-    }
-
-    (index as i32) << 24
+    start.0 as i32
 }
 
 fn get_archive_path(path: &str) -> Option<(String, String)> {
@@ -617,7 +693,7 @@ fn load_archive_into_database(path: &str, img_id: i32) -> eyre::Result<()> {
             let mut name_buf = [0u8; 24];
             file.read_exact(&mut name_buf)?;
 
-            let name = unsafe { std::ffi::CStr::from_ptr(name_buf.as_ptr().cast()) }
+            let name = unsafe { CStr::from_ptr(name_buf.as_ptr().cast()) }
                 .to_str()
                 .unwrap();
 
@@ -635,9 +711,7 @@ fn load_archive_into_database(path: &str, img_id: i32) -> eyre::Result<()> {
 }
 
 fn load_directory(path_c: *const i8, archive_id: i32) {
-    let path = unsafe { std::ffi::CStr::from_ptr(path_c) }
-        .to_str()
-        .unwrap();
+    let path = unsafe { CStr::from_ptr(path_c) }.to_str().unwrap();
 
     let (path, archive_name) = get_archive_path(path).expect("Unable to resolve path name.");
 
@@ -709,7 +783,7 @@ pub fn init() {
 
     const CD_STREAM_OPEN: hook::Target<fn(*const c_char, bool) -> i32> =
         hook::Target::Address(0x1001782b0);
-    CD_STREAM_OPEN.hook_hard(stream_open);
+    CD_STREAM_OPEN.hook_hard(stream_open_hook);
 
     targets::load_cd_directory::install(load_directory);
 }
@@ -743,7 +817,7 @@ pub fn load_replacement(image_name: &str, path: &impl AsRef<Path>) -> eyre::Resu
 
         let replacement = ArchiveFileReplacement {
             size_bytes: size as u32,
-            file: std::fs::File::open(&path)?,
+            file: std::fs::File::open(path)?,
         };
 
         let name = path
@@ -820,7 +894,7 @@ struct Stream {
     status: u32,
     semaphore: &'static mut Semaphore,
     request_mutex: &'static mut GameMutex,
-    image_file: Option<&'static mut Image>,
+    image_file: Option<&'static mut ImageHandle>,
 }
 
 #[repr(C)]
