@@ -1,6 +1,7 @@
 //! Sets up CLEO when the library is loaded.
 
 #![feature(panic_info_message)]
+#![feature(cstr_from_bytes_until_nul)]
 
 use ctor::ctor;
 use objc::runtime::Object;

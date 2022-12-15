@@ -16,97 +16,42 @@ use libc::c_char;
 
 use crate::{call_original, hook, targets};
 
-fn zero_memory(ptr: *mut u8, bytes: usize) {
-    for i in 0..bytes {
-        unsafe {
-            ptr.add(i).write(0);
-        }
-    }
-}
+/// Launches the streaming thread with our custom behaviour.
+fn launch_streaming_thread() {
+    // Get a function pointer for `OS_ThreadLaunch`.
+    let launch =
+        hook::slide::<fn(fn(usize), usize, u32, *const u8, i32, u32) -> *mut u8>(0x1004e8888);
 
-fn streaming_queue() -> &'static mut Queue {
-    unsafe {
-        hook::slide::<*mut Queue>(0x100939120)
-            .as_mut()
-            .expect("how tf how did we manage to slide and get zero?")
-    }
-}
+    // Launch the thread using our own function instead of the game's streaming thread function. I
+    // don't know what all of the parameters for `OS_ThreadLaunch` are, and I can't be bothered to
+    // find out. The "unknown" values are just what the game uses.
+    let thread = launch(
+        streaming_thread_hook,
+        0x0,                      // unknown
+        3,                        // unknown
+        hook::slide(0x10058a2eb), // name - "CdStream" here
+        0,                        // unknown
+        3,                        // priority
+    );
 
-fn stream_init(stream_count: i32) {
-    // Zero the image handles.
-    zero_memory(hook::slide(0x100939140), 0x100);
-
-    // Zero the image names.
-    zero_memory(hook::slide(0x1006ac0e0), 2048);
-
-    // Write the stream count to the global count variable.
-    unsafe {
-        hook::slide::<*mut i32>(0x100939110).write(stream_count);
+    if thread.is_null() {
+        panic!("Failed to start streaming thread!");
     }
 
-    let streams = {
-        let streams_double_ptr: *mut *mut Stream = hook::slide(0x100939118);
-
-        unsafe {
-            // Allocate the stream array. Each stream structure is 48 (0x30) bytes.
-            let byte_count = stream_count as usize * 0x30;
-            let allocated = libc::malloc(byte_count).cast();
-            zero_memory(allocated, byte_count);
-
-            streams_double_ptr.write(allocated.cast());
-            *streams_double_ptr
-        }
-    };
-
-    let stream_struct_size = std::mem::size_of::<Stream>();
-    if stream_struct_size != 0x30 {
-        panic!(
-            "Incorrect size for Stream structure: expected 0x30, got {:#?}.",
-            stream_struct_size
-        );
-    }
-
-    for i in 0..stream_count as usize {
-        let stream: &mut Stream = unsafe { &mut *streams.add(i) };
-
-        // eq: OS_SemaphoreCreate()
-        stream.semaphore = hook::slide::<fn() -> &'static mut Semaphore>(0x1004e8b18)();
-
-        // eq: OS_MutexCreate(...)
-        stream.request_mutex = hook::slide::<fn(usize) -> &'static mut GameMutex>(0x1004e8a5c)(0x0);
-    }
-
-    *streaming_queue() = Queue::with_capacity(stream_count as u32 + 1);
+    let global_stream_thread: *mut *mut u8 = hook::slide(0x100939138);
 
     unsafe {
-        // Create the global stream semaphore.
-        // eq: OS_SemaphoreCreate()
-        let semaphore = hook::slide::<fn() -> *mut u8>(0x1004e8b18)();
-
-        if semaphore.is_null() {
-            panic!("Failed to create global stream semaphore!");
-        }
-
-        // Write to the variable.
-        hook::slide::<*mut *mut u8>(0x1006ac8e0).write(semaphore);
-
-        // "CdStream"
-        let cd_stream_name: *const u8 = hook::slide(0x10058a2eb);
-        let global_stream_thread: *mut *mut u8 = hook::slide(0x100939138);
-
-        // Launch the thread.
-        let launch =
-            hook::slide::<fn(fn(usize), usize, u32, *const u8, i32, u32) -> *mut u8>(0x1004e8888);
-
-        // eq: OS_ThreadLaunch(...)
-        let thread = launch(streaming_thread_hook, 0x0, 3, cd_stream_name, 0, 3);
-
-        if thread.is_null() {
-            panic!("Failed to start streaming thread!");
-        }
-
         global_stream_thread.write(thread);
     }
+}
+
+/// Sets up the streaming system ready for images to be loaded.
+fn init_streams(count: usize) {
+    Image::clear_all();
+    Stream::create_streams(count);
+    GlobalStreamQueue::init();
+
+    launch_streaming_thread();
 }
 
 /// Opaque type used to refer to semaphores used by the game.
@@ -136,34 +81,48 @@ impl Semaphore {
 /// semaphore is incremented.
 struct GlobalStreamQueue {
     /// The global stream queue semaphore.
-    semaphore: &'static mut Semaphore,
+    semaphore_ref: &'static mut Semaphore,
 
     /// The global queue of stream indices that represent the streams in this queue.
-    index_queue: &'static mut Queue,
+    index_queue_ref: &'static mut Queue,
 }
 
 impl GlobalStreamQueue {
+    /// Initialises the global queue.
+    fn init() {
+        let queue = Queue::with_capacity(Stream::global_count() + 1);
+        let semaphore = Semaphore::new_mut();
+
+        let global_queue_ptr = hook::slide::<*mut Queue>(0x100939120);
+        let global_semaphore_loc_ptr: *mut *mut Semaphore = hook::slide(0x1006ac8e0);
+
+        unsafe {
+            *global_queue_ptr = queue;
+            *global_semaphore_loc_ptr = semaphore;
+        }
+    }
+
     /// Obtains the global queue.
     fn global() -> GlobalStreamQueue {
         GlobalStreamQueue {
-            semaphore: unsafe {
+            semaphore_ref: unsafe {
                 hook::deref_global::<*mut Semaphore>(0x1006ac8e0)
                     .as_mut()
                     .unwrap()
             },
 
-            index_queue: unsafe { hook::slide::<*mut Queue>(0x100939120).as_mut().unwrap() },
+            index_queue_ref: unsafe { hook::slide::<*mut Queue>(0x100939120).as_mut().unwrap() },
         }
     }
 
     /// Returns a mutable reference to the next stream to be serviced, removing it from the queue.
     /// Blocks if there are no streams waiting.
     fn pop_blocking(&mut self) -> &'static mut Stream {
-        self.semaphore.wait();
+        self.semaphore_ref.wait();
 
         // Get the stream index from the queue and remove it.
-        let stream_index = self.index_queue.first() as usize;
-        self.index_queue.remove_first();
+        let stream_index = self.index_queue_ref.first() as usize;
+        self.index_queue_ref.remove_first();
 
         // Find the stream corresponding to the index.
         &mut Stream::streams()[stream_index]
@@ -171,8 +130,8 @@ impl GlobalStreamQueue {
 
     /// Adds the given stream index to the queue.
     fn push_index(&mut self, stream_index: usize) {
-        self.index_queue.add(stream_index as i32);
-        self.semaphore.post();
+        self.index_queue_ref.add(stream_index as i32);
+        self.semaphore_ref.post();
     }
 }
 
@@ -237,14 +196,41 @@ impl ImageRegion {
 
 /// An image file handle.
 #[derive(Debug)]
-struct ImageHandle(FileHandle);
+struct Image(FileHandle);
 
-impl ImageHandle {
+impl Image {
+    /// Clears all image name and file handle data from memory.
+    fn clear_all() {
+        // Clear the image handles.
+        for handle in Image::handles() {
+            *handle = None;
+        }
+
+        // Clear the names.
+        for name_bytes in Image::image_name_bytes() {
+            name_bytes[0] = 0;
+        }
+    }
+
     /// Returns a slice of mutable references to the game's image handles.
-    fn images() -> &'static mut [Option<&'static mut ImageHandle>] {
-        let image_handle_ptrs: *mut Option<&'static mut ImageHandle> = hook::slide(0x100939140);
+    fn handles() -> &'static mut [Option<&'static mut Image>] {
+        let image_handle_ptrs: *mut Option<&'static mut Image> = hook::slide(0x100939140);
 
         unsafe { std::slice::from_raw_parts_mut(image_handle_ptrs, 8) }
+    }
+
+    /// Returns a slice of mutable references to the game's image name character arrays.
+    fn image_name_bytes() -> &'static mut [[u8; 32]] {
+        let image_name_arr: *mut [u8; 32] = hook::slide(0x1006ac0e0);
+
+        unsafe { std::slice::from_raw_parts_mut(image_name_arr, 64) }
+    }
+
+    /// Returns an iterator over the game's image name array.
+    fn image_names() -> impl Iterator<Item = &'static std::ffi::CStr> {
+        Image::image_name_bytes().iter_mut().map(|bytes| {
+            std::ffi::CStr::from_bytes_until_nul(bytes).expect("Invalid image name in array")
+        })
     }
 
     /// Returns a mutable reference to the underlying file handle.
@@ -272,8 +258,13 @@ impl Stream {
     }
 
     /// Returns a mutable reference to the global stream count.
-    fn stream_count_mut() -> &'static mut u32 {
+    fn count_mut() -> &'static mut u32 {
         unsafe { &mut *hook::slide::<*mut u32>(0x100939110) }
+    }
+
+    /// Returns the global stream count.
+    fn global_count() -> u32 {
+        unsafe { hook::deref_global(0x100939110) }
     }
 
     /// Returns a pointer to a block of allocated memory of a suitable size for storing `count`
@@ -295,7 +286,7 @@ impl Stream {
     /// accessed using the `streams` method.
     fn create_streams(count: usize) {
         // Set the global stream count, which will also set the length of the global stream slice.
-        *Stream::stream_count_mut() = count as u32;
+        *Stream::count_mut() = count as u32;
 
         // Allocate the stream array.
         unsafe {
@@ -436,7 +427,7 @@ impl Stream {
     /// an error if the stream is currently busy.
     fn request_load(
         &mut self,
-        image: &'static mut ImageHandle,
+        image: &'static mut Image,
         region: ImageRegion,
         buffer: *mut u8,
     ) -> eyre::Result<()> {
@@ -484,7 +475,7 @@ fn try_stream_request(
     Stream::set_global_position(image_index, region);
 
     let stream = &mut Stream::streams()[stream_index];
-    let image = ImageHandle::images()[image_index]
+    let image = Image::handles()[image_index]
         .as_mut()
         .expect("Image not loaded");
 
@@ -498,6 +489,11 @@ fn try_stream_request(
     queue.push_index(stream_index);
 
     true
+}
+
+/// Hook for `CdStreamInit`.
+fn stream_init_hook(count: i32) {
+    init_streams(count as usize);
 }
 
 /// Replacement for the game's streaming thread function. This function is given to game code to
@@ -705,7 +701,7 @@ pub fn init() {
     log::info!("installing stream hooks...");
 
     const CD_STREAM_INIT: hook::Target<fn(i32)> = hook::Target::Address(0x100177eb8);
-    CD_STREAM_INIT.hook_hard(stream_init);
+    CD_STREAM_INIT.hook_hard(stream_init_hook);
 
     type StreamReadFn = fn(u32, *mut u8, StreamSource, u32) -> bool;
     const CD_STREAM_READ: hook::Target<StreamReadFn> = hook::Target::Address(0x100178048);
@@ -824,7 +820,7 @@ struct Stream {
     status: u32,
     semaphore: &'static mut Semaphore,
     request_mutex: &'static mut GameMutex,
-    image_file: Option<&'static mut ImageHandle>,
+    image_file: Option<&'static mut Image>,
 }
 
 #[repr(C)]
