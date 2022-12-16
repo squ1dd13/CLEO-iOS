@@ -4,13 +4,13 @@
 // hack: The `stream` module is messy, poorly documented and full of hacky code.
 // bug: Opcode 0x04ee seems to break when animations have been swapped.
 
-mod custom;
 mod game;
 mod load;
+mod stream;
 
 pub use load::load_replacement;
 
 pub fn init() {
-    custom::hook();
+    stream::hook();
     load::hook();
 }

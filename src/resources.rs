@@ -299,7 +299,7 @@ pub fn init() {
             ModResource::InvokedScript(path) => scripts::load_invoked_script(path).err(),
             ModResource::LanguageFile(path) => text::load_fxt(path).err(),
             ModResource::StreamReplacement(archive_name, path) => {
-                stream::load_replacement(archive_name, &path).err()
+                streaming::load_replacement(archive_name, &path).err()
             }
             ModResource::FileReplacement(path) => loader::load_replacement(&path).err(),
         };

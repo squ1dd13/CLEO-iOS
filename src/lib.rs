@@ -20,7 +20,7 @@ mod menu;
 mod resources;
 mod scripts;
 mod settings;
-mod stream;
+mod streaming;
 mod text;
 mod touch;
 mod update;
@@ -122,7 +122,7 @@ fn initialise() {
 
     if !crate::hook::has_weird_aslr() {
         log::info!("Archive hooks will be active.");
-        stream::init();
+        streaming::init();
     } else {
         log::warn!("iOS 15 (or equivalently weird) detected. Archive hooks will not be active.");
     }
