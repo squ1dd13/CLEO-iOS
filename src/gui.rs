@@ -1,7 +1,6 @@
 //! Hooks the splash screen to display our "CLEO" numberplate, and also provides a Rust interface for some
 //! common UIKit code.
 
-use crate::{call_original, targets};
 use log::trace;
 use objc::{
     runtime::{Object, Sel},
@@ -120,7 +119,7 @@ pub fn exit_to_homescreen() {
     }
 }
 
-fn legal_splash_did_load(this: *mut Object, sel: Sel) {
+fn legal_splash_did_load(this: *mut Object, _sel: Sel) {
     log::info!("Setting up splash screen.");
 
     // All of this code draws the numberplate splash screen. I'm too lazy to embed an image

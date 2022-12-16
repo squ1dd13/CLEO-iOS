@@ -268,7 +268,7 @@ impl DirectoryEntry {
     }
 }
 
-fn load_archive_file(path: &str, image_id: i32) -> eyre::Result<()> {
+fn load_archive_file(path: &str, _image_id: i32) -> eyre::Result<()> {
     // Use a buffered reader because we do a lot of small sequential reads.
     let mut reader = std::io::BufReader::new(std::fs::File::open(path)?);
 
@@ -285,7 +285,7 @@ fn load_archive_file(path: &str, image_id: i32) -> eyre::Result<()> {
 
     let entry_count = reader.read_u32::<LittleEndian>()? as usize;
 
-    let entries = DirectoryEntry::read_entries(entry_count, &mut reader)?;
+    let _entries = DirectoryEntry::read_entries(entry_count, &mut reader)?;
 
     Ok(())
 }
