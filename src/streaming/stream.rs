@@ -1,4 +1,4 @@
-use std::{ffi::CStr, io::Read};
+use std::{collections::HashMap, ffi::CStr, io::Read};
 
 use eyre::Context;
 
@@ -74,7 +74,6 @@ impl Image {
                 "Cannot add new image file because there are no free image slots"
             ))?;
 
-        // Open the file.
         let opened_handle = Image::open_file(&path)?;
 
         // Update the image data.
@@ -105,6 +104,23 @@ impl Image {
             .iter_mut()
             .map(|bytes| CStr::from_bytes_until_nul(bytes).expect("Invalid image name in array"))
     }
+
+    /// Returns the name of the image.
+    fn name(&self) -> &str {
+        CStr::from_bytes_until_nul(self.name_bytes)
+            .unwrap()
+            .to_str()
+            .expect("Invalid UTF8 in image name")
+    }
+
+    /// Returns a reference to a map containing the regions of this image file that should be read
+    /// from external files, and the external file that should be used for each.
+    fn region_swaps(&self) -> Option<&'static HashMap<ImageRegion, std::path::PathBuf>> {
+        let name = self.name();
+        log::trace!("name = {}", name);
+
+        super::load::region_swaps_for_image_name(name)
+    }
 }
 
 /// An image file handle.
@@ -119,6 +135,33 @@ impl ImageHandle {
         unsafe { std::slice::from_raw_parts_mut(image_handle_ptrs, 8) }
     }
 
+    /// Converts the given file handle to an image handle.
+    fn from_file(file_handle: &'static FileHandle) -> &'static ImageHandle {
+        // SAFETY: Image handles _are_ file handles (we just treat them differently so we can
+        // define image-specific methods), so this is fine.
+        unsafe { std::mem::transmute(file_handle) }
+    }
+
+    /// Returns the `Image` that this handle is from.
+    fn image(&self) -> Image {
+        // log::trace!("this addr = {:#x}", self as *const _ as usize);
+
+        // for image in Image::images_mut() {
+        //     log::trace!("that addr = {:#x}", unsafe {
+        //         *std::mem::transmute::<_, *const usize>(image.handle)
+        //     });
+        // }
+
+        Image::images_mut()
+            .find(|Image { handle, .. }| {
+                handle
+                    .as_ref()
+                    .map(|handle| std::ptr::eq(*handle as *const _, self))
+                    .unwrap_or(false)
+            })
+            .expect("No images match handle")
+    }
+
     /// Returns a mutable reference to the underlying file handle.
     fn file_handle_mut(&mut self) -> &mut FileHandle {
         &mut self.0
@@ -126,8 +169,61 @@ impl ImageHandle {
 }
 
 impl Stream {
+    /// Returns the path to the file that should be used instead of the image when reading
+    /// `region`, or `None` if this region is not swapped.
+    fn region_swap(&self, region: ImageRegion) -> Option<&'static std::path::PathBuf> {
+        // hack: This...
+        let imgf =
+            unsafe { *std::mem::transmute::<_, &Option<&'static ImageHandle>>(&self.image_file) };
+
+        // Get the image handle and use it to find the image.
+        let image = imgf?.image();
+
+        let swaps = image.region_swaps();
+
+        if swaps.is_none() {
+            log::trace!("no swaps for {}", image.name());
+            return None;
+        }
+
+        let swaps = swaps.unwrap();
+
+        log::trace!("{} swaps", swaps.len());
+
+        // The image can then give us the region swap map.
+        swaps.get(&region)
+    }
+
+    /// Loads all of the data from `path` into the stream's buffer. It is **very important** that
+    /// the buffer is at least as large as the file.
+    fn load_from_file(&mut self, path: impl AsRef<std::path::Path>) -> eyre::Result<()> {
+        log::info!("loading from file {:?}", path.as_ref());
+
+        // We use the region size instead of the file size because we need to make sure the full
+        // region's worth of valid data is delivered into the buffer, not just the file size's
+        // worth. Any bytes within the region size but after the end of the file can just be zero.
+        let read_size = self.file_region().size_bytes();
+
+        // Get a slice from the buffer so that we can manipulate it more easily.
+        let buf_slice = unsafe { std::slice::from_raw_parts_mut(self.buffer, read_size) };
+
+        // Read from the file into our buffer.
+        let written = std::fs::File::open(path)?.read(buf_slice)?;
+
+        // Fill any remaining space in the buffer with zeros.
+        buf_slice[written..].fill(0);
+
+        Ok(())
+    }
+
     /// Loads the data from `region` in the stream's image file into the stream's buffer.
     fn load_region(&mut self, region: ImageRegion) -> eyre::Result<()> {
+        // First check if there's a file that we're using to replace the data from this region.
+        if let Some(swap_file_path) = self.region_swap(region) {
+            // There is, so load from the file instead of the image.
+            return self.load_from_file(swap_file_path);
+        }
+
         let image_file = self.image_file.as_mut().expect("Stream has no image file");
 
         // Seek to the start of the requested region in the image file.

@@ -2,7 +2,7 @@ use std::{
     collections::HashMap,
     ffi::CStr,
     io::{Read, Seek, SeekFrom},
-    path::Path,
+    path::{Path, PathBuf},
     sync::Mutex,
 };
 
@@ -95,10 +95,11 @@ fn load_directory(path_c: *const i8, archive_id: i32) {
 
                     if let Some(child) = replacement_map.get(&name) {
                         log::info!(
-                            "{} at ({}, {}) will be replaced",
+                            "{} at ({}, {}) will be replaced with new size {}",
                             name,
                             info.img_id,
-                            info.cd_pos
+                            info.cd_pos,
+                            child.size_in_segments()
                         );
 
                         let size_segments = child.size_in_segments();
@@ -298,6 +299,25 @@ fn load_archive_file(path: &str, _image_id: i32) -> eyre::Result<()> {
     let _entries = DirectoryEntry::read_entries(entry_count, &mut reader)?;
 
     Ok(())
+}
+
+/// Returns a map of regions and their respective replacement file paths for the image called
+/// `name`.
+pub fn region_swaps_for_image_name(name: &str) -> Option<&'static HashMap<ImageRegion, PathBuf>> {
+    lazy_static::lazy_static! {
+        static ref MAPS: HashMap<String, HashMap<ImageRegion, PathBuf>> = HashMap::from([(
+            "TEXDB\\GTA3.IMG".to_string(),
+            HashMap::from([(
+                ImageRegion {
+                    offset_sectors: 88827,
+                    size_sectors: 2974,
+                },
+                crate::resources::get_documents_path("CLEO/gta3.img/clover.dff"),
+            )]),
+        )]);
+    };
+
+    MAPS.get(name)
 }
 
 /// Hooks the loading system for CD images.

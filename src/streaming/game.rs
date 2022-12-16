@@ -188,7 +188,7 @@ impl GlobalStreamQueue {
 }
 
 /// Describes the position and size of a resource in an image file.
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct ImageRegion {
     /// The offset of the resource from the start of its parent image file.
     pub offset_sectors: usize,
