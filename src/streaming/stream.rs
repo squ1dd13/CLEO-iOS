@@ -98,13 +98,6 @@ impl Image {
         unsafe { std::slice::from_raw_parts_mut(image_name_arr, 32) }
     }
 
-    /// Returns an iterator over the game's image name array.
-    fn image_names() -> impl Iterator<Item = &'static CStr> {
-        Image::image_name_bytes()
-            .iter_mut()
-            .map(|bytes| CStr::from_bytes_until_nul(bytes).expect("Invalid image name in array"))
-    }
-
     /// Returns the name of the image.
     fn name(&self) -> &str {
         CStr::from_bytes_until_nul(self.name_bytes)
