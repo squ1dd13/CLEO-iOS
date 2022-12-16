@@ -1,15 +1,15 @@
 use std::{collections::HashMap, ffi::CStr, io::Read};
 
-use eyre::Context;
+use eyre::{Context, Result};
 
 use crate::hook;
 
-use super::game::{FileHandle, GlobalStreamQueue, ImageRegion, Stream, StreamSource};
+use super::game::{FilePointer, GlobalStreamQueue, ImageRegion, Stream, StreamSource};
 
 /// Represents the combination of an image file handle and a name.
 struct Image {
     /// The file handle for this image.
-    handle: &'static mut Option<&'static mut ImageHandle>,
+    handle: &'static mut ImageHandle,
 
     /// The character array for this image's name.
     name_bytes: &'static mut [u8; 64],
@@ -20,7 +20,7 @@ impl Image {
     fn clear_all() {
         // Clear the image handles.
         for handle in ImageHandle::handles() {
-            *handle = None;
+            *handle = ImageHandle(FilePointer::null());
         }
 
         // Clear the names.
@@ -30,14 +30,8 @@ impl Image {
     }
 
     /// Sets the image's handle to `file_handle`.
-    fn set_file_handle(&mut self, handle: &'static mut FileHandle) {
-        // SAFETY: We can transmute here because `Image` and `FileHandle` are exactly the same
-        // thing, and we only use different types in order to define different methods for
-        // them.
-        let image_handle =
-            unsafe { std::mem::transmute::<&'_ mut FileHandle, &'_ mut ImageHandle>(handle) };
-
-        *self.handle = Some(image_handle);
+    fn set_file_handle(&mut self, handle: FilePointer) {
+        *self.handle = ImageHandle(handle);
     }
 
     /// Sets the image's name to `name`
@@ -51,9 +45,9 @@ impl Image {
     }
 
     /// Attempts to open the image at `path`, returning the resulting file handle.
-    fn open_file(path: impl AsRef<CStr>) -> eyre::Result<&'static mut FileHandle> {
+    fn open_file(path: impl AsRef<CStr>) -> Result<FilePointer> {
         // Create a new handle by opening the file.
-        let open_result = FileHandle::open(path.as_ref(), 0, 0);
+        let open_result = FilePointer::open(path.as_ref(), 0, 0);
 
         open_result.wrap_err_with(|| {
             format!(
@@ -65,11 +59,11 @@ impl Image {
 
     /// Attempts to open the archive file at `path`, returning the index of the resulting image
     /// data in the game's image array.
-    fn add_archive(path: impl AsRef<CStr>) -> eyre::Result<usize> {
+    fn add_archive(path: impl AsRef<CStr>) -> Result<usize> {
         // Find the first empty image slot, or return an error.
         let (index, mut image) = Image::images_mut()
             .enumerate()
-            .find(|(_, Image { handle, .. })| handle.is_none())
+            .find(|(_, Image { handle, .. })| handle.file_handle() == FilePointer::null())
             .ok_or(eyre::format_err!(
                 "Cannot add new image file because there are no free image slots"
             ))?;
@@ -117,47 +111,28 @@ impl Image {
 }
 
 /// An image file handle.
-#[derive(Debug)]
-struct ImageHandle(FileHandle);
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct ImageHandle(FilePointer);
 
 impl ImageHandle {
     /// Returns a slice of mutable references to the game's image handles.
-    fn handles() -> &'static mut [Option<&'static mut ImageHandle>] {
-        let image_handle_ptrs: *mut Option<&'static mut ImageHandle> = hook::slide(0x100939140);
+    fn handles() -> &'static mut [ImageHandle] {
+        let image_handle_ptrs: *mut ImageHandle = hook::slide(0x100939140);
 
         unsafe { std::slice::from_raw_parts_mut(image_handle_ptrs, 8) }
     }
 
-    /// Converts the given file handle to an image handle.
-    fn from_file(file_handle: &'static FileHandle) -> &'static ImageHandle {
-        // SAFETY: Image handles _are_ file handles (we just treat them differently so we can
-        // define image-specific methods), so this is fine.
-        unsafe { std::mem::transmute(file_handle) }
-    }
-
     /// Returns the `Image` that this handle is from.
     fn image(&self) -> Image {
-        // log::trace!("this addr = {:#x}", self as *const _ as usize);
-
-        // for image in Image::images_mut() {
-        //     log::trace!("that addr = {:#x}", unsafe {
-        //         *std::mem::transmute::<_, *const usize>(image.handle)
-        //     });
-        // }
-
         Image::images_mut()
-            .find(|Image { handle, .. }| {
-                handle
-                    .as_ref()
-                    .map(|handle| std::ptr::eq(*handle as *const _, self))
-                    .unwrap_or(false)
-            })
-            .expect("No images match handle")
+            .find(|Image { handle, .. }| *handle == self)
+            .expect("No image with matching handle")
     }
 
     /// Returns a mutable reference to the underlying file handle.
-    fn file_handle_mut(&mut self) -> &mut FileHandle {
-        &mut self.0
+    fn file_handle(&self) -> FilePointer {
+        self.0
     }
 }
 
@@ -165,31 +140,16 @@ impl Stream {
     /// Returns the path to the file that should be used instead of the image when reading
     /// `region`, or `None` if this region is not swapped.
     fn region_swap(&self, region: ImageRegion) -> Option<&'static std::path::PathBuf> {
-        // hack: This...
-        let imgf =
-            unsafe { *std::mem::transmute::<_, &Option<&'static ImageHandle>>(&self.image_file) };
-
         // Get the image handle and use it to find the image.
-        let image = imgf?.image();
-
-        let swaps = image.region_swaps();
-
-        if swaps.is_none() {
-            log::trace!("no swaps for {}", image.name());
-            return None;
-        }
-
-        let swaps = swaps.unwrap();
-
-        log::trace!("{} swaps", swaps.len());
+        let image = ImageHandle(self.image_file).image();
 
         // The image can then give us the region swap map.
-        swaps.get(&region)
+        image.region_swaps()?.get(&region)
     }
 
     /// Loads all of the data from `path` into the stream's buffer. It is **very important** that
     /// the buffer is at least as large as the file.
-    fn load_from_file(&mut self, path: impl AsRef<std::path::Path>) -> eyre::Result<()> {
+    fn load_from_file(&mut self, path: impl AsRef<std::path::Path>) -> Result<()> {
         log::info!("loading from file {:?}", path.as_ref());
 
         // We use the region size instead of the file size because we need to make sure the full
@@ -210,17 +170,15 @@ impl Stream {
     }
 
     /// Loads the data from `region` in the stream's image file into the stream's buffer.
-    fn load_region(&mut self, region: ImageRegion) -> eyre::Result<()> {
+    fn load_region(&mut self, region: ImageRegion) -> Result<()> {
         // First check if there's a file that we're using to replace the data from this region.
         if let Some(swap_file_path) = self.region_swap(region) {
             // There is, so load from the file instead of the image.
             return self.load_from_file(swap_file_path);
         }
 
-        let image_file = self.image_file.as_mut().expect("Stream has no image file");
-
         // Seek to the start of the requested region in the image file.
-        let seek_err = image_file.seek_to(region.offset_bytes());
+        let seek_err = self.image_file.seek_to(region.offset_bytes());
 
         if seek_err != 0 {
             return Err(eyre::format_err!(
@@ -230,7 +188,7 @@ impl Stream {
         }
 
         // Fill the buffer with all of the data from the requested region.
-        let read_err = image_file.read(self.buffer, region.size_bytes());
+        let read_err = self.image_file.read(self.buffer, region.size_bytes());
 
         if read_err != 0 {
             Err(eyre::format_err!(
@@ -244,12 +202,12 @@ impl Stream {
     }
 
     /// Locates the data requested and copies it into the stream's output buffer.
-    fn load_request(&mut self) -> eyre::Result<()> {
+    fn load_request(&mut self) -> Result<()> {
         self.load_region(self.file_region())
     }
 
     /// Handles a request for data on this stream.
-    fn handle_current_request(&mut self) -> eyre::Result<()> {
+    fn handle_current_request(&mut self) -> Result<()> {
         self.enter_processing_state();
 
         // Load the requested data if the previous read was successful.
@@ -272,18 +230,17 @@ impl Stream {
     /// an error if the stream is currently busy.
     fn request_load(
         &mut self,
-        image: &'static mut ImageHandle,
+        image: ImageHandle,
         region: ImageRegion,
         buffer: *mut u8,
-    ) -> eyre::Result<()> {
+    ) -> Result<()> {
         if self.is_busy() {
-            log::trace!("not ready");
             return Err(eyre::Error::msg("Stream is busy"));
         }
 
         self.clear_error();
 
-        self.image_file = Some(image.file_handle_mut());
+        self.image_file = image.file_handle();
         self.set_region(region);
 
         self.buffer = buffer;
@@ -358,11 +315,9 @@ fn try_stream_request(
     Stream::set_global_position(image_index, region);
 
     let stream = &mut Stream::streams()[stream_index];
-    let image = ImageHandle::handles()[image_index]
-        .as_mut()
-        .expect("Image not loaded");
+    let handle = ImageHandle::handles()[image_index];
 
-    let request_result = stream.request_load(image, region, buffer);
+    let request_result = stream.request_load(handle, region, buffer);
 
     if request_result.is_err() {
         return false;

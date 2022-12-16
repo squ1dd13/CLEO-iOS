@@ -1,5 +1,7 @@
 use std::ffi::CStr;
 
+use eyre::Result;
+
 use crate::hook;
 
 /// Opaque semaphore type. Use only as a pointer or reference.
@@ -44,43 +46,48 @@ impl GameMutex {
     }
 }
 
-/// Opaque file handle type. Use only as a pointer or reference.
-#[derive(Debug)]
-pub struct FileHandle;
+/// Pointer to a game file structure.
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct FilePointer(*mut u8);
 
-impl FileHandle {
+impl FilePointer {
+    /// Returns a null file pointer.
+    pub fn null() -> FilePointer {
+        FilePointer(std::ptr::null_mut())
+    }
+
     /// Opens the file at `path` (in `data_area`) with `mode`.
-    pub fn open(path: &CStr, data_area: u64, mode: u64) -> eyre::Result<&'static mut FileHandle> {
-        let func: fn(u64, *mut *mut FileHandle, *const i8, u64) = hook::slide(0x1004e4f94);
+    pub fn open(path: &CStr, data_area: u64, mode: u64) -> Result<FilePointer> {
+        let func: fn(u64, &mut FilePointer, *const i8, u64) = hook::slide(0x1004e4f94);
 
-        // Create a null pointer for the function to write the resulting file handle pointer to.
-        let mut handle_ptr: *mut FileHandle = std::ptr::null_mut();
+        // Create a null pointer for the function to overwrite with the new file pointer.
+        let mut handle = FilePointer(std::ptr::null_mut());
 
         // Call the function.
-        func(data_area, &mut handle_ptr, path.as_ptr(), 0);
+        func(data_area, &mut handle, path.as_ptr(), 0);
 
-        // Convert the handle to a reference, or `None` if it is null.
-        let handle = unsafe { handle_ptr.as_mut() };
+        match std::ptr::NonNull::new(handle.0) {
+            Some(ptr) => Ok(FilePointer(ptr.as_ptr())),
 
-        // If the handle is null, there was an error opening the file.
-        handle.ok_or_else(|| {
-            eyre::format_err!(
+            // If the handle is null, there was an error opening the file.
+            None => Err(eyre::format_err!(
                 "Unable to open file '{}' in data area {} with mode {:#x}",
                 path.to_str().unwrap_or("<unrepresentable>"),
                 data_area,
                 mode
-            )
-        })
+            )),
+        }
     }
 
     /// Reads `count` bytes from the file and stores them at `output`.
-    pub fn read(&mut self, output: *mut u8, count: usize) -> u32 {
-        hook::slide::<fn(&mut FileHandle, *mut u8, usize) -> u32>(0x1004e5300)(self, output, count)
+    pub fn read(self, output: *mut u8, count: usize) -> u32 {
+        hook::slide::<fn(FilePointer, *mut u8, usize) -> u32>(0x1004e5300)(self, output, count)
     }
 
     /// Seeks `position` bytes from the start of the file.
-    pub fn seek_to(&mut self, position: usize) -> u32 {
-        hook::slide::<fn(&mut FileHandle, usize) -> u32>(0x1004e51dc)(self, position)
+    pub fn seek_to(self, position: usize) -> u32 {
+        hook::slide::<fn(FilePointer, usize) -> u32>(0x1004e51dc)(self, position)
     }
 }
 
@@ -253,7 +260,7 @@ pub struct Stream {
     pub(super) status: u32,
     semaphore: &'static mut Semaphore,
     request_mutex: &'static mut GameMutex,
-    pub(super) image_file: Option<&'static mut FileHandle>,
+    pub(super) image_file: FilePointer,
 }
 
 impl Stream {
@@ -270,7 +277,7 @@ impl Stream {
             status: 0,
             semaphore: Semaphore::new_mut(),
             request_mutex: GameMutex::new_mut(),
-            image_file: None,
+            image_file: FilePointer::null(),
         }
     }
 
