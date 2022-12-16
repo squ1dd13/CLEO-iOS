@@ -10,7 +10,7 @@ use byteorder::{LittleEndian, ReadBytesExt};
 
 use crate::{call_original, hook};
 
-use super::game::StreamSource;
+use super::game::{ImageRegion, StreamSource};
 
 #[repr(C)]
 #[derive(Debug)]
@@ -213,6 +213,91 @@ impl ArchiveFileReplacement {
     fn size_in_segments(&self) -> u32 {
         (self.size_bytes + 2047) / 2048
     }
+}
+
+/// Describes an individual file within an archive.
+struct DirectoryEntry {
+    /// The name of the file.
+    name: String,
+
+    /// The region of the parent image containing the file's data.
+    region: ImageRegion,
+}
+
+impl DirectoryEntry {
+    /// Reads a single directory entry from `reader`, using `name_buf` as a temporary buffer for
+    /// copying name characters into.
+    fn read(
+        reader: &mut impl std::io::BufRead,
+        name_buf: &mut [u8; 24],
+    ) -> eyre::Result<DirectoryEntry> {
+        let region = ImageRegion {
+            offset_sectors: reader.read_u32::<LittleEndian>()? as usize,
+
+            // There are actually two u16 values here, streaming size and archived size, but the
+            // streaming size is unused, so we can actually read the archived size as a u32.
+            size_sectors: reader.read_u32::<LittleEndian>()? as usize,
+        };
+
+        // Read the name characters into our byte buffer.
+        reader.read_exact(name_buf)?;
+
+        // Most names will not use all 24 bytes, so will have a null terminator before index
+        // 23. We can use `CStr` to parse null-terminated strings, which will work fine for
+        // most cases. However, that won't work if all 24 bytes have been used, in which case
+        // we try to directly create a `str` from the bytes.
+        let name = CStr::from_bytes_until_nul(name_buf).map_or_else(
+            |_| {
+                // Couldn't parse as a null-terminated C string, so assume all 24 bytes have
+                // been used. In this case, we can convert the entire slice.
+                std::str::from_utf8(name_buf)
+            },
+            // If the name parsed as a C string, convert that C string to a string slice.
+            |c_string| c_string.to_str(),
+        )?;
+
+        let name = name.to_string();
+
+        Ok(DirectoryEntry { name, region })
+    }
+
+    /// Attempts to read `count` directory entries from `reader`.
+    fn read_entries(
+        count: usize,
+        reader: &mut impl std::io::BufRead,
+    ) -> eyre::Result<impl Iterator<Item = eyre::Result<DirectoryEntry>> + '_> {
+        // Create a single buffer for temporarily holding the bytes of each name entry during
+        // processing.
+        let mut name_buf = [0u8; 24];
+
+        let read_entry = move |_| -> eyre::Result<DirectoryEntry> {
+            DirectoryEntry::read(reader, &mut name_buf)
+        };
+
+        Ok((0..count).map(read_entry))
+    }
+}
+
+fn load_archive_file(path: &str, _image_id: i32) -> eyre::Result<()> {
+    // Use a buffered reader because we do a lot of small sequential reads.
+    let mut reader = std::io::BufReader::new(std::fs::File::open(path)?);
+
+    let mut identifier = [0u8; 4];
+    reader.read_exact(&mut identifier)?;
+
+    if &identifier != b"VER2" {
+        return Err(eyre::format_err!(
+            "Bad identifier in archive '{}': {:?} (expected 'VER2')",
+            path,
+            identifier
+        ));
+    }
+
+    let entry_count = reader.read_u32::<LittleEndian>()? as usize;
+
+    let _entries = DirectoryEntry::read_entries(entry_count, &mut reader)?;
+
+    Ok(())
 }
 
 /// Hooks the loading system for CD images.
