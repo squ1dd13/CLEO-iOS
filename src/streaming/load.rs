@@ -305,8 +305,13 @@ fn load_archive_file(path: &str, _image_id: i32) -> eyre::Result<()> {
 /// `name`.
 pub fn region_swaps_for_image_name(name: &str) -> Option<&'static HashMap<ImageRegion, PathBuf>> {
     lazy_static::lazy_static! {
+        /// Maps image names to region replacements.
+        ///
+        /// Image names should be uppercase because the game uses uppercase. If we used lowercase,
+        /// we would have to turn every `&str` from the game into a `String` using `to_lowercase`,
+        /// which would be bad because that would happen very frequently.
         static ref MAPS: HashMap<String, HashMap<ImageRegion, PathBuf>> = HashMap::from([(
-            "TEXDB\\GTA3.IMG".to_string(),
+            "GTA3.IMG".to_string(),
             HashMap::from([(
                 ImageRegion {
                     offset_sectors: 88827,
@@ -316,6 +321,10 @@ pub fn region_swaps_for_image_name(name: &str) -> Option<&'static HashMap<ImageR
             )]),
         )]);
     };
+
+    // The image names are actually Windows-style path segments, but since we only want the file
+    // name ("x.img"), we only consider the part after the final backslash.
+    let name = name.rsplit('\\').next().expect("Empty image name");
 
     MAPS.get(name)
 }
