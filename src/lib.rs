@@ -2,6 +2,7 @@
 
 #![feature(panic_info_message)]
 #![feature(cstr_from_bytes_until_nul)]
+#![feature(map_try_insert)]
 
 use ctor::ctor;
 use objc::runtime::Object;
