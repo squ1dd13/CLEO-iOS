@@ -37,12 +37,16 @@ impl GameMutex {
 
     /// Locks the mutex, blocking if necessary.
     pub fn lock(&mut self) {
-        hook::slide::<fn(&mut GameMutex)>(0x1004fbd34)(self);
+        unsafe {
+            libc::pthread_mutex_lock((self as *mut GameMutex).cast());
+        }
     }
 
     /// Unlocks the mutex.
     pub fn unlock(&mut self) {
-        hook::slide::<fn(&mut GameMutex)>(0x1004fbd40)(self);
+        unsafe {
+            libc::pthread_mutex_unlock((self as *mut GameMutex).cast());
+        }
     }
 }
 

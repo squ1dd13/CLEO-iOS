@@ -121,13 +121,7 @@ fn initialise() {
         crate::hook::get_game_aslr_offset(),
     );
 
-    if !crate::hook::has_weird_aslr() {
-        log::info!("Archive hooks will be active.");
-        streaming::init();
-    } else {
-        log::warn!("iOS 15 (or equivalently weird) detected. Archive hooks will not be active.");
-    }
-
+    streaming::init();
     update::init();
     loader::init();
     settings::init();
