@@ -195,7 +195,7 @@ impl GlobalStreamQueue {
 }
 
 /// Describes the position and size of a resource in an image file.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct ImageRegion {
     /// The offset of the resource from the start of its parent image file.
     pub offset_sectors: usize,
@@ -213,6 +213,19 @@ impl ImageRegion {
     /// Returns the size of the region in bytes.
     pub fn size_bytes(self) -> usize {
         self.size_sectors * 2048
+    }
+}
+
+impl std::fmt::Debug for ImageRegion {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "ImageRegion {{ offset = {} segments / {} bytes, size = {} segments / {} bytes }}",
+            self.offset_sectors,
+            self.offset_bytes(),
+            self.size_sectors,
+            self.size_bytes()
+        )
     }
 }
 

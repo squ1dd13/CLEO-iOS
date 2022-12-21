@@ -1,10 +1,13 @@
-use std::{collections::HashMap, ffi::CStr, io::Read};
+use std::{ffi::CStr, io::Read};
 
 use eyre::{Context, Result};
 
 use crate::hook;
 
-use super::game::{FilePointer, GlobalStreamQueue, ImageRegion, Stream, StreamSource};
+use super::{
+    game::{FilePointer, GlobalStreamQueue, ImageRegion, Stream, StreamSource},
+    load::ReplacementMapper,
+};
 
 /// Represents the combination of an image file handle and a name.
 struct Image {
@@ -94,19 +97,12 @@ impl Image {
 
     /// Returns the name of the image.
     fn name(&self) -> &str {
-        CStr::from_bytes_until_nul(self.name_bytes)
+        let windows_path = CStr::from_bytes_until_nul(self.name_bytes)
             .unwrap()
             .to_str()
-            .expect("Invalid UTF8 in image name")
-    }
+            .expect("Invalid UTF8 in image name");
 
-    /// Returns a reference to a map containing the regions of this image file that should be read
-    /// from external files, and the external file that should be used for each.
-    fn region_swaps(&self) -> Option<&'static HashMap<ImageRegion, std::path::PathBuf>> {
-        let name = self.name();
-        log::trace!("name = {}", name);
-
-        super::load::region_swaps_for_image_name(name)
+        windows_path.split('\\').last().unwrap()
     }
 }
 
@@ -139,12 +135,14 @@ impl ImageHandle {
 impl Stream {
     /// Returns the path to the file that should be used instead of the image when reading
     /// `region`, or `None` if this region is not swapped.
-    fn region_swap(&self, region: ImageRegion) -> Option<&'static std::path::PathBuf> {
+    fn region_swap(&self, region: ImageRegion) -> Option<std::path::PathBuf> {
         // Get the image handle and use it to find the image.
         let image = ImageHandle(self.image_file).image();
 
-        // The image can then give us the region swap map.
-        image.region_swaps()?.get(&region)
+        // Consult the shared replacement mapper to find the swap path.
+        ReplacementMapper::shared()
+            .replacement_path(image.name(), region)
+            .cloned()
     }
 
     /// Loads all of the data from `path` into the stream's buffer. It is **very important** that

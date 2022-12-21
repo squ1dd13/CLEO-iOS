@@ -3,6 +3,7 @@
 
 use crate::*;
 use cached::proc_macro::cached;
+use itertools::Itertools;
 use std::{
     fmt::Display,
     path::{Path, PathBuf},
@@ -291,6 +292,21 @@ pub fn init() {
     log::info!("Finding and loading resources...");
     let all_resources = ModResource::flatten_dir(&cleo_path).unwrap();
 
+    let image_replacements = all_resources
+        .iter()
+        .filter_map(|resource| {
+            if let ModResource::StreamReplacement(image_name, path) = resource {
+                Some((image_name, path.clone()))
+            } else {
+                None
+            }
+        })
+        .group_by(|&(image_name, _)| image_name);
+
+    for (image_name, paths) in image_replacements.into_iter() {
+        streaming::load_replacements(image_name, paths.map(|(_, path)| path));
+    }
+
     for resource in &all_resources {
         log::info!("Attempting to load {}.", resource);
 
@@ -298,9 +314,7 @@ pub fn init() {
             ModResource::StartupScript(path) => scripts::load_running_script(path).err(),
             ModResource::InvokedScript(path) => scripts::load_invoked_script(path).err(),
             ModResource::LanguageFile(path) => text::load_fxt(path).err(),
-            ModResource::StreamReplacement(archive_name, path) => {
-                streaming::load_replacement(archive_name, &path).err()
-            }
+            ModResource::StreamReplacement(archive_name, path) => None,
             ModResource::FileReplacement(path) => loader::load_replacement(&path).err(),
         };
 

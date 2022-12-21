@@ -8,7 +8,7 @@ mod game;
 mod load;
 mod stream;
 
-pub use load::load_replacement;
+pub use load::load_replacements;
 
 pub fn init() {
     stream::hook();
