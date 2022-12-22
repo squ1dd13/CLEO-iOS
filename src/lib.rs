@@ -157,7 +157,7 @@ fn load() {
     log::info!("Cargo package version is {}", env!("CARGO_PKG_VERSION"));
 
     // Start checking for updates in the background.
-    update::start_update_check();
+    github::start_update_check_thread();
 
     // Load all the modules.
     initialise();

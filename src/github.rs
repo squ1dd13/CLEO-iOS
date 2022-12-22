@@ -1,10 +1,11 @@
-use std::cmp::Ordering;
+use std::{cmp::Ordering, fmt::Display, fs::File, path::PathBuf, sync::Mutex, time::Duration};
 
 use eyre::Result;
+use itertools::Itertools;
 
 /// Represents a version number in the format "x.y.z", where "x", "y" and "z" are integers.
-#[derive(PartialEq, Eq)]
-struct VersionNumber {
+#[derive(Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub struct VersionNumber {
     /// The major version number. We only change this when we do something really big that changes
     /// things for the user. For example, 2.0.0 came after CLEO was completely rewritten in Rust.
     major: u8,
@@ -14,6 +15,12 @@ struct VersionNumber {
 
     /// The patch number. This changes on bug fixes.
     patch: u8,
+}
+
+impl Display for VersionNumber {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}.{}.{}", self.major, self.minor, self.patch)
+    }
 }
 
 impl PartialOrd for VersionNumber {
@@ -41,10 +48,10 @@ impl Ord for VersionNumber {
 }
 
 /// A version of CLEO.
-#[derive(PartialEq, Eq)]
-enum Version {
-    /// A release version. Every user should be on at least the latest release version of CLEO.
-    Release(VersionNumber),
+#[derive(Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub enum Version {
+    /// A stable release. Every user should be on at least the latest stable version of CLEO.
+    Stable(VersionNumber),
 
     /// A pre-release version. Users can choose to receive pre-release updates, but by default this
     /// is turned off. Pre-releases are available to everyone on GitHub, though.
@@ -97,13 +104,28 @@ impl Version {
 
             Some(Version::Alpha(version_number, alpha_rev))
         } else {
-            Some(Version::Release(version_number))
+            Some(Version::Stable(version_number))
         }
     }
 
-    /// Returns true if this version is an alpha version.
-    fn is_alpha(&self) -> bool {
+    /// Returns true if this version is an alpha release.
+    fn is_alpha(self) -> bool {
         matches!(self, Version::Alpha(_, _))
+    }
+
+    /// Returns true if this version is a stable release.
+    fn is_stable(self) -> bool {
+        matches!(self, Version::Stable(_))
+    }
+}
+
+impl Display for Version {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Version::Stable(number) => number.fmt(f),
+            Version::Alpha(number, 0) => write!(f, "{number}-alpha"),
+            Version::Alpha(number, alpha) => write!(f, "{number}-alpha.{alpha}"),
+        }
     }
 }
 
@@ -116,11 +138,11 @@ impl PartialOrd for Version {
 impl Ord for Version {
     fn cmp(&self, other: &Version) -> Ordering {
         match (self, other) {
-            // Two releases are ordered by their version numbers.
-            (Version::Release(this), Version::Release(other)) => this.cmp(other),
+            // Two stable releases are ordered by their version numbers.
+            (Version::Stable(this), Version::Stable(other)) => this.cmp(other),
 
-            (Version::Release(this), Version::Alpha(other, _)) => match this.cmp(other) {
-                // If a release and a pre-release have the same version number, the release is
+            (Version::Stable(this), Version::Alpha(other, _)) => match this.cmp(other) {
+                // If a stable and an alpha have matching version numbers, the stable release is
                 // greater.
                 Ordering::Equal => Ordering::Greater,
 
@@ -128,8 +150,8 @@ impl Ord for Version {
                 o => o,
             },
 
-            // Pre-release vs. release is just the opposite of release vs. pre-release.
-            (Version::Alpha(_, _), Version::Release(_)) => other.cmp(self).reverse(),
+            // Pre-release vs. stable is just the opposite of stable vs. pre-release.
+            (Version::Alpha(_, _), Version::Stable(_)) => other.cmp(self).reverse(),
 
             (Version::Alpha(this, this_pre), Version::Alpha(other, other_pre)) => {
                 match this.cmp(other) {
@@ -145,9 +167,8 @@ impl Ord for Version {
     }
 }
 
-/// Fetches all of the available CLEO releases from GitHub. Ignores versions with invalid tags, and
-/// ignores alpha releases unless `include_alpha` is `true`.
-fn fetch_releases(include_alpha: bool) -> Result<impl Iterator<Item = (Version, String)>> {
+/// Fetches all of the available CLEO releases from GitHub.
+fn fetch_releases_from_github() -> Result<impl Iterator<Item = (Version, String)>> {
     let client = reqwest::blocking::Client::new();
 
     let response = client
@@ -165,21 +186,71 @@ fn fetch_releases(include_alpha: bool) -> Result<impl Iterator<Item = (Version, 
         let version = Version::parse(release.get("tag_name")?.as_str()?)?;
         let url = release.get("html_url")?.as_str()?.to_string();
 
-        // Ignore alpha versions if we're not meant to include them.
-        if !include_alpha && version.is_alpha() {
-            return None;
-        }
-
         Some((version, url))
     }))
 }
 
-/// Fetches the latest version of CLEO, along with the release URL, from GitHub. If `include_alpha`
-/// is set to `true`, this method may return an alpha version if that is the latest.
-fn fetch_latest_version(include_alpha: bool) -> Result<(Version, String)> {
-    fetch_releases(include_alpha)?
-        .max()
-        .ok_or_else(|| eyre::format_err!("Didn't find any versions"))
+/// Returns the path of the cache file for the releases.
+fn release_cache_path() -> PathBuf {
+    crate::resources::get_documents_path("release_list.cleo")
+}
+
+/// Attempts to load the list of CLEO releases from the cache, returning the releases and the cache
+/// age on success.
+fn load_releases_from_cache() -> Result<(Vec<(Version, String)>, Duration)> {
+    let cache_path = release_cache_path();
+
+    let versions = bincode::deserialize_from(File::open(&cache_path)?)?;
+    let cache_age = std::fs::metadata(&cache_path)?.modified()?.elapsed()?;
+
+    Ok((versions, cache_age))
+}
+
+/// Updates the cached list of CLEO versions.
+fn update_cached_releases(releases: &Vec<(Version, String)>) -> Result<()> {
+    bincode::serialize_into(
+        &mut File::options()
+            .create(true)
+            .write(true)
+            .open(release_cache_path())?,
+        releases,
+    )?;
+
+    Ok(())
+}
+
+/// Sorts a vector of versions such that the latest versions are at the start.
+fn sort_newest_first(versions: &mut [(Version, String)]) {
+    versions.sort_unstable_by_key(|(v, _)| *v);
+    versions.reverse();
+}
+
+/// Returns the known versions of CLEO, sorted in descending order of version number. This may or
+/// may not fetch from GitHub, depending on when the last check took place.
+fn fetch_releases() -> Result<Vec<(Version, String)>> {
+    if let Ok((mut versions, age)) = load_releases_from_cache() {
+        /// The maximum age in seconds that the cache file can be before we stop trusting it and
+        /// fetch from GitHub again. A lower value means update checks happen more frequently, so
+        /// people will update sooner, but increases the risk of GitHub getting annoyed at how
+        /// often the API is being used for CLEO's repository.
+        const MAX_CACHE_AGE_SECS: u64 = 3 * 60 * 60;
+
+        if age.as_secs() <= MAX_CACHE_AGE_SECS {
+            sort_newest_first(&mut versions);
+            return Ok(versions);
+        }
+
+        // Cache is too old, so we'll have to fetch again.
+    }
+
+    let mut versions = fetch_releases_from_github()?.collect_vec();
+    sort_newest_first(&mut versions);
+
+    if let Err(error) = update_cached_releases(&versions) {
+        log::warn!("Unable to update cached version list: {:?}", error);
+    }
+
+    Ok(versions)
 }
 
 /// Returns the version of CLEO that is currently running.
@@ -188,19 +259,64 @@ fn find_current_version() -> Version {
 }
 
 /// Returns true if the user has chosen to receive alpha updates.
-fn include_alpha_versions() -> bool {
+fn user_wants_alpha() -> bool {
     crate::settings::Settings::shared()
         .alpha_updates
         .load(std::sync::atomic::Ordering::SeqCst)
 }
 
-/// Returns the version and URL of the available update, if there is one.
+/// Returns the most stable version of CLEO after or including the given version.
+fn most_stable_from(min_ver: Version) -> Result<Option<(Version, String)>> {
+    Ok(fetch_releases()?
+        .into_iter()
+        // Only include releases that are newer than or the same as the given version.
+        .filter(|(version, _)| version >= &min_ver)
+        // Find a stable version, or just take the first version available. The releases are sorted
+        // in descending order by version number, so if we can't find a stable release then we just
+        // use whatever the latest version is and assume that it's the most stable.
+        .find_or_first(|(version, _)| version.is_stable()))
+}
+
+/// Returns the version and URL of an available update, if there is one.
 fn fetch_available_update() -> Result<Option<(Version, String)>> {
     let current_version = find_current_version();
 
-    // Users who have not opted into alpha updates:
-    //   If the user is on an alpha release and the latest stable version is newer than their
-    //   alpha, we should prompt them to update. If the latest stable version is older than their
-    //   alpha, we should instead get them to update to the latest alpha release.
-    todo!()
+    if !user_wants_alpha() {
+        // If the user doesn't want to receive alpha updates, get them on the most stable version.
+        // If they're already on an alpha version, this will update them to the latest alpha, with
+        // the idea being that a newer alpha will be more stable.
+        return most_stable_from(current_version);
+    }
+
+    // If the user wants to receive alpha updates, just find the latest version, regardless of
+    // whether it is alpha or stable.
+    fetch_releases().map(|releases| releases.first().cloned())
+}
+
+pub type CheckResult = Result<Option<(Version, String)>>;
+
+lazy_static::lazy_static! {
+    static ref UPDATE_CHECK_RESULT: Mutex<Option<CheckResult>> = Mutex::new(None);
+}
+
+/// Starts a background thread which will check for an update. This function does not block;
+/// instead, the `take_check_result` function should be called periodically while waiting for a
+/// result.
+pub fn start_update_check_thread() {
+    std::thread::spawn(|| {
+        let check_result = fetch_available_update();
+
+        *UPDATE_CHECK_RESULT
+            .lock()
+            .expect("Failed to lock check result") = Some(check_result);
+    });
+}
+
+/// Returns the result of the update check, if the check has finished. All subsequent calls to this
+/// function will return `None` until another update check has completed.
+pub fn take_check_result() -> Option<CheckResult> {
+    UPDATE_CHECK_RESULT
+        .lock()
+        .expect("Failed to lock check result")
+        .take()
 }

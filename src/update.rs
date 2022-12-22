@@ -1,7 +1,7 @@
 //! Interfaces with the GitHub API to determine if a CLEO update is available, and manages
 //! the version cache.
 
-use crate::{call_original, hook, resources, text};
+use crate::{call_original, github::Version, hook, resources, text};
 use eyre::Result;
 use objc::{runtime::Object, *};
 use std::{
@@ -9,221 +9,115 @@ use std::{
     sync::Mutex,
 };
 
-fn get_current_version() -> Result<VersionNumber> {
-    // This is why the Rust and .deb packages need the same version.
-    VersionNumber::new(env!("CARGO_PKG_VERSION"))
-}
+/// Opens `url` in the user's default browser.
+fn open_url(url: impl AsRef<str>) {
+    unsafe {
+        let url: *const Object = msg_send![
+            class!(NSURL),
+            URLWithString: crate::gui::create_ns_string(url.as_ref())
+        ];
 
-fn should_request_release() -> Result<bool> {
-    // In order to not hit the GitHub API rate limit, we don't request the latest
-    //  version of CLEO every time we check for updates. Instead, we store the version
-    //  number we find when we do check GitHub, and then for the next 5 hours we treat
-    //  that as the target version. If the version does not match or exceed that target,
-    //  we can tell the user that an update is available.
+        let shared_app: *const Object = msg_send![class!(UIApplication), sharedApplication];
 
-    let check_file_path = resources::get_documents_path("update_checked");
-
-    // If the check file doesn't exist, assume it was never created and that we therefore
-    //  have never requested a release.
-    if !check_file_path.exists() {
-        return Ok(true);
-    }
-
-    // The check file does exist, so we can find when it was created to work out if we
-    //  need to request a release yet.
-    let created = check_file_path.metadata()?.created()?;
-    let time_since_created = std::time::SystemTime::now().duration_since(created)?;
-
-    const FIVE_HOURS_SECS: u64 = 18000;
-
-    if time_since_created.as_secs() >= FIVE_HOURS_SECS {
-        return Ok(true);
-    }
-
-    Ok(false)
-}
-
-fn get_target_version() -> Result<VersionNumber> {
-    let file_path = resources::get_documents_path("update_checked");
-    let should_fetch = should_request_release()?;
-
-    if !should_fetch {
-        let mut stored_version = String::new();
-        std::fs::File::open(file_path)?.read_to_string(&mut stored_version)?;
-
-        return VersionNumber::new(stored_version.trim());
-    }
-
-    const RELEASE_URL: &str = "https://api.github.com/repos/squ1dd13/CLEO-iOS/releases/latest";
-
-    let client = reqwest::blocking::Client::new();
-    let mut response = client
-        .get(RELEASE_URL)
-        .header("User-Agent", "cleo thing")
-        .send()?;
-
-    let json: serde_json::Value = serde_json::from_reader(response)?;
-
-    let tag_name = json.get("tag_name").ok_or_else(|| {
-        eyre::format_err!("Couldn't get tag name from response JSON '{:?}'", json)
-    })?;
-
-    // let mut body = String::new();
-    // response.read_to_string(&mut body)?;
-
-    // let release: Release = serde_json::from_str(body.as_str())?;
-    // let number = VersionNumber::new(&release.tag_name)?;
-    todo!()
-    // Refresh the update_checked file.
-    // let _ = std::fs::remove_file(&file_path);
-    // let mut file = std::fs::File::create(file_path)?;
-    // write!(&mut file, "{}", release.tag_name)?;
-
-    // Ok(number)
-}
-
-lazy_static::lazy_static! {
-    static ref CHECK_RESULT: Mutex<Option<Result<bool, String>>> = Mutex::new(None);
-}
-
-/// Should be called a while after the update check was initiated. Returns `true` if the
-/// update check finished without errors and an update is available. Otherwise, returns
-/// `false`, logging any errors encountered.
-fn was_update_found() -> bool {
-    let result = CHECK_RESULT.lock().unwrap();
-
-    if result.is_none() {
-        return false;
-    }
-
-    if let Ok(value) = result.as_ref().unwrap() {
-        return *value;
-    }
-
-    let err = result.as_ref().unwrap().as_ref().unwrap_err();
-    log::error!("Update check failed. Error: {}", err);
-
-    false
-}
-
-fn is_update_available() -> Result<bool> {
-    // Find the current version of CLEO we're on.
-    let current = get_current_version()?;
-
-    // Find the newest known version.
-    let newest = get_target_version()?;
-
-    // Compare.
-    newest.is_newer_than(&current)
-}
-
-pub fn start_update_check() {
-    log::info!("checking for updates...");
-
-    std::thread::spawn(|| {
-        let available = is_update_available();
-
-        // Convert the error to a String.
-        let available = match available {
-            Ok(val) => Ok(val),
-            Err(err) => Err(err.to_string()),
-        };
-
-        *CHECK_RESULT.lock().unwrap() = Some(available);
-    });
-}
-
-struct VersionNumber(Vec<u8>);
-
-impl VersionNumber {
-    fn new(string: impl AsRef<str>) -> Result<VersionNumber> {
-        let parts = string.as_ref().split('.');
-        let mut number = VersionNumber(vec![]);
-
-        for part in parts {
-            number.0.push(part.parse::<u8>()?);
-        }
-
-        log::trace!("{:?}", number.0);
-
-        Ok(number)
-    }
-
-    fn is_newer_than(self: &VersionNumber, other: &VersionNumber) -> Result<bool> {
-        if self.0.len() != other.0.len() {
-            return Err(eyre::eyre!(
-                "version numbers differ in component count ({:?} and {:?})",
-                self.0,
-                other.0
-            ));
-        }
-
-        for i in 0..self.0.len() {
-            match self.0[i].cmp(&other.0[i]) {
-                std::cmp::Ordering::Less => break,
-                std::cmp::Ordering::Equal => continue,
-                std::cmp::Ordering::Greater => return Ok(true),
-            }
-        }
-
-        Ok(false)
+        // eq: [[UIApplication sharedApplication] openURL: [NSURL URLWithString: ...]]
+        let _: () = msg_send![shared_app, openURL: url];
     }
 }
 
-fn show_update_prompt(screen: *mut u8) {
+/// Presents the user with a menu with "yes" and "no" options on the given screen.
+fn show_yes_no_menu(
+    screen: *mut u8,
+    title: impl AsRef<str>,
+    message: impl AsRef<str>,
+    callback_arg: usize,
+    yes_fn: fn(usize),
+    no_fn: fn(usize),
+) {
     unsafe {
         screen.offset(0x75).write(0);
 
         // eq: MobileMenu::Load(...)
         hook::slide::<fn(*mut u8)>(0x100339838)(screen);
-
-        // Add our custom strings so we can use them in the menu.
-        text::set_kv("CL_UPT", "Update Available");
-        text::set_kv(
-            "CL_UPM",
-            "A new CLEO update is available. Do you want to go to GitHub to download it?",
-        );
-
-        // eq: nag_menu = operator.new(0x80)
-        let menu = hook::slide::<fn(u64) -> u64>(0x1004f9be0)(0x80);
-
-        let on_yes = |_: u64| {
-            const GITHUB_URL: &str = "https://github.com/squ1dd13/CLEO-iOS/releases/latest";
-
-            let url: *const Object = msg_send![
-                class!(NSURL),
-                URLWithString: crate::gui::create_ns_string(GITHUB_URL)
-            ];
-
-            let shared_app: *const Object = msg_send![class!(UIApplication), sharedApplication];
-
-            // eq: [[UIApplication sharedApplication] openURL: [NSURL URLWithString: ...]]
-            let _: () = msg_send![shared_app, openURL: url];
-        };
-
-        // eq: MobileMenu::InitForNag(...)
-        hook::slide::<fn(u64, *const u8, *const u8, fn(u64), u64, u64, bool) -> u64>(0x100348964)(
-            menu,                 // Menu structure (uninitialised)
-            b"CL_UPT\0".as_ptr(), // Title
-            b"CL_UPM\0".as_ptr(), // Message
-            on_yes,               // "Yes" function
-            0,                    // Callback argument
-            0,                    // "No" function
-            false,                // Enable 'back' button
-        );
-
-        // We could create a repl(C) struct, but the fields we need are at fairly large
-        //  offsets, so it's easiest just to mess with pointers.
-        let u64_ptr: *mut u64 = screen.cast();
-
-        // Offset is 6 * u64, so 48 bytes (0x30).
-        if u64_ptr.offset(6).read() != 0 {
-            // eq: MobileMenu::ProcessPending(...)
-            hook::slide::<fn(*mut u64)>(0x100338f5c)(u64_ptr);
-        }
-
-        u64_ptr.offset(6).write(menu);
     }
+
+    // Create localisation keys for the title and message so we can show them in the menu.
+    text::set_kv("NAG_TTL", title.as_ref());
+    text::set_kv("NAG_MSG", message.as_ref());
+
+    // eq: nag_menu = operator.new(0x80)
+    let menu = hook::slide::<fn(u64) -> usize>(0x1004f9be0)(0x80);
+
+    // eq: MobileMenu::InitForNag(...)
+    hook::slide::<fn(usize, *const u8, *const u8, fn(usize), usize, fn(usize), bool) -> u64>(
+        0x100348964,
+    )(
+        menu,                  // Menu structure (uninitialised before call)
+        b"NAG_TTL\0".as_ptr(), // Title
+        b"NAG_MSG\0".as_ptr(), // Message
+        yes_fn,                // "Yes" function
+        callback_arg,          // Callback argument
+        no_fn,                 // "No" function
+        false,                 // Enable 'back' button
+    );
+
+    // We could create a repl(C) struct, but the fields we need are at fairly large
+    //  offsets, so it's easiest just to mess with pointers.
+    let screen: *mut usize = screen.cast();
+
+    // Offset is 6 * u64, so 48 bytes (0x30).
+    if unsafe { screen.offset(6).read() } != 0 {
+        // eq: MobileMenu::ProcessPending(...)
+        hook::slide::<fn(*mut usize)>(0x100338f5c)(screen);
+    }
+
+    unsafe {
+        screen.offset(6).write(menu);
+    }
+}
+
+/// Shows the user a yes/no prompt asking if they'd like to update.
+fn show_update_prompt(screen: *mut u8, (update_ver, update_url): (Version, String)) {
+    // We can't capture any variables in our callback functions, because they have to be
+    // C-compatible function pointers. This is a problem, because the 'yes' callback needs to be
+    // able to open the URL given to this function. Luckily, we have an 8-byte value that we can
+    // pass to the menu that will be passed to our callbacks. We use this to store a boxed pointer
+    // to the URL in raw form (`*mut String`). It is very important that we turn this back into a
+    // `Box` and drop it in _both_ callbacks in order to free the memory when we no longer need it.
+
+    // `Box<String>` is normally frowned upon, but we don't have much of a choice here: we need an
+    // 8-byte pointer only, and `Box<str>` can only be converted to a fat pointer, which won't fit
+    // in the space we have.
+    let raw_url_box = Box::into_raw(Box::new(update_url));
+
+    fn unbox_string(raw: usize) -> String {
+        unsafe {
+            let raw_box = raw as *mut String;
+            *Box::from_raw(raw_box)
+        }
+    }
+
+    fn on_yes(raw_url_box: usize) {
+        let url = unbox_string(raw_url_box);
+
+        log::info!("User accepted update. Heading to {}...", url);
+    }
+
+    fn on_no(raw_url_box: usize) {
+        let url = unbox_string(raw_url_box);
+
+        log::info!("User rejected update. URL was {}.", url);
+    }
+
+    show_yes_no_menu(
+        screen,
+        "Update Available",
+        format!(
+            "CLEO version {update_ver} is available. Do you want to go to GitHub to download it?"
+        ),
+        raw_url_box as usize,
+        on_yes,
+        on_no,
+    );
 }
 
 // This function is responsible for setting up the main flow screen, so we use it to
@@ -232,98 +126,19 @@ fn init_for_title(screen: *mut u8) {
     // Set up the title menu.
     call_original!(crate::targets::init_for_title, screen);
 
-    if was_update_found() {
-        // Create our prompt afterwards, so it's above the title menu.
-        show_update_prompt(screen);
+    if let Some(result) = crate::github::take_check_result() {
+        match result {
+            Ok(Some(update)) => {
+                show_update_prompt(screen, update);
+            }
+
+            Ok(None) => log::info!("No update available"),
+            Err(err) => log::error!("Error while checking for update: {:?}", err),
+        }
     }
 }
 
 pub fn init() {
     log::info!("installing update hook...");
     crate::targets::init_for_title::install(init_for_title);
-}
-
-#[derive(Default, Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
-pub struct Release {
-    pub url: String,
-    pub assets_url: String,
-    pub upload_url: String,
-    pub html_url: String,
-    pub id: i64,
-    pub author: Author,
-    pub node_id: String,
-    pub tag_name: String,
-    pub target_commitish: String,
-    pub name: String,
-    pub draft: bool,
-    pub prerelease: bool,
-    pub created_at: String,
-    pub published_at: String,
-    pub assets: Vec<Asset>,
-    pub tarball_url: String,
-    pub zipball_url: String,
-    pub body: String,
-}
-
-#[derive(Default, Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
-pub struct Author {
-    pub login: String,
-    pub id: i64,
-    pub node_id: String,
-    pub avatar_url: String,
-    pub gravatar_id: String,
-    pub url: String,
-    pub html_url: String,
-    pub followers_url: String,
-    pub following_url: String,
-    pub gists_url: String,
-    pub starred_url: String,
-    pub subscriptions_url: String,
-    pub organizations_url: String,
-    pub repos_url: String,
-    pub events_url: String,
-    pub received_events_url: String,
-    #[serde(rename = "type")]
-    pub type_field: String,
-    pub site_admin: bool,
-}
-
-#[derive(Default, Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
-pub struct Asset {
-    pub url: String,
-    pub id: i64,
-    pub node_id: String,
-    pub name: String,
-    pub label: ::serde_json::Value,
-    pub uploader: Uploader,
-    pub content_type: String,
-    pub state: String,
-    pub size: i64,
-    pub download_count: i64,
-    pub created_at: String,
-    pub updated_at: String,
-    pub browser_download_url: String,
-}
-
-#[derive(Default, Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
-pub struct Uploader {
-    pub login: String,
-    pub id: i64,
-    pub node_id: String,
-    pub avatar_url: String,
-    pub gravatar_id: String,
-    pub url: String,
-    pub html_url: String,
-    pub followers_url: String,
-    pub following_url: String,
-    pub gists_url: String,
-    pub starred_url: String,
-    pub subscriptions_url: String,
-    pub organizations_url: String,
-    pub repos_url: String,
-    pub events_url: String,
-    pub received_events_url: String,
-    #[serde(rename = "type")]
-    pub type_field: String,
-    pub site_admin: bool,
 }
