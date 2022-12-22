@@ -2,18 +2,19 @@
 //! the version cache.
 
 use crate::{call_original, hook, resources, text};
+use eyre::Result;
 use objc::{runtime::Object, *};
 use std::{
     io::{Read, Write},
     sync::Mutex,
 };
 
-fn get_current_version() -> eyre::Result<VersionNumber> {
+fn get_current_version() -> Result<VersionNumber> {
     // This is why the Rust and .deb packages need the same version.
     VersionNumber::new(env!("CARGO_PKG_VERSION"))
 }
 
-fn should_request_release() -> eyre::Result<bool> {
+fn should_request_release() -> Result<bool> {
     // In order to not hit the GitHub API rate limit, we don't request the latest
     //  version of CLEO every time we check for updates. Instead, we store the version
     //  number we find when we do check GitHub, and then for the next 5 hours we treat
@@ -42,7 +43,7 @@ fn should_request_release() -> eyre::Result<bool> {
     Ok(false)
 }
 
-fn get_target_version() -> eyre::Result<VersionNumber> {
+fn get_target_version() -> Result<VersionNumber> {
     let file_path = resources::get_documents_path("update_checked");
     let should_fetch = should_request_release()?;
 
@@ -61,18 +62,24 @@ fn get_target_version() -> eyre::Result<VersionNumber> {
         .header("User-Agent", "cleo thing")
         .send()?;
 
-    let mut body = String::new();
-    response.read_to_string(&mut body)?;
+    let json: serde_json::Value = serde_json::from_reader(response)?;
 
-    let release: Release = serde_json::from_str(body.as_str())?;
-    let number = VersionNumber::new(&release.tag_name)?;
+    let tag_name = json.get("tag_name").ok_or_else(|| {
+        eyre::format_err!("Couldn't get tag name from response JSON '{:?}'", json)
+    })?;
 
+    // let mut body = String::new();
+    // response.read_to_string(&mut body)?;
+
+    // let release: Release = serde_json::from_str(body.as_str())?;
+    // let number = VersionNumber::new(&release.tag_name)?;
+    todo!()
     // Refresh the update_checked file.
-    let _ = std::fs::remove_file(&file_path);
-    let mut file = std::fs::File::create(file_path)?;
-    write!(&mut file, "{}", release.tag_name)?;
+    // let _ = std::fs::remove_file(&file_path);
+    // let mut file = std::fs::File::create(file_path)?;
+    // write!(&mut file, "{}", release.tag_name)?;
 
-    Ok(number)
+    // Ok(number)
 }
 
 lazy_static::lazy_static! {
@@ -99,7 +106,7 @@ fn was_update_found() -> bool {
     false
 }
 
-fn is_update_available() -> eyre::Result<bool> {
+fn is_update_available() -> Result<bool> {
     // Find the current version of CLEO we're on.
     let current = get_current_version()?;
 
@@ -129,7 +136,7 @@ pub fn start_update_check() {
 struct VersionNumber(Vec<u8>);
 
 impl VersionNumber {
-    fn new(string: impl AsRef<str>) -> eyre::Result<VersionNumber> {
+    fn new(string: impl AsRef<str>) -> Result<VersionNumber> {
         let parts = string.as_ref().split('.');
         let mut number = VersionNumber(vec![]);
 
@@ -142,7 +149,7 @@ impl VersionNumber {
         Ok(number)
     }
 
-    fn is_newer_than(self: &VersionNumber, other: &VersionNumber) -> eyre::Result<bool> {
+    fn is_newer_than(self: &VersionNumber, other: &VersionNumber) -> Result<bool> {
         if self.0.len() != other.0.len() {
             return Err(eyre::eyre!(
                 "version numbers differ in component count ({:?} and {:?})",

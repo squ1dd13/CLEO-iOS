@@ -22,6 +22,7 @@ struct StoredSettings {
     save_cheats: bool,
     no_ceiling: bool,
     interrupt_loops: bool,
+    alpha_updates: bool,
 }
 
 impl StoredSettings {
@@ -32,6 +33,7 @@ impl StoredSettings {
             save_cheats: Arc::new(AtomicBool::new(self.save_cheats)),
             no_ceiling: Arc::new(AtomicBool::new(self.no_ceiling)),
             interrupt_loops: Arc::new(AtomicBool::new(self.interrupt_loops)),
+            alpha_updates: Arc::new(AtomicBool::new(self.alpha_updates)),
             dirty: AtomicBool::new(true),
         }
     }
@@ -43,6 +45,7 @@ impl StoredSettings {
             save_cheats: settings.save_cheats.load(Ordering::SeqCst),
             no_ceiling: settings.no_ceiling.load(Ordering::SeqCst),
             interrupt_loops: settings.interrupt_loops.load(Ordering::SeqCst),
+            alpha_updates: settings.alpha_updates.load(Ordering::SeqCst),
         }
     }
 }
@@ -55,6 +58,7 @@ impl Default for StoredSettings {
             save_cheats: false,
             no_ceiling: true,
             interrupt_loops: true,
+            alpha_updates: false,
         }
     }
 }
@@ -65,6 +69,7 @@ pub struct Settings {
     pub save_cheats: Arc<AtomicBool>,
     pub no_ceiling: Arc<AtomicBool>,
     pub interrupt_loops: Arc<AtomicBool>,
+    pub alpha_updates: Arc<AtomicBool>,
     dirty: AtomicBool,
 }
 
@@ -183,11 +188,6 @@ pub fn tab_data() -> menu::TabData {
             "Preserve the states of toggleable cheats between game loads/launches. Default is Off.",
             settings.save_cheats.clone(),
         ),
-        // OptionInfo::new(
-        //     "Remove Height Limit",
-        //     "Remove the limit on how high you can fly. Default is On.",
-        //     settings.no_ceiling.clone(),
-        // ),
         OptionInfo::new(
             "Show FPS",
             "Display the current framerate at the top of the screen. Default is Off.",
@@ -197,6 +197,11 @@ pub fn tab_data() -> menu::TabData {
             "Interrupt Script Loops",
             "Reduce lag by detecting and interrupting long loops in scripts. Default is On.",
             settings.interrupt_loops.clone(),
+        ),
+        OptionInfo::new(
+            "Receive Alpha Updates",
+            "Receive an update prompt when a new alpha version of CLEO is available. Default is Off.",
+            settings.alpha_updates.clone(),
         ),
     ];
 

@@ -13,6 +13,7 @@ mod cheats;
 mod check;
 mod controller;
 mod extras;
+mod github;
 mod gui;
 mod hook;
 mod loader;
