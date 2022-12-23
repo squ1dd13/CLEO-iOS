@@ -73,8 +73,8 @@ impl std::fmt::Display for Value {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Value::Integer(int) => int.fmt(f),
-            Value::Real(real) => f.write_fmt(format_args!("{}f", real)),
-            Value::String(string) => f.write_fmt(format_args!("\"{}\"", string)),
+            Value::Real(real) => f.write_fmt(format_args!("{real}f")),
+            Value::String(string) => f.write_fmt(format_args!("\"{string}\"")),
             Value::Pointer(pointer) => pointer.fmt(f),
             Value::Variable(var) => var.fmt(f),
             Value::Array(_) => f.write_str("arr"),
@@ -175,7 +175,7 @@ impl Value {
             _ => {
                 return Err(io::Error::new(
                     io::ErrorKind::InvalidData,
-                    format!("Unknown type ID '{}'", id),
+                    format!("Unknown type ID '{id}'"),
                 )
                 .into());
             }
@@ -286,7 +286,7 @@ impl Instr {
                 //  which is necessary for reading the instruction.
                 return Err(Error::new(
                     ErrorKind::InvalidData,
-                    format!("unknown opcode {:#x}", opcode),
+                    format!("unknown opcode {opcode:#x}"),
                 )
                 .into());
             }
@@ -434,7 +434,7 @@ impl Display for ScriptIssue {
         match self {
             Self::NotImpl => f.write_str("Uses features unavailable on iOS."),
             Self::AndroidSpecific => f.write_str("Uses some Android-only code."),
-            Self::Duplicate(orig_name) => write!(f, "Duplicate of '{}'.", orig_name),
+            Self::Duplicate(orig_name) => write!(f, "Duplicate of '{orig_name}'."),
             Self::CheckFailed => f.write_str("Unable to complete script check."),
         }
     }

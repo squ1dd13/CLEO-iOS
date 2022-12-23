@@ -1,13 +1,9 @@
 //! Interfaces with the GitHub API to determine if a CLEO update is available, and manages
 //! the version cache.
 
-use crate::{call_original, github::Version, hook, resources, text};
-use eyre::Result;
+use crate::{call_original, github::Version, hook, text};
+
 use objc::{runtime::Object, *};
-use std::{
-    io::{Read, Write},
-    sync::Mutex,
-};
 
 /// Opens `url` in the user's default browser.
 fn open_url(url: impl AsRef<str>) {

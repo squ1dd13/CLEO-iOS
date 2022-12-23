@@ -640,9 +640,9 @@ impl menu::RowData for CsiMenuInfo {
         };
 
         let info_str = if self.state {
-            format!("Running. {}", issues_str)
+            format!("Running. {issues_str}")
         } else {
-            format!("Not running. {}", issues_str)
+            format!("Not running. {issues_str}")
         };
 
         if self.warning.is_some() {

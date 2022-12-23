@@ -1,6 +1,5 @@
 //! Logging backend which logs over UDP and to a file.
 
-use backtrace::Backtrace;
 use chrono::Local;
 use log::{Level, Metadata, Record};
 use once_cell::sync::OnceCell;
@@ -109,6 +108,7 @@ fn panic_hook(info: &std::panic::PanicInfo) {
         "no payload, sorry :/"
     };
 
+    let aslr_slide = crate::hook::get_game_aslr_offset();
     let time = chrono::Local::now();
     let backtrace = std::backtrace::Backtrace::force_capture();
 
@@ -121,13 +121,12 @@ Please don't ignore this! There are a few different ways you can help out. You c
 
 Below is some information that might help explain the problem.
 
-ASLR slide (game): {:#x}
+ASLR slide (game): {aslr_slide:#x}
 Payload (downcast): {payload}
 Time: {time}
 Backtrace: see below
 
-{backtrace}",
-        crate::hook::get_game_aslr_offset(),
+{backtrace}"
     );
 
     log::error!("{info_dump}");

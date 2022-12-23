@@ -47,9 +47,7 @@ fn display_fps() {
     let delta_times: *mut u32 = crate::hook::slide(0x1007bae60);
 
     unsafe {
-        delta_times
-            .offset(new_delta_index as isize)
-            .write(delta_time);
+        delta_times.offset(new_delta_index).write(delta_time);
     }
 
     // eq: CFont::SetBackground(...)
@@ -101,7 +99,7 @@ fn display_fps() {
     };
 
     // CFont::PrintString expects UTF16, so encode our FPS string as such.
-    let mut bytes: Vec<u16> = format!("FPS: {:.2}", fps).encode_utf16().collect();
+    let mut bytes: Vec<u16> = format!("FPS: {fps:.2}").encode_utf16().collect();
     bytes.push(0);
 
     let (x, y) = unsafe {

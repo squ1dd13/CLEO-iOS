@@ -9,9 +9,9 @@ use log::error;
 const GAME_SLIDE_INDEX: u32 = 1;
 
 fn get_single_symbol<T: Copy>(path: &str, sym_name: &str) -> eyre::Result<T> {
-    let lib = Library::open(path).wrap_err_with(|| format!("failed to open library {}", path))?;
+    let lib = Library::open(path).wrap_err_with(|| format!("failed to open library {path}"))?;
     let symbol = unsafe { lib.symbol::<T>(sym_name) }
-        .wrap_err_with(|| format!("unable to find {} in {}", sym_name, path))?;
+        .wrap_err_with(|| format!("unable to find {sym_name} in {path}"))?;
     Ok(*symbol)
 }
 
@@ -37,11 +37,6 @@ fn get_aslr_offset_fn() -> eyre::Result<fn(u32) -> usize> {
 fn get_aslr_offset(image: u32) -> usize {
     let function = get_aslr_offset_fn().expect("Failed to get ASLR offset function!");
     function(image)
-}
-
-/// Returns `true` if image 0's slide is not the slide for game code.
-pub fn has_weird_aslr() -> bool {
-    get_aslr_offset(0) != get_game_aslr_offset()
 }
 
 pub fn get_game_aslr_offset() -> usize {
@@ -116,7 +111,7 @@ fn gen_shit_hook_fn<FuncType>() -> fn(FuncType, FuncType, &mut Option<FuncType>)
 fn get_hook_fn<FuncType>() -> fn(FuncType, FuncType, &mut Option<FuncType>) {
     let shit_hook = get_shit_raw_hook_fn();
 
-    if let Ok(_) = shit_hook {
+    if shit_hook.is_ok() {
         return gen_shit_hook_fn();
     }
 
@@ -319,41 +314,4 @@ pub fn hook_objc(
 
         log::debug!("Successfully swapped method implementations. Enjoy!");
     }
-}
-
-pub fn is_german_game() -> bool {
-    std::env::current_exe()
-        .unwrap()
-        .display()
-        .to_string()
-        .ends_with("ger")
-}
-
-pub fn generate_backtrace() -> String {
-    // Generate a resolved backtrace. The symbol names aren't always correct, but we
-    //  should still display them because they are helpful for Rust functions.
-    let resolved = backtrace::Backtrace::new();
-    let slide = get_game_aslr_offset() as u64;
-
-    let mut lines = vec![
-        format!("ASLR offset for image 0 is {:#x}.", slide),
-        "Warning: All addresses will be assumed to be from image 0.".to_string(),
-    ];
-
-    for (i, frame) in resolved.frames().iter().enumerate() {
-        let address = frame.symbol_address() as u64;
-
-        let string = format!(
-            "{}: {:#x} - {:#x} = {:#x}\n  symbols: {:?}",
-            i,
-            address,
-            slide,
-            address - slide,
-            frame.symbols()
-        );
-
-        lines.push(string);
-    }
-
-    lines.join("\n\n")
 }

@@ -132,7 +132,7 @@ impl ModResource {
         if is_in_archive {
             let archive_name = first_component?.file_name()?.to_str()?.to_lowercase();
 
-            let instruction_file_name = format!("put files to go inside {} here", archive_name);
+            let instruction_file_name = format!("put files to go inside {archive_name} here");
 
             if path.file_name()?.to_str()? == instruction_file_name {
                 // Ignore the instruction file.
@@ -314,7 +314,7 @@ pub fn init() {
             ModResource::StartupScript(path) => scripts::load_running_script(path).err(),
             ModResource::InvokedScript(path) => scripts::load_invoked_script(path).err(),
             ModResource::LanguageFile(path) => text::load_fxt(path).err(),
-            ModResource::StreamReplacement(archive_name, path) => None,
+            ModResource::StreamReplacement(_, _) => None,
             ModResource::FileReplacement(path) => loader::load_replacement(&path).err(),
         };
 

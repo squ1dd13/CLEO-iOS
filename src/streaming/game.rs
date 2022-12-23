@@ -314,10 +314,7 @@ impl Stream {
         let stream_object_size = std::mem::size_of::<Stream>();
 
         if stream_object_size != 0x30 {
-            panic!(
-                "Stream structure should be of size 0x30, not {:#x}",
-                stream_object_size
-            );
+            panic!("Stream structure should be of size 0x30, not {stream_object_size:#x}");
         }
 
         unsafe { libc::malloc(stream_object_size * count).cast() }
