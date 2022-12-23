@@ -249,7 +249,7 @@ fn fetch_releases() -> Result<Vec<(Version, String)>> {
 }
 
 /// Returns the version of CLEO that is currently running.
-fn find_current_version() -> Version {
+pub fn current_version() -> Version {
     Version::parse(env!("CARGO_PKG_VERSION")).expect("Invalid crate version")
 }
 
@@ -274,7 +274,7 @@ fn most_stable_from(min_ver: Version) -> Result<Option<(Version, String)>> {
 
 /// Returns the version and URL of an available update, if there is one.
 fn fetch_available_update() -> Result<Option<(Version, String)>> {
-    let current_version = find_current_version();
+    let current_version = current_version();
 
     if !user_wants_alpha() {
         // If the user doesn't want to receive alpha updates, get them on the most stable version.
