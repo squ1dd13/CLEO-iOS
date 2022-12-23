@@ -8,7 +8,7 @@ use crate::{
     check::{self, ScriptIssue},
     hook,
     menu::{self, MenuMessage, TabData},
-    settings::Settings,
+    settings::{BreakMode, Options},
     targets, touch,
 };
 use std::{
@@ -84,20 +84,22 @@ impl GameScript {
     }
 }
 
-/// A wrapper for game-compatible script structures that allows use with both game code and CLEO code.
+/// A wrapper for game-compatible script structures that allows use with both game code and CLEO
+/// code.
 #[derive(Debug)]
 pub struct CleoScript {
     game_script: GameScript,
 
-    /// The source of the script's data. This is kept with the game script because the pointers in the
-    /// game script are to positions within this vector, so the vector can only be safely dropped once
-    /// those pointers are not needed anymore.
+    /// The source of the script's data. This is kept with the game script because the pointers in
+    /// the game script are to positions within this vector, so the vector can only be safely
+    /// dropped once those pointers are not needed anymore.
     pub bytes: Vec<u8>,
 
     /// The name shown to the user in the menu.
     pub name: String,
 
-    /// A problem found with the script. Multiple may be reported during checking, but only one is kept.
+    /// A problem found with the script. Multiple may be reported during checking, but only one is
+    /// kept.
     pub issue: Option<check::ScriptIssue>,
 
     /// A hash of the script's bytes. This hash can be used to identify the script.
@@ -131,27 +133,12 @@ impl CleoScript {
         self.game_script = GameScript::new(base_ip, active);
     }
 
-    fn update(&mut self) {
-        if !self.game_script.active {
-            return;
-        }
-
-        let game_time: u32 = hook::deref_global(0x1007d3af8);
-
-        if self.game_script.wakeup_time > game_time {
-            // Don't wake up yet.
-            return;
-        }
-
-        if !Settings::shared().interrupt_loops.load(Ordering::SeqCst) {
-            while !self.update_once() {}
-            return;
-        }
-
-        // Create a shared map for offset encounters. This does not need to be shared (and it gets cleared
-        //  every time this function runs), but a shared map removes the requirement for a new map to be
-        //  created every update, and also means that there is enough capacity for most updates to go without
-        //  extending the map. The shared map reduces the time taken for each script update by about 40%.
+    fn update_with_anti_lag(&mut self) {
+        // Create a shared map for offset encounters. This does not need to be shared (and it gets
+        // cleared every time this function runs), but a shared map removes the requirement for a
+        // new map to be created every update, and also means that there is enough capacity for
+        // most updates to go without extending the map. The shared map reduces the time taken for
+        // each script update by about 40%.
         static mut OFFSET_MAP_SHARED: once_cell::unsync::Lazy<HashMap<usize, usize>> =
             once_cell::unsync::Lazy::new(HashMap::new);
 
@@ -182,22 +169,25 @@ impl CleoScript {
             *encounters += 1;
 
             if *encounters >= 5 && jumped_backwards {
-                // We've found a single offset in this run of instructions at least five times, and just
-                //  jumped backwards to get to it. This must mean we are in some kind of loop.
+                // We've found a single offset in this run of instructions at least five times, and
+                // just jumped backwards to get to it. This must mean we are in some kind of loop.
                 //
-                // Loops are fine most of the time, but if they run for a long time and don't have any
-                //  'wait' instructions, they cause the rest of the game to stop for a long period.
-                // This can cause a little bit of lag at best, and obvious stuttering at worst.
+                // Loops are fine most of the time, but if they run for a long time and don't have
+                // any 'wait' instructions, they cause the rest of the game to stop for a long
+                // period. This can cause a little bit of lag at best, and obvious stuttering at
+                // worst.
                 //
                 // Since we don't get a chance to break up these loops naturally (because there are
-                //  no 'wait' instructions, remember?) we need to force them to stop every now and then
-                //  in order to let other scripts (and the rest of the game) get a chance to work.
+                // no 'wait' instructions, remember?) we need to force them to stop every now and
+                // then in order to let other scripts (and the rest of the game) get a chance to
+                // work.
                 //
-                // Interrupting a loop after a jump is one of the better ways of doing this, because
-                //  it is the point least likely to sit between two instructions that work best running
-                //  together. No solution is perfect, but we have to find some place to break the flow up.
-                // A backwards jump is also a good place to break because it suggests we're at the start
-                //  of the loop body.
+                // Interrupting a loop after a jump is one of the better ways of doing this,
+                // because it is the point least likely to sit between two instructions that work
+                // best running together. No solution is perfect, but we have to find some place to
+                // break the flow up. A backwards jump is also a good place to break because it
+                // suggests we're at the start of the loop body.
+
                 // bug: The script interrupt system stops some scripts working properly.
                 break;
             }
@@ -208,6 +198,26 @@ impl CleoScript {
                 break;
             }
         }
+    }
+
+    fn update(&mut self) {
+        if !self.game_script.active {
+            return;
+        }
+
+        let game_time: u32 = hook::deref_global(0x1007d3af8);
+
+        if self.game_script.wakeup_time > game_time {
+            // Don't wake up yet.
+            return;
+        }
+
+        if let BreakMode::Break = Options::get().loop_break {
+            self.update_with_anti_lag();
+            return;
+        }
+
+        while !self.update_once() {}
     }
 
     fn find_ip_offset(&self) -> usize {

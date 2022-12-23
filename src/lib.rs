@@ -123,7 +123,6 @@ fn initialise() {
     );
 
     streaming::init();
-    settings::init();
     update::init();
     loader::init();
     gui::init();
@@ -155,6 +154,8 @@ fn load() {
 
     // todo: Log game version.
     log::info!("Cargo package version is {}", env!("CARGO_PKG_VERSION"));
+
+    settings::init();
 
     // Start checking for updates in the background.
     github::start_update_check_thread();

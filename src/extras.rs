@@ -1,26 +1,29 @@
 //! Provides CLEO's extra features (60 FPS, FPS counter, etc.).
 
-use std::sync::atomic::Ordering;
-
 use libc::c_char;
 
-use crate::{call_original, hook, settings::Settings, targets};
+use crate::{
+    call_original, hook,
+    settings::{FpsVisibility, Options},
+    targets,
+};
 
-// CTimer::GetCyclesPerMillisecond is called between the FPS limit being set and when it is enforced,
-//  so if we overwrite the limit here, our new value will be enforced.
+// CTimer::GetCyclesPerMillisecond is called between the FPS limit being set and when it is
+// enforced, so if we overwrite the limit here, our new value will be enforced.
 fn cycles_per_millisecond() -> u32 {
-    unsafe {
-        let sixty_fps = Settings::shared().sixty_fps.load(Ordering::SeqCst);
+    let fps_cap = Options::get().fps_lock.fps();
 
-        *hook::slide::<*mut u32>(0x1008f07b8) = if sixty_fps { 60 } else { 30 };
+    unsafe {
+        *hook::slide::<*mut u32>(0x1008f07b8) = fps_cap;
     }
 
     call_original!(targets::cycles_per_millisecond)
 }
 
 fn idle(p1: u64, p2: u64) {
+    let show_fps = matches!(Options::get().fps_visibility, FpsVisibility::Visible);
+
     unsafe {
-        let show_fps = Settings::shared().show_fps.load(Ordering::SeqCst);
         *hook::slide::<*mut bool>(0x10081c519) = show_fps;
     }
 

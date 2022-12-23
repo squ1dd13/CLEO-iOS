@@ -75,10 +75,31 @@ pub type Rgb = (u8, u8, u8);
 pub mod colours {
     use super::*;
 
-    pub const RED: Rgb = (255, 83, 94);
-    pub const ORANGE: Rgb = (255, 128, 0);
-    pub const GREEN: Rgb = (78, 149, 64);
-    pub const BLUE: Rgb = (120, 200, 255);
+    /// The CLEO GUI colour palette.
+    #[derive(Clone, Copy)]
+    pub enum Colour {
+        Red,
+        Orange,
+        Green,
+        Blue,
+    }
+
+    impl Colour {
+        /// Returns the RGB values for this colour.
+        pub const fn rgb(self) -> Rgb {
+            match self {
+                Colour::Red => (255, 83, 94),
+                Colour::Orange => (255, 128, 0),
+                Colour::Green => (78, 149, 64),
+                Colour::Blue => (120, 200, 255),
+            }
+        }
+    }
+
+    pub const RED: Rgb = Colour::Red.rgb();
+    pub const ORANGE: Rgb = Colour::Orange.rgb();
+    pub const GREEN: Rgb = Colour::Green.rgb();
+    pub const BLUE: Rgb = Colour::Blue.rgb();
 
     pub fn get(colour: Rgb, alpha: f64) -> *const Object {
         unsafe {

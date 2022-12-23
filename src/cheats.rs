@@ -5,7 +5,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use crate::{
     call_original, gui, hook,
     menu::{self, RowData, TabData},
-    settings::Settings,
+    settings::{CheatTransience, Options},
 };
 use lazy_static::lazy_static;
 use log::error;
@@ -246,7 +246,7 @@ impl RowData for CheatData {
             self.cheat.queue();
         }
 
-        if Settings::shared().save_cheats.load(Ordering::SeqCst) {
+        if let CheatTransience::Persistent = Options::get().cheat_transience {
             // Request that the cheats be saved because it is likely that a status will change.
             SAVE_FLAGS.1.store(true, Ordering::SeqCst);
         }
@@ -289,7 +289,7 @@ fn reset_cheats() {
     log::info!("Resetting cheats");
     call_original!(crate::targets::reset_cheats);
 
-    if !Settings::shared().save_cheats.load(Ordering::SeqCst) {
+    if !matches!(Options::get().cheat_transience, CheatTransience::Persistent) {
         log::info!("Cheat saving/loading is disabled.");
         return;
     }

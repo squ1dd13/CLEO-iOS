@@ -3,6 +3,8 @@ use std::{cmp::Ordering, fmt::Display, fs::File, path::PathBuf, sync::Mutex, tim
 use eyre::Result;
 use itertools::Itertools;
 
+use crate::settings::{Options, ReleaseChannel};
+
 /// Represents a version number in the format "x.y.z", where "x", "y" and "z" are integers.
 #[derive(Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct VersionNumber {
@@ -168,6 +170,7 @@ fn fetch_releases_from_github() -> Result<impl Iterator<Item = (Version, String)
 
     let response = client
         .get("https://api.github.com/repos/squ1dd13/CLEO-iOS/releases")
+        .header(reqwest::header::USER_AGENT, "cleo thing")
         .send()?;
 
     let releases: serde_json::Value = serde_json::from_reader(response)?;
@@ -255,9 +258,7 @@ pub fn current_version() -> Version {
 
 /// Returns true if the user has chosen to receive alpha updates.
 fn user_wants_alpha() -> bool {
-    crate::settings::Settings::shared()
-        .alpha_updates
-        .load(std::sync::atomic::Ordering::SeqCst)
+    matches!(Options::get().release_channel, ReleaseChannel::Alpha)
 }
 
 /// Returns the most stable version of CLEO after or including the given version.
