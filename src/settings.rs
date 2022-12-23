@@ -2,9 +2,10 @@
 
 use std::sync::{
     atomic::{AtomicBool, Ordering},
-    Arc,
+    Arc, Mutex, MutexGuard,
 };
 
+use eyre::Result;
 use once_cell::sync::OnceCell;
 
 use crate::{
@@ -13,6 +14,102 @@ use crate::{
 };
 
 static SETTINGS: OnceCell<Settings> = OnceCell::new();
+
+/// FPS lock modes.
+#[derive(Clone, Copy)]
+pub enum FpsLock {
+    /// 30 FPS. This is the default mode.
+    Thirty,
+
+    /// 60 FPS.
+    Sixty,
+}
+
+/// The visibility of the FPS counter.
+#[derive(Clone, Copy)]
+pub enum FpsVisibility {
+    /// Not visible. This is the default.
+    Hidden,
+
+    /// Visible.
+    Visible,
+}
+
+/// The behaviour of the cheat system across game restarts.
+#[derive(Clone, Copy)]
+pub enum CheatTransience {
+    /// Cheats will not be saved across game restarts. This is the default.
+    Transient,
+
+    /// Cheats will be saved across game restarts.
+    Persistent,
+}
+
+/// Modes for handling long script loops.
+#[derive(Clone, Copy)]
+pub enum BreakMode {
+    /// Loops will be allowed to run, even if it causes the game to lag.
+    DontBreak,
+
+    /// Loops will be broken and continued later. This is the default.
+    Break,
+}
+
+/// Which set of updates the users receives.
+#[derive(Clone, Copy)]
+pub enum ReleaseChannel {
+    /// Stable release channel. Most users should be on this.
+    Stable,
+
+    /// Alpha release channel. Alpha releases are less stable but come with new features. Stable
+    /// releases are also included here, but the user will always be prompted to get the latest
+    /// alpha if it's newer than the latest stable release.
+    Alpha,
+}
+
+/// The user's CLEO settings.
+#[derive(Clone, Copy)]
+pub struct Options {
+    /// The FPS value that the game locks to.
+    pub fps_lock: FpsLock,
+
+    /// Whether or not the current FPS will be shown on the screen.
+    pub fps_visibility: FpsVisibility,
+
+    /// How cheats persist across game restarts.
+    pub cheat_transience: CheatTransience,
+
+    /// How long loops are handled in order to reduce lag.
+    pub loop_break: BreakMode,
+
+    /// Controls when the user is prompted to update their game.
+    pub release_channel: ReleaseChannel,
+}
+
+// todo: Manually write JSON and add comments. Use ".jsonc".
+
+impl Options {
+    /// Returns a mutex guard around the global options value.
+    fn global_mut() -> MutexGuard<'static, Option<Options>> {
+        lazy_static::lazy_static! {
+            static ref OPTIONS: Mutex<Option<Options>> = Mutex::new(None);
+        }
+
+        OPTIONS.lock().expect("Failed to lock options")
+    }
+
+    /// Returns the user's current CLEO settings.
+    pub fn get() -> Options {
+        Options::global_mut().expect("Settings haven't been loaded yet")
+    }
+
+    /// Loads the global settings from disk.
+    fn load_global() -> Result<()> {
+        // todo: If we find some old settings JSON, replace it with the modern equivalent JSON.
+
+        todo!()
+    }
+}
 
 #[derive(serde::Serialize, serde::Deserialize)]
 #[serde(default)]
@@ -63,6 +160,7 @@ impl Default for StoredSettings {
     }
 }
 
+#[derive(Debug)]
 pub struct Settings {
     pub sixty_fps: Arc<AtomicBool>,
     pub show_fps: Arc<AtomicBool>,
@@ -74,7 +172,7 @@ pub struct Settings {
 }
 
 impl Settings {
-    fn load_path(path: std::path::PathBuf) -> eyre::Result<Settings> {
+    fn load_path(path: std::path::PathBuf) -> Result<Settings> {
         let stored: StoredSettings = serde_json::from_reader(std::fs::File::open(path)?)?;
         Ok(stored.into_settings())
     }
@@ -93,7 +191,7 @@ impl Settings {
         }
     }
 
-    fn save(&self) -> eyre::Result<()> {
+    fn save(&self) -> Result<()> {
         // Only save if the settings have changed.
         if !self.dirty.load(Ordering::SeqCst) {
             log::info!("Settings have not changed since last save.");
@@ -229,6 +327,10 @@ fn load_settings(menu_manager: u64) {
 }
 
 pub fn init() {
+    Settings::load_shared();
+
+    log::info!("Settings: {:?}", Settings::shared());
+
     log::info!("installing settings hook...");
     crate::targets::load_settings::install(load_settings);
 }

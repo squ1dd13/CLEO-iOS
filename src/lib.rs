@@ -123,9 +123,9 @@ fn initialise() {
     );
 
     streaming::init();
+    settings::init();
     update::init();
     loader::init();
-    settings::init();
     gui::init();
     menu::init();
     touch::init();
