@@ -108,11 +108,6 @@ impl Version {
         }
     }
 
-    /// Returns true if this version is an alpha release.
-    fn is_alpha(self) -> bool {
-        matches!(self, Version::Alpha(_, _))
-    }
-
     /// Returns true if this version is a stable release.
     fn is_stable(self) -> bool {
         matches!(self, Version::Stable(_))
