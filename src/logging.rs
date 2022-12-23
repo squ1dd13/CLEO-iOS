@@ -1,5 +1,6 @@
 //! Logging backend which logs over UDP and to a file.
 
+use backtrace::Backtrace;
 use chrono::Local;
 use log::{Level, Metadata, Record};
 use once_cell::sync::OnceCell;
@@ -101,40 +102,44 @@ impl log::Log for Logger {
 
 static MSG_SENDER: OnceCell<Mutex<std::sync::mpsc::Sender<Message>>> = OnceCell::new();
 
+fn panic_hook(info: &std::panic::PanicInfo) {
+    let payload = if let Some(payload) = info.payload().downcast_ref::<&str>() {
+        payload
+    } else {
+        "no payload, sorry :/"
+    };
+
+    let time = chrono::Local::now();
+    let backtrace = std::backtrace::Backtrace::force_capture();
+
+    let info_dump = format!(
+        "Uh oh! Looks like something went very wrong.
+
+Please don't ignore this! There are a few different ways you can help out. You could...
+  - Send this on Discord by DM (squ1dd13#1643) or in the server (discord.gg/cXwkTUasJU), or
+  - Create a new issue on GitHub: https://github.com/squ1dd13/CLEO-iOS/issues/new
+
+Below is some information that might help explain the problem.
+
+ASLR slide (game): {:#x}
+Payload (downcast): {payload}
+Time: {time}
+Backtrace: see below
+
+{backtrace}",
+        crate::hook::get_game_aslr_offset(),
+    );
+
+    log::error!("{info_dump}");
+
+    let _ = std::fs::write(crate::resources::get_documents_path("PANIC.txt"), info_dump);
+
+    std::process::abort();
+}
+
 fn install_panic_hook() {
     // Install the panic hook so we can print useful stuff rather than just exiting on a panic.
-    std::panic::set_hook(Box::new(|info: &std::panic::PanicInfo| {
-        let _ = std::fs::write(
-            crate::resources::get_documents_path("PANIC.txt"),
-            crate::hook::generate_backtrace(),
-        );
-
-        // If we can't get the message from info.message, we try to downcast the payload to &str.
-        let message = if let Some(message) = info.message() {
-            Some(message.to_string())
-        } else {
-            info.payload().downcast_ref::<&str>().map(|s| s.to_string())
-        }
-        .unwrap_or_else(|| "no message".into());
-
-        let backtrace = backtrace::Backtrace::new();
-
-        if let Some(location) = info.location() {
-            log::error!(
-                "\n\npanic at {}: {}\n\nbacktrace:\n{:?}",
-                location,
-                message,
-                backtrace
-            );
-        } else {
-            log::error!("\n\npanic: {}\n\nbacktrace:\n{:?}", message, backtrace);
-        }
-
-        log::error!(
-            "lovely homemade stack trace:\n\n{}",
-            crate::hook::generate_backtrace()
-        );
-    }));
+    std::panic::set_hook(Box::new(panic_hook));
 }
 
 pub fn init() {
