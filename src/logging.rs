@@ -66,10 +66,14 @@ impl Logger {
             Level::Debug | Level::Trace => MessageType::Debug,
         };
 
+        let module_path = match record.module_path() {
+            Some(path) if path.contains("mio::") || path.contains("reqwest") => return,
+            Some(path) => path,
+            None => return,
+        };
+
         let message = Message {
-            module: record
-                .module_path()
-                .unwrap_or("unknown")
+            module: module_path
                 .split("::")
                 .last()
                 .unwrap_or("unknown")

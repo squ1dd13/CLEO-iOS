@@ -286,7 +286,22 @@ fn fetch_available_update() -> Result<Option<(Version, String)>> {
 
     // If the user wants to receive alpha updates, just find the latest version, regardless of
     // whether it is alpha or stable.
-    fetch_releases().map(|releases| releases.first().cloned())
+    fetch_releases().map(|releases| {
+        let release = releases.first().cloned()?;
+
+        // Only return the release if it's actually an update.
+        if release.0 > current_version {
+            log::info!("{} is newer than {current_version}", release.0);
+            Some(release)
+        } else {
+            log::info!(
+                "Ignoring {} because it's older than the current version ({current_version}).",
+                release.0
+            );
+
+            None
+        }
+    })
 }
 
 pub type CheckResult = Result<Option<(Version, String)>>;
