@@ -275,6 +275,11 @@ fn most_stable_from(min_ver: Version) -> Result<Option<(Version, String)>> {
 
 /// Returns the version and URL of an available update, if there is one.
 fn fetch_available_update() -> Result<Option<(Version, String)>> {
+    if let ReleaseChannel::None = Options::get().release_channel {
+        log::warn!("Skipping update check because user has opted out of updates.");
+        return Ok(None);
+    }
+
     let current_version = current_version();
 
     if !user_wants_alpha() {

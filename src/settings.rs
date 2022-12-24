@@ -282,6 +282,9 @@ impl Setting for BreakMode {
 /// Which set of updates the users receives.
 #[derive(Clone, Copy, Serialize, Deserialize, Debug)]
 pub enum ReleaseChannel {
+    /// No release channel. The user won't receive any updates.
+    None,
+
     /// Stable release channel. Most users should be on this.
     Stable,
 
@@ -304,7 +307,7 @@ impl Setting for ReleaseChannel {
 
     fn description(&self) -> &'static str {
         "Which CLEO updates you get notifications for. \
-Alpha gives newer features sooner but might have more bugs."
+Alpha gives newer features sooner but might have more bugs. Disabling updates is not recommended."
     }
 
     fn apply(&self, options: &mut Options) {
@@ -313,20 +316,23 @@ Alpha gives newer features sooner but might have more bugs."
 
     fn cycle_value(&mut self) {
         *self = match self {
+            ReleaseChannel::None => ReleaseChannel::Stable,
             ReleaseChannel::Stable => ReleaseChannel::Alpha,
-            ReleaseChannel::Alpha => ReleaseChannel::Stable,
+            ReleaseChannel::Alpha => ReleaseChannel::None,
         }
     }
 
     fn status_colour(&self) -> Option<Colour> {
         match self {
-            ReleaseChannel::Stable => None,
+            ReleaseChannel::None => Some(Colour::Red),
+            ReleaseChannel::Stable => Some(Colour::Green),
             ReleaseChannel::Alpha => Some(Colour::Orange),
         }
     }
 
     fn as_str(&self) -> &'static str {
         match self {
+            ReleaseChannel::None => "Disabled",
             ReleaseChannel::Stable => "Stable",
             ReleaseChannel::Alpha => "Alpha",
         }
