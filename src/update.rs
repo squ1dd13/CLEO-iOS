@@ -96,6 +96,8 @@ fn show_update_prompt(screen: *mut u8, (update_ver, update_url): (Version, Strin
         let url = unbox_string(raw_url_box);
 
         log::info!("User accepted update. Heading to {}...", url);
+
+        open_url(url);
     }
 
     fn on_no(raw_url_box: usize) {
