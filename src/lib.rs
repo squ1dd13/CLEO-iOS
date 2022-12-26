@@ -22,6 +22,7 @@ mod menu;
 mod resources;
 mod scripts;
 mod settings;
+mod sound;
 mod streaming;
 mod text;
 mod touch;
