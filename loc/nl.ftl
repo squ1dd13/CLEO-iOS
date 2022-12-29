@@ -27,27 +27,27 @@ translator-tag = Nederlandse vertaaling door @wewewer1#1427
 update-prompt-title = Er is een nieuwe versie beschikbaar.
 
 # Message shown on the update screen. { $new_version } will be replaced with the update's version number.
-update-prompt-message = CLEO versie { $new_version } is verkrijgbaar. Wil je naar Github gaan om de update te downloaden?"
+update-prompt-message = CLEO versie { $new_version } is verkrijgbaar. Wil je naar Github gaan om de update te downloaden?
 
 # todo: Add "Yes" and "No" for update menu to localisation files.
 # The yes/no options are part of the game, so they're not directly in CLEO's control (yet).
 
 ## Release channel settings
 
-update-release-channel-opt-title = Release Channel
-update-release-channel-opt-desc = Which CLEO updates you get notifications for. Alpha gives newer features sooner but might have more bugs. Disabling updates is not recommended.
+update-release-channel-opt-title = Versie Kanaal
+update-release-channel-opt-desc = Welke Cleo updates je notificaties voor krijgt. met Beta kan je nieuwe functies eerder gebruiken maar zijn er mogelijk bugs. Updates uitzetten wordt niet aanbevolen.
 
-update-release-channel-opt-disabled = Disabled
-update-release-channel-opt-stable = Stable
-update-release-channel-opt-disabled = Alpha
+update-release-channel-opt-disabled = Uit
+update-release-channel-opt-stable = Standaard
+update-release-channel-opt-disabled = Beta
 
 ### ==== Menu ====
 
 # Title for the button at the bottom of the screen that closes the CLEO menu.
-menu-close = Close
+menu-close = Sluit
 
 # Title for the options tab.
-options-tab-title = Options
+options-tab-title = Instellingen
 
 ### ==== Script menu ====
 
@@ -57,42 +57,42 @@ options-tab-title = Options
 # is not shown at all if there are zero scripts with errors in them.
 menu-script-warning-overview =
     { $numberOfScriptsWithErrors ->
-        [one] Found problems in one script. This script is highlighted in orange.
-        *[other] Found problems in { $numberOfScriptsWithErrors } scripts. These scripts are highlighted in orange.
+        [one] Problemen gevonden in één script. Dit script is uitgelicht in oranje.
+        *[other] Problemen gevonden in { $numberOfScriptsWithErrors } scripts. Deze scripts zijn uitgelicht in oranje.
     }
 
 # The second line of the warning.
-menu-script-see-below = See below for further details.
+menu-script-see-below = zie hieronder uitgebreidere details.
 
 ## Specific script warnings
 
 # The script does things that CLEO doesn't support yet.
-script-unimplemented-in-cleo = Uses features currently unsupported by CLEO iOS.
+script-unimplemented-in-cleo = Dit script probeert functies te gebruiken die nog niet in Cleo zitten.
 
 # The script does things that are not possible on iOS (for system reasons).
-script-impossible-on-ios = Uses some code that won't work on iOS.
+script-impossible-on-ios = Dit script gebruikt fincties die niet werken op iOS.
 
 # The script is identical to another script. { $originalScript } will be replaced with the name of
 # the script that this one is a duplicate of.
-script-duplicate = Duplicate of { $originalScript }.
+script-duplicate = Duplicaat van { $originalScript }.
 
 # There was an error when checking the script code for problems.
-script-check-failed = Unable to scan script. Please report this as a bug on GitHub or Discord.
+script-check-failed = Script kan niet gescand worden. Geef dit probleem A.U.B. aan in de discord of op Github.
 
 # No problems were found when scanning the script. This is a safe script!
-script-no-problems = No problems detected.
+script-no-problems = Geen problemen gevonden met dit script.
 
 ## Script status messages
 
 # The script is running normally.
-script-running = Running
+script-running = Aan
 
 # The script is not running.
-script-not-running = Not running
+script-not-running = Niet aan
 
 # The script has been forced to run by the user, even though there are problems with it. This only
 # applies to CSA scripts.
-script-csa-forced-running = Forced
+script-csa-forced-running = Geforceerd
 
 ## Script settings
 
