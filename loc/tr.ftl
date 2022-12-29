@@ -6,15 +6,7 @@ language-name = Turkce
 splash-legal = Telif Hakki © 2020-2022 squ1dd13. MIT Lisansi Altinda Lisanslanmistir.
 
 # Second line.
-splash-fun = Turklere Merhaba!
-
-# {""} is just an empty string. Leave this empty if you don't want your name shown. Alternatively,
-# you can use this to say you made the translation. It will show up on the splash screen after the
-# `splash-fun` message.
-#
-# For example:
-#  translator-tag = Translated into English by squ1dd13.
-translator-tag = ceviri Berkakahs
+splash-fun = Turklere Merhaba! Ceviri Berkakahs. Ingiltere'de sevgilerle yapildi. Iyi eglenceler!
 
 ### ==== Updates ====
 
@@ -37,7 +29,7 @@ update-release-channel-opt-title = Yayinlayis Kanali
 update-release-channel-opt-desc = Hangi CLEO guncellemeleri bildirimini alicagini sec. Alpha yeni ozellikleri daha onceden kullanabilmeni saglar ama hatalar olabilir. Guncellemeleri devre disi birakmak onerilmez.
 update-release-channel-opt-disabled = Devre disi
 update-release-channel-opt-stable = Stabil
-update-release-channel-opt-disabled = Alpha
+update-release-channel-opt-alpha = Alpha
 
 ### ==== Menu ====
 
