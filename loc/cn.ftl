@@ -4,7 +4,7 @@ language-name = 中文（简体）
 ### ==== Splash screen ====
 
 # First line at the bottom of the screen.
-splash-legal = 版权所有 © 2020-2022 squ1dd13。根据麻省理工学院许可协议（MIT许可协议）获得许可。
+splash-legal = 版权所有 © 2020-2022 squ1dd13, AYZM, ODIN, RAiZOK, tharryz. 根据麻省理工学院许可协议（MIT许可协议）获得许可。
 
 # Second line.
 splash-fun = 中国的朋友们你们好！祝你们玩得愉快！于英国倾情制作。由tharryz将其翻译为中文（简体）。
