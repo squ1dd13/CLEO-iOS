@@ -1,13 +1,13 @@
 # Used in the settings menu to show the name of the language.
-language-name = English
+language-name = Nederlands
 
 ### ==== Splash screen ====
 
 # First line at the bottom of the screen.
-splash-legal = Copyright © 2020-2022 squ1dd13. Licenced under the MIT License.
+splash-legal = Copyright © 2020-2022 squ1dd13. Dit programma valt onder de MIT licentie.
 
 # Second line.
-splash-fun = Made with love in the United Kingdom. Have fun!
+splash-fun = Met liefde gemaakt in engeland. Veel plezier!
 
 # {""} is just an empty string. Leave this empty if you don't want your name shown. Alternatively,
 # you can use this to say you made the translation. It will show up on the splash screen after the
@@ -15,7 +15,7 @@ splash-fun = Made with love in the United Kingdom. Have fun!
 #
 # For example:
 #  translator-tag = Translated into English by squ1dd13.
-translator-tag = {""}
+translator-tag = Nederlandse vertaaling door @wewewer1#1427
 
 ### ==== Updates ====
 
@@ -24,10 +24,10 @@ translator-tag = {""}
 # in English for now. I plan to add Unicode support here in the future.
 
 # Displayed at the top of the update screen.
-update-prompt-title = Update Available
+update-prompt-title = Er is een nieuwe versie beschikbaar.
 
 # Message shown on the update screen. { $new_version } will be replaced with the update's version number.
-update-prompt-message = CLEO version { $new_version } is available. Do you want to go to GitHub to download it?"
+update-prompt-message = CLEO versie { $new_version } is verkrijgbaar. Wil je naar Github gaan om de update te downloaden?"
 
 # todo: Add "Yes" and "No" for update menu to localisation files.
 # The yes/no options are part of the game, so they're not directly in CLEO's control (yet).
