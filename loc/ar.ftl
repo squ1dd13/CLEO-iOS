@@ -4,7 +4,7 @@ language-name = العربيه
 ### ==== Splash screen ====
 
 # First line at the bottom of the screen.
-splash-legal = حقوق النشر © 2020-2022 squ1dd13. مرخصة بموجب ترخيص معهد ماساتشوستس للتكنولوجيا.
+splash-legal = الحقوق © 2020-2022 squ1dd13, AYZM, ODIN, RAiZOK, tharryz. MIT مرخصة بموجب ترخيص
 
 # Second line.
 splash-fun = صنعت وبحب في المملكة المتحدة.  ترجمت الى العربيه بواسطة RAiZOK. استمتع
