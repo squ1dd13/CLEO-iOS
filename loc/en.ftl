@@ -27,7 +27,7 @@ translator-tag = {""}
 update-prompt-title = Update Available
 
 # Message shown on the update screen. { $new_version } will be replaced with the update's version number.
-update-prompt-message = CLEO version { $new_version } is available. Do you want to go to GitHub to download it?"
+update-prompt-message = CLEO version { $new_version } is available. Do you want to go to GitHub to download it?
 
 # todo: Add "Yes" and "No" for update menu to localisation files.
 # The yes/no options are part of the game, so they're not directly in CLEO's control (yet).
