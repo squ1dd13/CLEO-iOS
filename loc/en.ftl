@@ -9,14 +9,6 @@ splash-legal = Copyright © 2020-2022 squ1dd13. Licenced under the MIT License.
 # Second line.
 splash-fun = Made with love in the United Kingdom. Have fun!
 
-# {""} is just an empty string. Leave this empty if you don't want your name shown. Alternatively,
-# you can use this to say you made the translation. It will show up on the splash screen after the
-# `splash-fun` message.
-#
-# For example:
-#  translator-tag = Translated into English by squ1dd13.
-translator-tag = {""}
-
 ### ==== Updates ====
 
 # PLEASE NOTE: The update menu is currently made from a game menu, and the game fonts do not
@@ -39,7 +31,7 @@ update-release-channel-opt-desc = Which CLEO updates you get notifications for. 
 
 update-release-channel-opt-disabled = Disabled
 update-release-channel-opt-stable = Stable
-update-release-channel-opt-disabled = Alpha
+update-release-channel-opt-alpha = Alpha
 
 ### ==== Menu ====
 

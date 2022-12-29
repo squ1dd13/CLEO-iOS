@@ -7,15 +7,7 @@ language-name = العربيه
 splash-legal = حقوق النشر © 2020-2022 squ1dd13. مرخصة بموجب ترخيص معهد ماساتشوستس للتكنولوجيا.
 
 # Second line.
-splash-home = صنعت وبحب في المملكة المتحدة.  ترجمت الى العربيه بواسطة RAiZOK. استمتع
-
-# {""} is just an empty string. Leave this empty if you don't want your name shown. Alternatively,
-# you can use this to say you made the translation. It will show up on the splash screen after the
-# `splash-fun` message.
-#
-# For example:
-#  translator-tag = Translated into English by squ1dd13.
-translator-tag = ترجمت الى العربيه بواسطة RAiZOK
+splash-fun = صنعت وبحب في المملكة المتحدة.  ترجمت الى العربيه بواسطة RAiZOK. استمتع
 
 ### ==== Updates ====
 
@@ -39,7 +31,7 @@ update-release-channel-opt-desc = تحديثات cleo التي تحصل على �
 
 update-release-channel-opt-disabled = معطل
 update-release-channel-opt-stable = مستقر
-update-release-channel-opt-disabled = ألفا
+update-release-channel-opt-alpha = ألفا
 
 ### ==== Menu ====
 
