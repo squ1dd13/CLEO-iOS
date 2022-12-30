@@ -101,9 +101,9 @@ fn show_update_prompt(screen: *mut u8, (update_ver, update_url): (Version, Strin
     }
 
     fn on_no(raw_url_box: usize) {
-        let url = unbox_string(raw_url_box);
+        // let url = unbox_string(raw_url_box);
 
-        log::info!("User rejected update. URL was {}.", url);
+        // log::info!("User rejected update. URL was {}.", url);
     }
 
     show_yes_no_menu(

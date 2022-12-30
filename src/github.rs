@@ -261,12 +261,12 @@ fn user_wants_alpha() -> bool {
     matches!(Options::get().release_channel, ReleaseChannel::Alpha)
 }
 
-/// Returns the most stable version of CLEO after or including the given version.
-fn most_stable_from(min_ver: Version) -> Result<Option<(Version, String)>> {
+/// Returns the most stable version of CLEO after the given version.
+fn most_stable_after(min_ver: Version) -> Result<Option<(Version, String)>> {
     Ok(fetch_releases()?
         .into_iter()
-        // Only include releases that are newer than or the same as the given version.
-        .filter(|(version, _)| version >= &min_ver)
+        // Only include releases that are newer than the given version.
+        .filter(|(version, _)| version > &min_ver)
         // Find a stable version, or just take the first version available. The releases are sorted
         // in descending order by version number, so if we can't find a stable release then we just
         // use whatever the latest version is and assume that it's the most stable.
@@ -286,7 +286,7 @@ fn fetch_available_update() -> Result<Option<(Version, String)>> {
         // If the user doesn't want to receive alpha updates, get them on the most stable version.
         // If they're already on an alpha version, this will update them to the latest alpha, with
         // the idea being that a newer alpha will be more stable.
-        return most_stable_from(current_version);
+        return most_stable_after(current_version);
     }
 
     // If the user wants to receive alpha updates, just find the latest version, regardless of
