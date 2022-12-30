@@ -2,9 +2,7 @@
 
 <!-- I love badges :D -->
 
-[![Discord](https://img.shields.io/discord/767478053139775528?color=7289DA&label=DISCORD&style=for-the-badge)](https://discord.gg/cXwkTUasJU) ![Downloads](https://img.shields.io/github/downloads/squ1dd13/CLEO-iOS/total?style=for-the-badge) ![Licence](https://img.shields.io/github/license/squ1dd13/CLEO-iOS?style=for-the-badge) [![Patreon](https://img.shields.io/endpoint.svg?url=https%3A%2F%2Fshieldsio-patreon.vercel.app%2Fapi%3Fusername%3Dsqu1dd13%26type%3Dpatrons&style=for-the-badge)](https://patreon.com/squ1dd13)
-
-[**Support CLEO iOS on Patreon**](https://www.patreon.com/squ1dd13)
+[![Discord](https://img.shields.io/discord/767478053139775528?color=7289DA&label=DISCORD&style=for-the-badge)](https://discord.gg/cXwkTUasJU) ![Downloads](https://img.shields.io/github/downloads/squ1dd13/CLEO-iOS/total?style=for-the-badge) ![Licence](https://img.shields.io/github/license/squ1dd13/CLEO-iOS?style=for-the-badge)
 
 [**Join the Discord server for support, info and script suggestions**](https://discord.gg/cXwkTUasJU)
 
