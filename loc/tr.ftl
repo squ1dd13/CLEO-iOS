@@ -3,7 +3,7 @@ language-name = Turkce
 ### ==== Splash screen ====
 
 # First line at the bottom of the screen.
-splash-legal = Telif Hakki © 2020-2022 squ1dd13. MIT Lisansi Altinda Lisanslanmistir.
+splash-legal = Telif Hakki © 2020-2022 squ1dd13, AYZM, ODIN, RAiZOK, tharryz. MIT Lisansi Altinda Lisanslanmistir.
 
 # Second line.
 splash-fun = Turklere Merhaba! Ceviri Berkakahs. Ingiltere'de sevgilerle yapildi. Iyi eglenceler!
