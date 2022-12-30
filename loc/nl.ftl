@@ -223,23 +223,23 @@ cheat-rocketman = Breng een jetpack de wereld in
 
 # The vehicle names (in capitals) should not be changed, as they are part of the game. The
 # descriptions (in brackets) do need to be translated.
-cheat-time-to-kick-ass = laat een Rihno (leger tank) de wereld in brengen
-cheat-old-speed-demon = laat een Bloodring Banker (demolition derby car) de wereld in brengen
-cheat-tinted-rancher = laat een Rancher met getint glas (twee-deur SUV) de wereld in brengen
-cheat-not-for-public-roads = laat een Hotring Racer A (race auto) de wereld in brengen
-cheat-just-try-and-stop-me = laat een Hotring Racer B (race auto) de wereld in brengen
-cheat-wheres-the-funeral = laat een Romero (lijkwagen) de wereld in brengen
-cheat-celebrity-status = laat een Stretch Limousine (limousine) de wereld in brengen
-cheat-true-grime = laat een Spawn Trashmaster (vuilniswagen) de wereld in brengen
-cheat-18-holes = laat een Caddy (golf karretje) de wereld in brengen
-cheat-jump-jet = laat een Hydra (VTOL gevechtsstraaljager) de wereld in brengen
-cheat-i-want-to-hover = laat een Vortex (zweefwagen) de wereld in brengen
-cheat-oh-dude = laat een Hunter (military attack helicopter) de wereld in brengen
-cheat-four-wheel-fun = laat een Quad (quad) de wereld in brengen
-cheat-hit-the-road-jack = laat een Tanker met aanhangwagen (tanker truck) de wereld in brengen
-cheat-its-all-bull = laat een Dozer (bulldozer) de wereld in brengen
-cheat-flying-to-stunt = laat een Stunt Plane (stunt vliegtuig) de wereld in brengen
-cheat-monster-mash = laat een Monster Truck (monster truck) de wereld in brengen
+cheat-time-to-kick-ass = breng een Rihno (leger tank) de wereld in
+cheat-old-speed-demon = breng een Bloodring Banker (demolition derby car) de wereld in
+cheat-tinted-rancher = breng een Rancher met getint glas (twee-deur SUV) de wereld in
+cheat-not-for-public-roads = breng een Hotring Racer A (race auto) de wereld in
+cheat-just-try-and-stop-me = breng een Hotring Racer B (race auto) de wereld in
+cheat-wheres-the-funeral = breng een Romero (lijkwagen) de wereld in
+cheat-celebrity-status = breng een Stretch Limousine (limousine) de wereld in
+cheat-true-grime = breng een Spawn Trashmaster (vuilniswagen) de wereld in
+cheat-18-holes = breng een Caddy (golf karretje) de wereld in
+cheat-jump-jet = breng een Hydra (VTOL gevechtsstraaljager) de wereld in
+cheat-i-want-to-hover = breng een Vortex (zweefwagen) de wereld in
+cheat-oh-dude = breng een Hunter (military attack helicopter) de wereld in
+cheat-four-wheel-fun = breng een Quad (quad) de wereld in
+cheat-hit-the-road-jack = breng een Tanker met aanhangwagen (tanker truck) de wereld in
+cheat-its-all-bull = breng een Dozer (bulldozer) de wereld in
+cheat-flying-to-stunt = breng een Stunt Plane (stunt vliegtuig) de wereld in
+cheat-monster-mash = breng een Monster Truck (monster truck) de wereld in
 
 ## Gang recruitment
 cheat-wanna-be-in-my-gang = werf iedereen je gang in en geef ze een pistoon door op ze te richten met een pistool
