@@ -30,7 +30,7 @@ update-release-channel-opt-desc = Na které aktualizace dostáváte oznámení. 
 
 update-release-channel-opt-disabled = Zakázáno
 update-release-channel-opt-stable = Stabilní
-update-release-channel-opt-disabled = Alpha
+update-release-channel-opt-alpha = Alpha
 
 ### ==== Menu ====
 
