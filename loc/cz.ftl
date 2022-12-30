@@ -4,7 +4,7 @@ language-name = čeština
 ### ==== Splash screen ====
 
 # First line at the bottom of the screen.
-splash-legal = Autorská práva © 2020-2022 squ1dd13. Licencováno pod licencí MIT.
+splash-legal = Autorská práva © 2020-2022 squ1dd13, AYZM, ODIN, RAiZOK, tharryz. Licencováno pod licencí MIT.
 
 # Second line.
 splash-fun = Ahoj, čeští kamarádi! CLEO se přeložilo do češtiny tharryzem. Bavte se s hrou! Vyrobeno s láskou ve Velké Británii.
