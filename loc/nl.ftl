@@ -7,7 +7,7 @@ language-name = Nederlands
 splash-legal = Copyright © Copyright :copyright: 2020-2022 squ1dd13, AYZM, ODIN, RAiZOK, tharryz, wewewer1. Dit programma valt onder de MIT licentie.
 
 # Second line.
-splash-fun = Met liefde gemaakt in engeland. Veel plezier!
+splash-fun = Met plezier gemaakt in engeland. Veel plezier!
 
 # {""} is just an empty string. Leave this empty if you don't want your name shown. Alternatively,
 # you can use this to say you made the translation. It will show up on the splash screen after the
@@ -166,7 +166,7 @@ cheat-debug-tap-to-target = Debug (show tap to target)
 cheat-debug-targeting = Debug (show targeting)
 
 ## Properly cheating
-cheat-i-need-some-help = Geef leven, schild em $250,000
+cheat-i-need-some-help = Geef leven, schild en $250,000
 cheat-skip-mission = Sla sommige missies automatisch over
 
 ## Superpowers
@@ -243,15 +243,15 @@ cheat-monster-mash = laat een Monster Truck (monster truck) de wereld in brengen
 
 ## Gang recruitment
 cheat-wanna-be-in-my-gang = werf iedereen je gang in en geef ze een pistoon door op ze te richten met een pistool
-cheat-noone-can-stop-us = Recruit anyone into your gang and give them an AK-47 by aiming an AK-47 at them
-cheat-rocket-mayhem = Recruit anyone into your gang and give them an RPG by aiming an RPG at them
+cheat-noone-can-stop-us = werf iedereen je gang in en geef ze een AK-47 door op ze te richten met een AK-47
+cheat-rocket-mayhem = werf iedereen je gang in en geef ze een RPG door op ze te richten met een RPG
 
 ## Traffic
 cheat-all-drivers-are-criminals = All NPC drivers drive aggressively and have a wanted level
-cheat-pink-is-the-new-cool = Pink traffic
-cheat-so-long-as-its-black = Black traffic
-cheat-everyone-is-poor = Rural traffic
-cheat-everyone-is-rich = Sports car traffic
+cheat-pink-is-the-new-cool = Roze verkeer
+cheat-so-long-as-its-black = Rwart verkeer
+cheat-everyone-is-poor = Plattelands verkeer
+cheat-everyone-is-rich = Sport verkeer
 
 ## Pedestrians
 cheat-rough-neighbourhood = Give player golf club and make pedestrians riot
