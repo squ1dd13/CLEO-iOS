@@ -150,7 +150,7 @@ cheat-weapons-4 = 获得假阳具，加特林机枪和夜视仪。
 
 ## Debug cheats
 cheat-debug-mappings = 排错 (显示地图)
-cheat-debug-tap-to-target = 排错 (显示按键及瞄准器)
+cheat-debug-tap-to-target = 排错 (显示点击定位)
 cheat-debug-targeting = 排错 (显示目标)
 
 ## Properly cheating

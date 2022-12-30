@@ -280,7 +280,7 @@ cheat-dont-try-and-stop-me = إشارات المرور خضراء دائمًا
 cheat-flying-fish = القوارب تطير
 
 ## Weapon usage
-cheat-full-clip = كل شخص لديه ذخيرة لا نهائيةZ
+cheat-full-clip = كل شخص لديه ذخيرة لا نهائية
 cheat-i-wanna-driveby = التحكم الكامل للسلاح في المركبات
 
 ## Player effects
