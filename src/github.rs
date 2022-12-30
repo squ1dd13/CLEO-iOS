@@ -1,4 +1,11 @@
-use std::{cmp::Ordering, fmt::Display, fs::File, path::PathBuf, sync::Mutex, time::Duration};
+use std::{
+    cmp::Ordering,
+    fmt::Display,
+    fs::File,
+    path::PathBuf,
+    sync::{Mutex, MutexGuard},
+    time::Duration,
+};
 
 use eyre::Result;
 use itertools::Itertools;
@@ -110,6 +117,11 @@ impl Version {
         }
     }
 
+    /// Returns the URL of the release on GitHub.
+    pub fn url(self) -> String {
+        format!("https://github.com/squ1dd13/CLEO-iOS/releases/tag/{}", self)
+    }
+
     /// Returns true if this version is a stable release.
     fn is_stable(self) -> bool {
         matches!(self, Version::Stable(_))
@@ -165,7 +177,7 @@ impl Ord for Version {
 }
 
 /// Fetches all of the available CLEO releases from GitHub.
-fn fetch_releases_from_github() -> Result<impl Iterator<Item = (Version, String)>> {
+fn fetch_releases_from_github() -> Result<impl Iterator<Item = Version>> {
     let client = reqwest::blocking::Client::new();
 
     let response = client
@@ -182,9 +194,24 @@ fn fetch_releases_from_github() -> Result<impl Iterator<Item = (Version, String)
 
     Ok(releases.into_iter().filter_map(move |release| {
         let version = Version::parse(release.get("tag_name")?.as_str()?)?;
-        let url = release.get("html_url")?.as_str()?.to_string();
 
-        Some((version, url))
+        // We need to ensure that the URL that `Version` gives matches the URL that GitHub gave us.
+        // If they don't match, one of them is bad.
+        let gh_url = release.get("html_url")?.as_str()?;
+        let ver_url = version.url();
+
+        if gh_url != ver_url {
+            log::error!(
+                "update URL mismatch: gh said {} but we said {}",
+                gh_url,
+                ver_url
+            );
+
+            // This version is invalid.
+            return None;
+        }
+
+        Some(version)
     }))
 }
 
@@ -195,7 +222,7 @@ fn release_cache_path() -> PathBuf {
 
 /// Attempts to load the list of CLEO releases from the cache, returning the releases and the cache
 /// age on success.
-fn load_releases_from_cache() -> Result<(Vec<(Version, String)>, Duration)> {
+fn load_releases_from_cache() -> Result<(Vec<Version>, Duration)> {
     let cache_path = release_cache_path();
 
     let versions = bincode::deserialize_from(File::open(&cache_path)?)?;
@@ -205,7 +232,7 @@ fn load_releases_from_cache() -> Result<(Vec<(Version, String)>, Duration)> {
 }
 
 /// Updates the cached list of CLEO versions.
-fn update_cached_releases(releases: &Vec<(Version, String)>) -> Result<()> {
+fn update_cached_releases(releases: &Vec<Version>) -> Result<()> {
     bincode::serialize_into(
         &mut File::options()
             .create(true)
@@ -218,20 +245,20 @@ fn update_cached_releases(releases: &Vec<(Version, String)>) -> Result<()> {
 }
 
 /// Sorts a vector of versions such that the latest versions are at the start.
-fn sort_newest_first(versions: &mut [(Version, String)]) {
-    versions.sort_unstable_by_key(|(v, _)| *v);
+fn sort_newest_first(versions: &mut [Version]) {
+    versions.sort_unstable_by_key(|v| *v);
     versions.reverse();
 }
 
 /// Returns the known versions of CLEO, sorted in descending order of version number. This may or
 /// may not fetch from GitHub, depending on when the last check took place.
-fn fetch_releases() -> Result<Vec<(Version, String)>> {
+fn fetch_releases() -> Result<Vec<Version>> {
     if let Ok((mut versions, age)) = load_releases_from_cache() {
         /// The maximum age in seconds that the cache file can be before we stop trusting it and
         /// fetch from GitHub again. A lower value means update checks happen more frequently, so
         /// people will update sooner, but increases the risk of GitHub getting annoyed at how
         /// often the API is being used for CLEO's repository.
-        const MAX_CACHE_AGE_SECS: u64 = 3 * 60 * 60;
+        const MAX_CACHE_AGE_SECS: u64 = 2 * 60 * 60;
 
         if age.as_secs() <= MAX_CACHE_AGE_SECS {
             sort_newest_first(&mut versions);
@@ -261,32 +288,27 @@ fn user_wants_alpha() -> bool {
     matches!(Options::get().release_channel, ReleaseChannel::Alpha)
 }
 
-/// Returns the most stable version of CLEO after or including the given version.
-fn most_stable_from(min_ver: Version) -> Result<Option<(Version, String)>> {
+/// Returns the most stable version of CLEO after the given version.
+fn most_stable_after(min_ver: Version) -> Result<Option<Version>> {
     Ok(fetch_releases()?
         .into_iter()
-        // Only include releases that are newer than or the same as the given version.
-        .filter(|(version, _)| version >= &min_ver)
+        // Only include releases that are newer than the given version.
+        .filter(|version| version > &min_ver)
         // Find a stable version, or just take the first version available. The releases are sorted
         // in descending order by version number, so if we can't find a stable release then we just
         // use whatever the latest version is and assume that it's the most stable.
-        .find_or_first(|(version, _)| version.is_stable()))
+        .find_or_first(|version| version.is_stable()))
 }
 
 /// Returns the version and URL of an available update, if there is one.
-fn fetch_available_update() -> Result<Option<(Version, String)>> {
-    if let ReleaseChannel::None = Options::get().release_channel {
-        log::warn!("Skipping update check because user has opted out of updates.");
-        return Ok(None);
-    }
-
+fn fetch_available_update() -> Result<Option<Version>> {
     let current_version = current_version();
 
     if !user_wants_alpha() {
         // If the user doesn't want to receive alpha updates, get them on the most stable version.
         // If they're already on an alpha version, this will update them to the latest alpha, with
         // the idea being that a newer alpha will be more stable.
-        return most_stable_from(current_version);
+        return most_stable_after(current_version);
     }
 
     // If the user wants to receive alpha updates, just find the latest version, regardless of
@@ -295,13 +317,13 @@ fn fetch_available_update() -> Result<Option<(Version, String)>> {
         let release = releases.first().cloned()?;
 
         // Only return the release if it's actually an update.
-        if release.0 > current_version {
-            log::info!("{} is newer than {current_version}", release.0);
+        if release > current_version {
+            log::info!("{} is newer than {current_version}", release);
             Some(release)
         } else {
             log::info!(
-                "Ignoring {} because it's older than the current version ({current_version}).",
-                release.0
+                "Ignoring {} because it's <= the current version ({current_version}).",
+                release
             );
 
             None
@@ -309,30 +331,48 @@ fn fetch_available_update() -> Result<Option<(Version, String)>> {
     })
 }
 
-pub type CheckResult = Result<Option<(Version, String)>>;
+/// Update check statuses.
+pub enum CheckStatus {
+    /// The check hasn't started yet.
+    NotStarted,
 
-lazy_static::lazy_static! {
-    static ref UPDATE_CHECK_RESULT: Mutex<Option<CheckResult>> = Mutex::new(None);
+    /// The check hasn't finished yet.
+    NotFinished,
+
+    /// The check has finished.
+    Finished(Result<Option<Version>>),
 }
 
-/// Starts a background thread which will check for an update. This function does not block;
-/// instead, the `take_check_result` function should be called periodically while waiting for a
-/// result.
-pub fn start_update_check_thread() {
-    std::thread::spawn(|| {
-        let check_result = fetch_available_update();
+static UPDATE_CHECK_RESULT: Mutex<CheckStatus> = Mutex::new(CheckStatus::NotStarted);
 
-        *UPDATE_CHECK_RESULT
-            .lock()
-            .expect("Failed to lock check result") = Some(check_result);
-    });
-}
-
-/// Returns the result of the update check, if the check has finished. All subsequent calls to this
-/// function will return `None` until another update check has completed.
-pub fn take_check_result() -> Option<CheckResult> {
+/// Returns the current status of the update check.
+pub fn get_check_status() -> MutexGuard<'static, CheckStatus> {
     UPDATE_CHECK_RESULT
         .lock()
         .expect("Failed to lock check result")
-        .take()
+}
+
+/// Sets the update check status.
+fn set_check_status(status: CheckStatus) {
+    *get_check_status() = status;
+}
+
+/// Starts a background thread which will check for an update. This function does not block. The
+/// `get_check_status` function should be called to obtain the check status.
+pub fn start_update_check_thread() {
+    if let ReleaseChannel::None = Options::get().release_channel {
+        log::warn!("Skipping update check because user has opted out of updates.");
+        set_check_status(CheckStatus::Finished(Ok(None)));
+
+        return;
+    }
+
+    std::thread::spawn(|| {
+        set_check_status(CheckStatus::NotFinished);
+
+        // Block the thread while we fetch the update.
+        let check_result = fetch_available_update();
+
+        set_check_status(CheckStatus::Finished(check_result));
+    });
 }

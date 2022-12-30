@@ -215,7 +215,7 @@ cheat-rocketman = احضار حقيبة نفاثه
 
 # The vehicle names (in capitals) should not be changed, as they are part of the game. The
 # descriptions (in brackets) do need to be translated.
-cheat-time-to-kick-ass = احضار Rhino (دبابط الجيش)
+cheat-time-to-kick-ass = احضار Rhino (دبابة الجيش)
 cheat-old-speed-demon = احضار Bloodring Banger (سيارة سباق)
 cheat-tinted-rancher = احضار Rancher with tinted windows (سيارة لها بابين)
 cheat-not-for-public-roads = احضار Hotring Racer A (سيارة سباق 1)

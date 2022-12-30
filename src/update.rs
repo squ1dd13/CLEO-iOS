@@ -1,7 +1,11 @@
 //! Interfaces with the GitHub API to determine if a CLEO update is available, and manages
 //! the version cache.
 
-use crate::{call_original, github::Version, hook, text};
+use crate::{
+    call_original,
+    github::{CheckStatus, Version},
+    hook, text,
+};
 
 use objc::{runtime::Object, *};
 
@@ -27,7 +31,7 @@ fn show_yes_no_menu(
     message: impl AsRef<str>,
     callback_arg: usize,
     yes_fn: fn(usize),
-    no_fn: fn(usize),
+    no_fn: fn(),
 ) {
     unsafe {
         screen.offset(0x75).write(0);
@@ -44,7 +48,7 @@ fn show_yes_no_menu(
     let menu = hook::slide::<fn(u64) -> usize>(0x1004f9be0)(0x80);
 
     // eq: MobileMenu::InitForNag(...)
-    hook::slide::<fn(usize, *const u8, *const u8, fn(usize), usize, fn(usize), bool) -> u64>(
+    hook::slide::<fn(usize, *const u8, *const u8, fn(usize), usize, fn(), bool) -> u64>(
         0x100348964,
     )(
         menu,                  // Menu structure (uninitialised before call)
@@ -72,38 +76,24 @@ fn show_yes_no_menu(
 }
 
 /// Shows the user a yes/no prompt asking if they'd like to update.
-fn show_update_prompt(screen: *mut u8, (update_ver, update_url): (Version, String)) {
-    // We can't capture any variables in our callback functions, because they have to be
-    // C-compatible function pointers. This is a problem, because the 'yes' callback needs to be
-    // able to open the URL given to this function. Luckily, we have an 8-byte value that we can
-    // pass to the menu that will be passed to our callbacks. We use this to store a boxed pointer
-    // to the URL in raw form (`*mut String`). It is very important that we turn this back into a
-    // `Box` and drop it in _both_ callbacks in order to free the memory when we no longer need it.
+fn show_update_prompt(screen: *mut u8, update_ver: Version) {
+    fn on_yes(_: usize) {
+        let version =
+            if let CheckStatus::Finished(Ok(Some(version))) = *crate::github::get_check_status() {
+                version
+            } else {
+                panic!("User answered 'yes' to update, but no update found");
+            };
 
-    // `Box<String>` is normally frowned upon, but we don't have much of a choice here: we need an
-    // 8-byte pointer only, and `Box<str>` can only be converted to a fat pointer, which won't fit
-    // in the space we have.
-    let raw_url_box = Box::into_raw(Box::new(update_url));
+        let url = version.url();
 
-    fn unbox_string(raw: usize) -> String {
-        unsafe {
-            let raw_box = raw as *mut String;
-            *Box::from_raw(raw_box)
-        }
-    }
-
-    fn on_yes(raw_url_box: usize) {
-        let url = unbox_string(raw_url_box);
-
-        log::info!("User accepted update. Heading to {}...", url);
+        log::info!("User accepted update to {}. Heading to {}...", version, url);
 
         open_url(url);
     }
 
-    fn on_no(raw_url_box: usize) {
-        let url = unbox_string(raw_url_box);
-
-        log::info!("User rejected update. URL was {}.", url);
+    fn on_no() {
+        log::info!("User rejected update.");
     }
 
     show_yes_no_menu(
@@ -112,7 +102,7 @@ fn show_update_prompt(screen: *mut u8, (update_ver, update_url): (Version, Strin
         format!(
             "CLEO version {update_ver} is available. Do you want to go to GitHub to download it?"
         ),
-        raw_url_box as usize,
+        0,
         on_yes,
         on_no,
     );
@@ -124,15 +114,21 @@ fn init_for_title(screen: *mut u8) {
     // Set up the title menu.
     call_original!(crate::targets::init_for_title, screen);
 
-    if let Some(result) = crate::github::take_check_result() {
-        match result {
-            Ok(Some(update)) => {
-                show_update_prompt(screen, update);
-            }
+    match &*crate::github::get_check_status() {
+        CheckStatus::NotStarted => log::info!("Update check never started"),
+        CheckStatus::NotFinished => log::warn!("Update check took too long"),
+        CheckStatus::Finished(result) => match result {
+            Ok(update) => match update {
+                Some(update) => {
+                    log::info!("Check successful. Found update: {}", update);
+                    show_update_prompt(screen, *update);
+                }
 
-            Ok(None) => log::info!("No update available"),
-            Err(err) => log::error!("Error while checking for update: {:?}", err),
-        }
+                None => log::info!("Check successful, but no update available"),
+            },
+
+            Err(err) => log::error!("Update check failed: {:?}", err),
+        },
     }
 }
 
