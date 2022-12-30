@@ -19,7 +19,7 @@ splash-fun = صنعت وبحب في المملكة المتحدة.  ترجمت �
 update-prompt-title = يوجد تحديث متوفر
 
 # Message shown on the update screen. { $new_version } will be replaced with the update's version number.
-update-prompt-message = اصدار cleo { $new_version } متاح. هل تريد الانتقال إلى GitHub لتنزيله؟ "
+update-prompt-message = اصدار cleo { $new_version } متاح. هل تريد الانتقال إلى GitHub لتنزيله؟
 
 # todo: Add "Yes" and "No" for update menu to localisation files.
 # The yes/no options are part of the game, so they're not directly in CLEO's control (yet).
