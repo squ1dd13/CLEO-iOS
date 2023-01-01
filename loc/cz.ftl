@@ -1,13 +1,13 @@
-﻿# Used in the settings menu to show the name of the language.
+# Used in the settings menu to show the name of the language.
 language-name = čeština
 
 ### ==== Splash screen ====
 
 # First line at the bottom of the screen.
-splash-legal = Autorská práva © 2020-2023 squ1dd13, AYZM, ODIN, RAiZOK, tharryz, wewewer1. Licencováno pod licencí MIT.
+splash-legal = Autorské právo © 2020-2023 squ1dd13, AYZM, ODIN, RAiZOK, tharryz, wewewer1. Licencováno pod licencí MIT.
 
 # Second line.
-splash-fun = Ahoj, čeští kamarádi! CLEO se přeložilo do češtiny tharryzem. Bavte se s hrou! Vyrobeno s láskou ve Velké Británii.
+splash-fun = Ahoj, čeští kamarádi! CLEO se přeložilo do češtiny tharryzem. Bavte se s hrou! Příjemnou zábavu! Vyrobeno s láskou ve Velké Británii.
 
 ### ==== Updates ====
 
