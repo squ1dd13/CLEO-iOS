@@ -254,65 +254,65 @@ cheat-everyone-is-poor = Plattelands verkeer
 cheat-everyone-is-rich = Sport verkeer
 
 ## Pedestrians
-cheat-rough-neighbourhood = Give player golf club and make pedestrians riot
-cheat-stop-picking-on-me = Pedestrians attack the player
-cheat-surrounded-by-nutters = Give pedestrians weapons
-cheat-blue-suede-shoes = All pedestrians are Elvis Presley
-cheat-attack-of-the-village-people = Pedestrians attack the player with guns and rockets
-cheat-only-homies-allowed = Gang members everywhere
-cheat-better-stay-indoors = Gangs control the streets
-cheat-state-of-emergency = Pedestrians riot
-cheat-ghost-town = Reduced live traffic and no pedestrians
+cheat-rough-neighbourhood = Geef de speler een golfclub en zorg ervoor dat voetgangers in opstand komen
+cheat-stop-picking-on-me = Voetgangers vallen de speler aan
+cheat-surrounded-by-nutters = Geef voetgangers wapens
+cheat-blue-suede-shoes = Alle voetgangers zijn Elvis Presley
+cheat-attack-of-the-village-people = Voetgangers vallen de speler aan met geweeren en raketten
+cheat-only-homies-allowed = Gang leden overal
+cheat-better-stay-indoors = Gangs nemen de straten over
+cheat-state-of-emergency = Voetgangers komen in opstand
+cheat-ghost-town = Minder verkeer en geen voetgangers
 
 ## Themes
-cheat-ninja-town = Triad theme
-cheat-love-conquers-all = Pimp theme
-cheat-lifes-a-beach = Beach party theme
-cheat-hicksville = Rural theme
-cheat-crazy-town = Carnival theme
+cheat-ninja-town = overal zijn er Triad mensen
+cheat-love-conquers-all = overal zijn er Pimp mensen
+cheat-lifes-a-beach = overal zijn er Beach party mensen
+cheat-hicksville = overal zijn er Rural mensen
+cheat-crazy-town = overal zijn er Carnival mensen
 
 ## General vehicle cheats
-cheat-all-cars-go-boom = Explode all vehicles
-cheat-wheels-only-please = Invisible vehicles
-cheat-sideways-wheels = Cars have sideways wheels
-cheat-speed-freak = All cars have nitro
-cheat-cool-taxis = Taxis have hydraulics and nitro
+cheat-all-cars-go-boom = Laat alle voertuigen exploderen
+cheat-wheels-only-please = Maak voertuigen onzichtbaar
+cheat-sideways-wheels = De wielen van autos staan gedraaid
+cheat-speed-freak = Alle autos hebben nitro
+cheat-cool-taxis = Taxis hebben hydraulica en nitro
 
 ## Vehicle cheats for the player
-cheat-chitty-chitty-bang-bang = Flying cars
-cheat-cj-phone-home = Very high bunny hops
-cheat-touch-my-car-you-die = Destroy other vehicles on collision
-cheat-bubble-cars = Cars float away when hit
-cheat-stick-like-glue = Improved suspension and handling
-cheat-dont-try-and-stop-me = Traffic lights are always green
-cheat-flying-fish = Flying boats
+cheat-chitty-chitty-bang-bang = Vliegende autos
+cheat-cj-phone-home = Heel erg hoge bunny hops
+cheat-touch-my-car-you-die = Sloop andere voertuigen als je ze aanraakt
+cheat-bubble-cars = Autos weven weg als ze geraakt worden
+cheat-stick-like-glue = Betere ophanging en bestuurbaarheid
+cheat-dont-try-and-stop-me = Verkeerslichten staan altijd op groen
+cheat-flying-fish = Vliegende boten
 
 ## Weapon usage
-cheat-full-clip = Everyone has unlimited ammunition
-cheat-i-wanna-driveby = Full weapon control in vehicles
+cheat-full-clip = Iedereen heeft oneindige kogels
+cheat-i-wanna-driveby = volledig wapen werking in voortuigen
 
 ## Player effects
-cheat-goodbye-cruel-world = Suicide
-cheat-take-a-chill-pill = Adrenaline effects
-cheat-prostitutes-pay = Prostitutes pay you
+cheat-goodbye-cruel-world = Zelfmoord
+cheat-take-a-chill-pill = Adrenaline effecten
+cheat-prostitutes-pay = Prostituees betalen jou
 
 ## Miscellaneous
-cheat-xbox-helper = Adjust stats to be close to getting Xbox achievements
+cheat-xbox-helper = zet je stats zodat je bijna de Xbox prestaties hebt
 
 ## Pointless cheats
 
 # Tells the user that a cheat will ALWAYS crash their game.
--cheat-crash-warning = CRASHES!
+-cheat-crash-warning = LAAT HET SPEL VASTLOPEN!
 
 cheat-slot-melee = { -cheat-crash-warning } Melee slot
-cheat-slot-handgun = { -cheat-crash-warning } Handgun slot
+cheat-slot-handgun = { -cheat-crash-warning } pistool slot
 cheat-slot-smg = { -cheat-crash-warning } SMG slot
 cheat-slot-shotgun = { -cheat-crash-warning } Shotgun slot
-cheat-slot-assault-rifle = { -cheat-crash-warning } Assault rifle slot
-cheat-slot-long-rifle = { -cheat-crash-warning } Long rifle slot
-cheat-slot-thrown = { -cheat-crash-warning } Thrown weapon slot
+cheat-slot-assault-rifle = { -cheat-crash-warning } Assault geweer slot
+cheat-slot-long-rifle = { -cheat-crash-warning } Lang geweer slot
+cheat-slot-thrown = { -cheat-crash-warning } Gooi wapen slot
 cheat-slot-heavy = { -cheat-crash-warning } Heavy artillery slot
-cheat-slot-equipment = { -cheat-crash-warning } Equipment slot
-cheat-slot-other = { -cheat-crash-warning } Other slot
+cheat-slot-equipment = { -cheat-crash-warning } Apperatuur slot
+cheat-slot-other = { -cheat-crash-warning } Rest slot
 
-cheat-predator = Does nothing
+cheat-predator = Doet niks
