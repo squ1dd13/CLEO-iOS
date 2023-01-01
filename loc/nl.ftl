@@ -239,7 +239,7 @@ cheat-noone-can-stop-us = Werf iedereen je gang in en geef ze een AK-47 door op 
 cheat-rocket-mayhem = Werf iedereen je gang in en geef ze een RPG door op ze te richten met een RPG
 
 ## Traffic
-cheat-all-drivers-are-criminals = All NPC drivers drive aggressively and have a wanted level
+cheat-all-drivers-are-criminals = Al het NPC verkeer rijd agressief en heeft de politie achter zich aan
 cheat-pink-is-the-new-cool = Roze verkeer
 cheat-so-long-as-its-black = Rwart verkeer
 cheat-everyone-is-poor = Plattelands verkeer
