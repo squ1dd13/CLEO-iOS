@@ -4,18 +4,10 @@ language-name = Nederlands
 ### ==== Splash screen ====
 
 # First line at the bottom of the screen.
-splash-legal = Copyright © Copyright :copyright: 2020-2022 squ1dd13, AYZM, ODIN, RAiZOK, tharryz, wewewer1. Dit programma valt onder de MIT licentie.
+splash-legal = Copyright © 2020-2023 squ1dd13, AYZM, ODIN, RAiZOK, tharryz, wewewer1. Dit programma valt onder de MIT licentie.
 
 # Second line.
-splash-fun = Met plezier gemaakt in engeland. Veel plezier!
-
-# {""} is just an empty string. Leave this empty if you don't want your name shown. Alternatively,
-# you can use this to say you made the translation. It will show up on the splash screen after the
-# `splash-fun` message.
-#
-# For example:
-#  translator-tag = Translated into English by squ1dd13.
-translator-tag = Nederlandse vertaaling door wewewer1#1427
+splash-fun = Met plezier gemaakt in engeland. Nederlandse vertaaling door wewewer1#1427. Veel plezier!
 
 ### ==== Updates ====
 
