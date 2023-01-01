@@ -4,7 +4,7 @@ language-name = English
 ### ==== Splash screen ====
 
 # First line at the bottom of the screen.
-splash-legal = Copyright © 2020-2022 squ1dd13, AYZM, ODIN, RAiZOK, tharryz. Licenced under the MIT License.
+splash-legal = Copyright © 2020-2023 squ1dd13, AYZM, ODIN, RAiZOK, tharryz, wewewer1. Licenced under the MIT License.
 
 # Second line.
 splash-fun = Made with love in the United Kingdom. Have fun!
