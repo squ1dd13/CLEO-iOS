@@ -31,7 +31,7 @@ update-release-channel-opt-desc = Welke Cleo updates je notificaties voor krijgt
 
 update-release-channel-opt-disabled = Uit
 update-release-channel-opt-stable = Standaard
-update-release-channel-opt-disabled = Beta
+update-release-channel-opt-alpha = Beta
 
 ### ==== Menu ====
 
@@ -54,7 +54,7 @@ menu-script-warning-overview =
     }
 
 # The second line of the warning.
-menu-script-see-below = zie hieronder uitgebreidere details.
+menu-script-see-below = Zie hieronder uitgebreidere details.
 
 ## Specific script warnings
 
@@ -205,7 +205,7 @@ cheat-time-just-flies-by = Snelere tijd
 cheat-speed-it-up = Sneler spel
 cheat-slow-it-down = Langzamer spel
 cheat-night-prowler = Altijd middernacht
-cheat-dont-bring-on-the-night = altijd 21:00
+cheat-dont-bring-on-the-night = Altijd 21:00
 
 ## Spawning wearables
 cheat-lets-go-base-jumping = Breng een parachute de wereld in
@@ -215,28 +215,28 @@ cheat-rocketman = Breng een jetpack de wereld in
 
 # The vehicle names (in capitals) should not be changed, as they are part of the game. The
 # descriptions (in brackets) do need to be translated.
-cheat-time-to-kick-ass = breng een Rihno (leger tank) de wereld in
-cheat-old-speed-demon = breng een Bloodring Banker (demolition derby car) de wereld in
-cheat-tinted-rancher = breng een Rancher met getint glas (twee-deur SUV) de wereld in
-cheat-not-for-public-roads = breng een Hotring Racer A (race auto) de wereld in
-cheat-just-try-and-stop-me = breng een Hotring Racer B (race auto) de wereld in
-cheat-wheres-the-funeral = breng een Romero (lijkwagen) de wereld in
-cheat-celebrity-status = breng een Stretch Limousine (limousine) de wereld in
-cheat-true-grime = breng een Spawn Trashmaster (vuilniswagen) de wereld in
-cheat-18-holes = breng een Caddy (golf karretje) de wereld in
-cheat-jump-jet = breng een Hydra (VTOL gevechtsstraaljager) de wereld in
-cheat-i-want-to-hover = breng een Vortex (zweefwagen) de wereld in
-cheat-oh-dude = breng een Hunter (military attack helicopter) de wereld in
-cheat-four-wheel-fun = breng een Quad (quad) de wereld in
-cheat-hit-the-road-jack = breng een Tanker met aanhangwagen (tanker truck) de wereld in
-cheat-its-all-bull = breng een Dozer (bulldozer) de wereld in
-cheat-flying-to-stunt = breng een Stunt Plane (stunt vliegtuig) de wereld in
-cheat-monster-mash = breng een Monster Truck (monster truck) de wereld in
+cheat-time-to-kick-ass = Breng een Rihno (leger tank) de wereld in
+cheat-old-speed-demon = Breng een Bloodring Banker (demolition derby car) de wereld in
+cheat-tinted-rancher = Breng een Rancher met getint glas (twee-deur SUV) de wereld in
+cheat-not-for-public-roads = Breng een Hotring Racer A (race auto) de wereld in
+cheat-just-try-and-stop-me = Breng een Hotring Racer B (race auto) de wereld in
+cheat-wheres-the-funeral = Breng een Romero (lijkwagen) de wereld in
+cheat-celebrity-status = Breng een Stretch Limousine (limousine) de wereld in
+cheat-true-grime = Breng een Spawn Trashmaster (vuilniswagen) de wereld in
+cheat-18-holes = Breng een Caddy (golf karretje) de wereld in
+cheat-jump-jet = Breng een Hydra (VTOL gevechtsstraaljager) de wereld in
+cheat-i-want-to-hover = Breng een Vortex (zweefwagen) de wereld in
+cheat-oh-dude = Breng een Hunter (military attack helicopter) de wereld in
+cheat-four-wheel-fun = Breng een Quad (quad) de wereld in
+cheat-hit-the-road-jack = Breng een Tanker met aanhangwagen (tanker truck) de wereld in
+cheat-its-all-bull = Breng een Dozer (bulldozer) de wereld in
+cheat-flying-to-stunt = Breng een Stunt Plane (stunt vliegtuig) de wereld in
+cheat-monster-mash = Breng een Monster Truck (monster truck) de wereld in
 
 ## Gang recruitment
-cheat-wanna-be-in-my-gang = werf iedereen je gang in en geef ze een pistoon door op ze te richten met een pistool
-cheat-noone-can-stop-us = werf iedereen je gang in en geef ze een AK-47 door op ze te richten met een AK-47
-cheat-rocket-mayhem = werf iedereen je gang in en geef ze een RPG door op ze te richten met een RPG
+cheat-wanna-be-in-my-gang = Werf iedereen je gang in en geef ze een pistoon door op ze te richten met een pistool
+cheat-noone-can-stop-us = Werf iedereen je gang in en geef ze een AK-47 door op ze te richten met een AK-47
+cheat-rocket-mayhem = Werf iedereen je gang in en geef ze een RPG door op ze te richten met een RPG
 
 ## Traffic
 cheat-all-drivers-are-criminals = All NPC drivers drive aggressively and have a wanted level
@@ -257,11 +257,11 @@ cheat-state-of-emergency = Voetgangers komen in opstand
 cheat-ghost-town = Minder verkeer en geen voetgangers
 
 ## Themes
-cheat-ninja-town = overal zijn er Triad mensen
-cheat-love-conquers-all = overal zijn er Pimp mensen
-cheat-lifes-a-beach = overal zijn er Beach party mensen
-cheat-hicksville = overal zijn er Rural mensen
-cheat-crazy-town = overal zijn er Carnival mensen
+cheat-ninja-town = Overal zijn er Triad mensen
+cheat-love-conquers-all = Overal zijn er Pimp mensen
+cheat-lifes-a-beach = Overal zijn er Beach party mensen
+cheat-hicksville = Overal zijn er Rural mensen
+cheat-crazy-town = Overal zijn er Carnival mensen
 
 ## General vehicle cheats
 cheat-all-cars-go-boom = Laat alle voertuigen exploderen
@@ -281,7 +281,7 @@ cheat-flying-fish = Vliegende boten
 
 ## Weapon usage
 cheat-full-clip = Iedereen heeft oneindige kogels
-cheat-i-wanna-driveby = volledig wapen werking in voortuigen
+cheat-i-wanna-driveby = Volledig wapen werking in voortuigen
 
 ## Player effects
 cheat-goodbye-cruel-world = Zelfmoord
@@ -289,7 +289,7 @@ cheat-take-a-chill-pill = Adrenaline effecten
 cheat-prostitutes-pay = Prostituees betalen jou
 
 ## Miscellaneous
-cheat-xbox-helper = zet je stats zodat je bijna de Xbox prestaties hebt
+cheat-xbox-helper = Zet je stats zodat je bijna de Xbox prestaties hebt
 
 ## Pointless cheats
 
