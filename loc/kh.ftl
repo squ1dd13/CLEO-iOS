@@ -4,7 +4,7 @@ language-name = ខ្មែរ
 ### ==== Splash screen ====
 
 # First line at the bottom of the screen.
-splash-legal = កម្មសិទ្ធបញ្ញា ©️ 2020-2022 squ1dd13, AYZM, ODIN, RAiZOK, tharryz. មានអាជ្ញាប័ណ្ណក្រោមអាជ្ញាប័ណ្ណ MIT.
+splash-legal = កម្មសិទ្ធបញ្ញា © 2020-2022 squ1dd13, AYZM, ODIN, RAiZOK, tharryz. មានអាជ្ញាប័ណ្ណក្រោមអាជ្ញាប័ណ្ណ MIT.
 
 # Second line.
 splash-fun = ធ្វើចេញពីក្ដីស្រលាញ់,សប្បាយៗ! បកប្រែជាភាសារខ្មែរដោយ BabeODIN.
