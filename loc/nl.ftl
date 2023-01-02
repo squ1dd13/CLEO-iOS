@@ -16,7 +16,7 @@ splash-fun = Met plezier gemaakt in engeland. Nederlandse vertaaling door wewewe
 # in English for now. I plan to add Unicode support here in the future.
 
 # Displayed at the top of the update screen.
-update-prompt-title = Er is een nieuwe versie beschikbaar.
+update-prompt-title = Er is een nieuwe CLEO versie beschikbaar.
 
 # Message shown on the update screen. { $new_version } will be replaced with the update's version number.
 update-prompt-message = CLEO versie { $new_version } is verkrijgbaar. Wil je naar Github gaan om de update te downloaden?
@@ -27,7 +27,7 @@ update-prompt-message = CLEO versie { $new_version } is verkrijgbaar. Wil je naa
 ## Release channel settings
 
 update-release-channel-opt-title = Versie Kanaal
-update-release-channel-opt-desc = Welke Cleo updates je notificaties voor krijgt. met Beta kan je nieuwe functies eerder gebruiken maar zijn er mogelijk bugs. Updates uitzetten wordt niet aanbevolen.
+update-release-channel-opt-desc = Welke CLEO updates je notificaties voor krijgt. met Beta kan je nieuwe functies eerder gebruiken maar zijn er mogelijk bugs. Updates uitzetten wordt niet aanbevolen.
 
 update-release-channel-opt-disabled = Uit
 update-release-channel-opt-stable = Standaard
@@ -59,7 +59,7 @@ menu-script-see-below = Zie hieronder uitgebreidere details.
 ## Specific script warnings
 
 # The script does things that CLEO doesn't support yet.
-script-unimplemented-in-cleo = Dit script probeert functies te gebruiken die nog niet in Cleo zitten.
+script-unimplemented-in-cleo = Dit script probeert functies te gebruiken die nog niet in CLEO zitten.
 
 # The script does things that are not possible on iOS (for system reasons).
 script-impossible-on-ios = Dit script gebruikt fincties die niet werken op iOS.
@@ -106,7 +106,7 @@ script-mode-opt-break = Snel
 ## FPS lock option
 
 fps-lock-opt-title = PPS Limiet
-fps-lock-opt-desc = Maximale plaatjes per seconde in het spel. 30 Plaatjes per seconde is een minder vloeiend beeld, maar het gebruikt minder batterij percentage.
+fps-lock-opt-desc = Maximale plaatjes per seconde in het spel. 30 Plaatjes per seconde is een minder vloeiend beeld, maar het gebruikt minder batterij.
 
 fps-lock-opt-30 = 30 PPS
 fps-lock-opt-60 = 60 PPS
@@ -114,7 +114,7 @@ fps-lock-opt-60 = 60 PPS
 ## FPS counter option
 
 fps-counter-opt-title = PPS Teller
-fps-counter-opt-desc = Zet de plaayjes per seconde teller aan of uit.
+fps-counter-opt-desc = Zet de plaatjes per seconde teller aan of uit.
 
 fps-counter-opt-hidden = Uit
 fps-counter-opt-enabled = Aan
@@ -172,7 +172,7 @@ cheat-skip-mission = Sla sommige missies automatisch over
 ## Superpowers
 cheat-full-invincibility = Compleete onschaadbaar
 cheat-sting-like-a-bee = Super sterk slaan
-cheat-i-am-never-hungry = Nooit hongerig worden
+cheat-i-am-never-hungry = Nooit hongerig zijn
 cheat-kangaroo = 10 keer zo hoog springen
 cheat-noone-can-hurt-me = Oneindig levens
 cheat-man-from-atlantis = Oneindige longcapaciteit
@@ -195,7 +195,7 @@ cheat-natural-talent = Maximale voortuig vaardigheden
 ## Wanted level
 cheat-turn-up-the-heat = Sterren gaan met twee omhoog
 cheat-turn-down-the-heat = Haal alle sterren weg
-cheat-i-do-as-i-please = Zet sterren aantal vast op huidig aantal
+cheat-i-do-as-i-please = Zet het aantal sterren vast op huidig aantal
 cheat-bring-it-on = Zet hoeveeheid sterren naar zes
 
 ## Weather
@@ -280,7 +280,7 @@ cheat-cool-taxis = Taxis hebben hydraulica en nitro
 
 ## Vehicle cheats for the player
 cheat-chitty-chitty-bang-bang = Vliegende autos
-cheat-cj-phone-home = Heel erg hoge bunny hops
+cheat-cj-phone-home = Hoge bunny hops op de fiets
 cheat-touch-my-car-you-die = Sloop andere voertuigen als je ze aanraakt
 cheat-bubble-cars = Autos weven weg als ze geraakt worden
 cheat-stick-like-glue = Betere ophanging en bestuurbaarheid
@@ -311,7 +311,7 @@ cheat-slot-shotgun = { -cheat-crash-warning } Shotgun slot
 cheat-slot-assault-rifle = { -cheat-crash-warning } Assault geweer slot
 cheat-slot-long-rifle = { -cheat-crash-warning } Lang geweer slot
 cheat-slot-thrown = { -cheat-crash-warning } Gooi wapen slot
-cheat-slot-heavy = { -cheat-crash-warning } Heavy artillery slot
+cheat-slot-heavy = { -cheat-crash-warning } Zware artillerie slot
 cheat-slot-equipment = { -cheat-crash-warning } Apperatuur slot
 cheat-slot-other = { -cheat-crash-warning } Rest slot
 
