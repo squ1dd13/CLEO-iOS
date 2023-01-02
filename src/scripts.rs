@@ -7,7 +7,7 @@ use crate::{
     call_original,
     check::{self, ScriptIssue},
     hook,
-    language::{Message, MessageKey},
+    language::{self, Message, MessageKey},
     menu::{self, MenuMessage, TabData},
     settings::{BreakMode, Options},
     targets, touch,
@@ -641,7 +641,8 @@ impl CsiMenuInfo {
 
 impl menu::RowData for CsiMenuInfo {
     fn title(&self) -> Message {
-        MessageKey::ScriptCsiRowTitle.format(todo!("script row title"))
+        MessageKey::ScriptCsiRowTitle
+            .format(language::msg_args!["script_name" => self.name.clone()])
     }
 
     fn detail(&self) -> menu::RowDetail {

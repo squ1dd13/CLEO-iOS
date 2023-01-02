@@ -1,6 +1,6 @@
 //! Provides facilities for examining scripts to determine their compatibility with iOS.
 
-use crate::language::{Message, MessageKey};
+use crate::language::{self, Message, MessageKey};
 use byteorder::{LittleEndian, ReadBytesExt};
 use once_cell::sync::OnceCell;
 use serde::{Deserialize, Serialize};
@@ -437,7 +437,8 @@ impl ScriptIssue {
             ScriptIssue::AndroidSpecific => MessageKey::ScriptImpossibleOnIos.to_message(),
             ScriptIssue::CheckFailed => MessageKey::ScriptCheckFailed.to_message(),
 
-            ScriptIssue::Duplicate(original_name) => MessageKey::ScriptDuplicate.format(todo!()),
+            ScriptIssue::Duplicate(original_name) => MessageKey::ScriptDuplicate
+                .format(language::msg_args!["original_script" => original_name.clone()]),
         }
     }
 }

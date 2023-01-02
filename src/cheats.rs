@@ -7,7 +7,7 @@ use std::{
 
 use crate::{
     call_original, gui, hook,
-    language::{Message, MessageKey},
+    language::{self, Message, MessageKey},
     menu::{self, RowData, TabData},
     settings::{CheatTransience, Options},
 };
@@ -186,7 +186,8 @@ impl RowData for CheatData {
         if self.cheat.code.is_empty() {
             MessageKey::CheatNoCodeTitle.to_message()
         } else {
-            MessageKey::CheatCodeRowTitle.format(todo!("cheat code title"))
+            MessageKey::CheatCodeRowTitle
+                .format(language::msg_args!["cheat_code" => self.cheat.code])
         }
     }
 
