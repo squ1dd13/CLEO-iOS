@@ -1,5 +1,6 @@
 //! Provides facilities for examining scripts to determine their compatibility with iOS.
 
+use crate::language::{Message, MessageKey};
 use byteorder::{LittleEndian, ReadBytesExt};
 use once_cell::sync::OnceCell;
 use serde::{Deserialize, Serialize};
@@ -429,13 +430,17 @@ pub enum ScriptIssue {
     CheckFailed,
 }
 
-impl Display for ScriptIssue {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl ScriptIssue {
+    pub fn message(&self) -> Message {
         match self {
-            Self::NotImpl => f.write_str("Uses features unavailable on iOS."),
-            Self::AndroidSpecific => f.write_str("Uses some Android-only code."),
-            Self::Duplicate(orig_name) => write!(f, "Duplicate of '{orig_name}'."),
-            Self::CheckFailed => f.write_str("Unable to complete script check."),
+            ScriptIssue::NotImpl => MessageKey::ScriptUnimplementedInCleo.to_message(),
+            ScriptIssue::AndroidSpecific => MessageKey::ScriptImpossibleOnIos.to_message(),
+            ScriptIssue::CheckFailed => MessageKey::ScriptCheckFailed.to_message(),
+
+            ScriptIssue::Duplicate(original_name) => Message::Formatted(
+                MessageKey::ScriptDuplicate,
+                todo!("duplicate script message"),
+            ),
         }
     }
 }
@@ -483,7 +488,7 @@ pub fn check_all(mut scripts: Vec<&mut crate::scripts::CleoScript>) {
         };
 
         if let Some(issue) = &script.issue {
-            log::warn!("Problem with script '{}': {}", script.name, issue);
+            log::warn!("Problem with script '{}': {:?}", script.name, issue);
         } else {
             log::info!("No problems were found with script '{}'.", script.name);
         }
@@ -526,7 +531,7 @@ fn scan_bytecode(bytes: &[u8]) -> eyre::Result<Option<ScriptIssue>, String> {
         };
 
         if let Some(issue) = &issue {
-            log::warn!("{}", issue);
+            log::warn!("{:?}", issue);
         }
 
         max_issue = max_issue.max(issue);

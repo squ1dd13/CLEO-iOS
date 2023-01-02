@@ -38,7 +38,7 @@ update-release-channel-opt-alpha = អាល់ហ្វា
 menu-close = បិទមុឺនុយ
 
 # Title for the options tab.
-options-tab-title = ជំម្រើស
+menu-options-tab-title = ជំម្រើស
 
 ### ==== Script menu ====
 
@@ -47,9 +47,9 @@ options-tab-title = ជំម្រើស
 # Shown at the top of the script menus when at least one error has been found in any script. This
 # is not shown at all if there are zero scripts with errors in them.
 menu-script-warning-overview =
-    { $numberOfScriptsWithErrors ->
+    { $num_scripts_with_errors ->
         [one] មានបញ្ហានៅក្នុងស្គ្រីបមួយនេះ. ស្គ្រីបនេះនឹងចេញពណ៌ទឹកក្រូច.
-        *[other] មានបញ្ហាក្នុង { $numberOfScriptsWithErrors } ស្គ្រីបទាំងនេះត្រូវបានបន្លិចជាពណ៌ទឹកក្រូច
+        *[other] មានបញ្ហាក្នុង { $num_scripts_with_errors } ស្គ្រីបទាំងនេះត្រូវបានបន្លិចជាពណ៌ទឹកក្រូច
     }
 
 # The second line of the warning.
@@ -62,15 +62,19 @@ script-unimplemented-in-cleo = ប្រើមុខងារដែលបច្�
 # The script does things that are not possible on iOS (for system reasons).
 script-impossible-on-ios = ប្រើកូដដែលមិនដំណើរការនៅលើ IOS.
 
-# The script is identical to another script. { $originalScript } will be replaced with the name of
+# The script is identical to another script. { $original_script } will be replaced with the name of
 # the script that this one is a duplicate of.
-script-duplicate = ស្គ្រីបដូចគ្នានឹង { $originalScript }.
+script-duplicate = ស្គ្រីបដូចគ្នានឹង { $original_script }.
 
 # There was an error when checking the script code for problems.
 script-check-failed = មិនអាចស្កេនស្គ្រីបបានទេ។  សូមរាយការណ៍ថានេះជាបញ្ហាBUGនៅលើ GitHub ឬ Discord.
 
 # No problems were found when scanning the script. This is a safe script!
 script-no-problems = ស្គ្រីបមិនមានបញ្ហាទេ
+
+# Formats for script names in the menu.
+script-csa-row-title = { $script_name }
+script-csi-row-title = { $script_name }
 
 ## Script status messages
 
@@ -129,6 +133,10 @@ cheat-off = បិទហេក
 cheat-queued-on = ត្រៀមបើក
 # Cheat will be turned off when the menu is closed.
 cheat-queued-off = ត្រៀមបិទ
+# Formats for cheat codes in the menu.
+cheat-code-row-title = { $cheat_code }
+cheat-no-code-title = ???
+
 ## Cheat saving option
 
 cheat-transience-opt-title = របៀបរក្សាទុកដំណើរការហេក

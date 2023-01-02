@@ -37,7 +37,7 @@ update-release-channel-opt-alpha = Alpha
 menu-close = Kapat
 
 # Title for the options tab.
-options-tab-title = Ayarlar
+menu-options-tab-title = Ayarlar
 
 ### ==== Script menu ====
 
@@ -46,9 +46,9 @@ options-tab-title = Ayarlar
 # Shown at the top of the script menus when at least one error has been found in any script. This
 # is not shown at all if there are zero scripts with errors in them.
 menu-script-warning-overview =
-    { $numberOfScriptsWithErrors ->
+    { $num_scripts_with_errors ->
         [one] Scriptte hata bulundu, hatali script turuncu renk ile belirtildi.
-        *[other] Su scriptlerde hata bulundu. { $numberOfScriptsWithErrors } hatali scriptler turuncu renk ile belirtildi.
+        *[other] Su scriptlerde hata bulundu. { $num_scripts_with_errors } hatali scriptler turuncu renk ile belirtildi.
     }
 
 # The second line of the warning.
@@ -61,15 +61,19 @@ script-unimplemented-in-cleo = CLEO iOS destegi olmayan script.
 # The script does things that are not possible on iOS (for system reasons).
 script-impossible-on-ios = iOS kod uyusmazligindan dolayi bu sistemde calisamayacak script.
 
-# The script is identical to another script. { $originalScript } will be replaced with the name of
+# The script is identical to another script. { $original_script } will be replaced with the name of
 # the script that this one is a duplicate of.
-script-duplicate = Ayni scriptten zaten var { $originalScript }.
+script-duplicate = Ayni scriptten zaten var { $original_script }.
 
 # There was an error when checking the script code for problems.
 script-check-failed = Script taranmasinda hata, lutfen GitHub veya Discorddan bildirin.
 
 # No problems were found when scanning the script. This is a safe script!
 script-no-problems = Hata Bulunamadi.
+
+# Formats for script names in the menu.
+script-csa-row-title = { $script_name }
+script-csi-row-title = { $script_name }
 
 ## Script status messages
 
@@ -128,6 +132,10 @@ cheat-off = Devre disi
 cheat-queued-on = Siraya konuldu
 # Cheat will be turned off when the menu is closed.
 cheat-queued-off = Siradan cikarildi
+# Formats for cheat codes in the menu.
+cheat-code-row-title = { $cheat_code }
+cheat-no-code-title = ???
+
 ## Cheat saving option
 
 cheat-transience-opt-title = Hileleri kaydet

@@ -39,7 +39,7 @@ update-release-channel-opt-alpha = Beta
 menu-close = Sluit
 
 # Title for the options tab.
-options-tab-title = Instellingen
+menu-options-tab-title = Instellingen
 
 ### ==== Script menu ====
 
@@ -48,9 +48,9 @@ options-tab-title = Instellingen
 # Shown at the top of the script menus when at least one error has been found in any script. This
 # is not shown at all if there are zero scripts with errors in them.
 menu-script-warning-overview =
-    { $numberOfScriptsWithErrors ->
+    { $num_scripts_with_errors ->
         [one] Problemen gevonden in één script. Dit script is uitgelicht in oranje.
-        *[other] Problemen gevonden in { $numberOfScriptsWithErrors } scripts. Deze scripts zijn uitgelicht in oranje.
+        *[other] Problemen gevonden in { $num_scripts_with_errors } scripts. Deze scripts zijn uitgelicht in oranje.
     }
 
 # The second line of the warning.
@@ -64,15 +64,19 @@ script-unimplemented-in-cleo = Dit script probeert functies te gebruiken die nog
 # The script does things that are not possible on iOS (for system reasons).
 script-impossible-on-ios = Dit script gebruikt fincties die niet werken op iOS.
 
-# The script is identical to another script. { $originalScript } will be replaced with the name of
+# The script is identical to another script. { $original_script } will be replaced with the name of
 # the script that this one is a duplicate of.
-script-duplicate = Duplicaat van { $originalScript }.
+script-duplicate = Duplicaat van { $original_script }.
 
 # There was an error when checking the script code for problems.
 script-check-failed = Script kan niet gescand worden. Geef dit probleem A.U.B. aan in de discord of op Github.
 
 # No problems were found when scanning the script. This is a safe script!
 script-no-problems = Geen problemen gevonden met dit script.
+
+# Formats for script names in the menu.
+script-csa-row-title = { $script_name }
+script-csi-row-title = { $script_name }
 
 ## Script status messages
 
@@ -135,6 +139,10 @@ cheat-queued-on = Wachtrij aan
 
 # Cheat will be turned off when the menu is closed.
 cheat-queued-off = Wachtrij uit
+
+# Formats for cheat codes in the menu.
+cheat-code-row-title = { $cheat_code }
+cheat-no-code-title = ???
 
 ## Cheat saving option
 

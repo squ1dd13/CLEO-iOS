@@ -7,11 +7,13 @@ use crate::{
     call_original,
     check::{self, ScriptIssue},
     hook,
+    language::{Message, MessageKey},
     menu::{self, MenuMessage, TabData},
     settings::{BreakMode, Options},
     targets, touch,
 };
 use std::{
+    borrow::Cow,
     collections::HashMap,
     hash::{Hash, Hasher},
     sync::{atomic::Ordering, Mutex},
@@ -603,8 +605,8 @@ fn init_stage_three(p: usize) {
 
 pub struct CsiMenuInfo {
     name: String,
-    state: bool,
-    warning: Option<String>,
+    running: bool,
+    warning: Option<Message>,
 }
 
 impl CsiMenuInfo {
@@ -617,8 +619,8 @@ impl CsiMenuInfo {
 
         Some(CsiMenuInfo {
             name: script.name.clone(),
-            state: script.game_script.active,
-            warning: script.issue.as_ref().map(|issue| issue.to_string()),
+            running: script.game_script.active,
+            warning: script.issue.as_ref().map(|issue| issue.message()),
         })
     }
 
@@ -630,7 +632,7 @@ impl CsiMenuInfo {
                 }
 
                 script.game_script.active = true;
-                self.state = true;
+                self.running = true;
                 break;
             }
         }
@@ -638,40 +640,36 @@ impl CsiMenuInfo {
 }
 
 impl menu::RowData for CsiMenuInfo {
-    fn title(&self) -> String {
-        self.name.clone()
+    fn title(&self) -> Message {
+        MessageKey::ScriptCsiRowTitle.format(todo!("script row title"))
     }
 
     fn detail(&self) -> menu::RowDetail {
-        let issues_str = if let Some(warning) = self.warning.as_deref() {
-            warning
+        let issues_msg = if let Some(message) = self.warning.clone() {
+            message
         } else {
-            "No issues detected."
-        };
-
-        let info_str = if self.state {
-            format!("Running. {issues_str}")
-        } else {
-            format!("Not running. {issues_str}")
+            MessageKey::ScriptNoProblems.to_message()
         };
 
         if self.warning.is_some() {
-            menu::RowDetail::Warning(info_str)
+            menu::RowDetail::Warning(issues_msg)
         } else {
-            menu::RowDetail::Info(info_str)
+            // We don't have anything better to show, so just display the status.
+            menu::RowDetail::Info(self.value())
         }
     }
 
-    fn value(&self) -> &str {
-        if self.state {
-            "Running"
+    fn value(&self) -> Message {
+        if self.running {
+            MessageKey::ScriptRunning
         } else {
-            "Not running"
+            MessageKey::ScriptNotRunning
         }
+        .to_message()
     }
 
     fn tint(&self) -> Option<(u8, u8, u8)> {
-        if self.state {
+        if self.running {
             Some(crate::gui::colours::GREEN)
         } else {
             None
@@ -691,7 +689,7 @@ impl menu::RowData for CsiMenuInfo {
 struct CsaMenuInfo {
     name: String,
     state: CsaState,
-    warning: Option<String>,
+    warning: Option<Message>,
 }
 
 impl CsaMenuInfo {
@@ -700,7 +698,7 @@ impl CsaMenuInfo {
             Some(CsaMenuInfo {
                 name: script.name.clone(),
                 state: *state,
-                warning: script.issue.as_ref().map(|issue| issue.to_string()),
+                warning: script.issue.as_ref().map(|issue| issue.message()),
             })
         } else {
             None
@@ -709,31 +707,31 @@ impl CsaMenuInfo {
 }
 
 impl menu::RowData for CsaMenuInfo {
-    fn title(&self) -> String {
-        self.name.clone()
+    fn title(&self) -> Message {
+        MessageKey::ScriptCsaRowTitle.to_message()
     }
 
     fn detail(&self) -> menu::RowDetail {
-        let issues_str = if let Some(warning) = self.warning.as_deref() {
+        let issue_msg = if let Some(warning) = self.warning.clone() {
             warning
         } else {
-            "No issues detected."
-        }
-        .to_string();
+            MessageKey::ScriptNoProblems.to_message()
+        };
 
         if self.warning.is_some() {
-            menu::RowDetail::Warning(issues_str)
+            menu::RowDetail::Warning(issue_msg)
         } else {
-            menu::RowDetail::Info(issues_str)
+            menu::RowDetail::Info(issue_msg)
         }
     }
 
-    fn value(&self) -> &str {
+    fn value(&self) -> Message {
         match self.state {
-            CsaState::EnabledNormally => "Enabled",
-            CsaState::Disabled => "Disabled",
-            CsaState::Forced => "Forced",
+            CsaState::EnabledNormally => MessageKey::ScriptRunning,
+            CsaState::Disabled => MessageKey::ScriptNotRunning,
+            CsaState::Forced => MessageKey::ScriptCsaForcedRunning,
         }
+        .to_message()
     }
 
     fn tint(&self) -> Option<(u8, u8, u8)> {
@@ -832,7 +830,7 @@ pub fn tab_data_csa() -> menu::TabData {
         }
     }
 
-    row_data.sort_by_cached_key(|x| x.title());
+    row_data.sort_by_cached_key(|x| x.title().translate());
 
     TabData {
         name: "CSA".to_string(),
@@ -862,7 +860,7 @@ pub fn tab_data_csi() -> menu::TabData {
         }
     }
 
-    row_data.sort_by_cached_key(|x| x.title());
+    row_data.sort_by_cached_key(|x| x.title().translate());
 
     TabData {
         name: "CSI".to_string(),

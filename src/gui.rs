@@ -113,12 +113,12 @@ pub mod colours {
 }
 
 pub fn get_font(name: &str, size: f64) -> *const Object {
-    unsafe { msg_send![class!(UIFont), fontWithName: create_ns_string(name) size: size] }
+    unsafe { msg_send![class!(UIFont), fontWithName: ns_string(name) size: size] }
 }
 
-pub fn create_ns_string(rust_string: &str) -> *const Object {
+pub fn ns_string(rust_string: impl AsRef<str>) -> *const Object {
     unsafe {
-        let c_string = std::ffi::CString::new(rust_string).expect("CString::new failed");
+        let c_string = std::ffi::CString::new(rust_string.as_ref()).expect("CString::new failed");
         let ns_string: *const Object =
             msg_send![class!(NSString), stringWithUTF8String: c_string.as_ptr()];
 
@@ -156,7 +156,8 @@ fn legal_splash_did_load(this: *mut Object, _sel: Sel) {
         let _: () = msg_send![background_view, setBackgroundColor: background_colour];
 
         let state_label = {
-            let font: *mut Object = msg_send![class!(UIFont), fontWithName: create_ns_string("GTALICENSE-REGULAR") size: 23.0];
+            let font: *mut Object =
+                msg_send![class!(UIFont), fontWithName: ns_string("GTALICENSE-REGULAR") size: 23.0];
             let text_colour: *const Object =
                 msg_send![class!(UIColor), colorWithRed: 0.77 green: 0.089 blue: 0.102 alpha: 1.0];
 
@@ -171,7 +172,8 @@ fn legal_splash_did_load(this: *mut Object, _sel: Sel) {
         let state_frame: CGRect = msg_send![state_label, frame];
 
         let text = {
-            let font: *mut Object = msg_send![class!(UIFont), fontWithName: create_ns_string("GTALICENSE-REGULAR") size: 70.0];
+            let font: *mut Object =
+                msg_send![class!(UIFont), fontWithName: ns_string("GTALICENSE-REGULAR") size: 70.0];
             let text_colour: *const Object =
                 msg_send![class!(UIColor), colorWithRed: 0.14 green: 0.37 blue: 0.62 alpha: 1.0];
 
@@ -300,7 +302,7 @@ fn legal_splash_did_load(this: *mut Object, _sel: Sel) {
         let colour = colours::white_with_alpha(0.5, 0.7);
         let _: () = msg_send![label, setTextColor: colour];
         let _: () = msg_send![label, setFont: font];
-        let _: () = msg_send![label, setText: create_ns_string(copyright)];
+        let _: () = msg_send![label, setText: ns_string(copyright)];
         let _: () = msg_send![label, setTextAlignment: 1u64];
         let _: () = msg_send![label, setNumberOfLines: 2u64];
 
@@ -324,7 +326,7 @@ pub fn create_label(
         let running: *mut Object = msg_send![class!(UILabel), alloc];
         let label: *mut Object = msg_send![running, initWithFrame: frame];
 
-        let _: () = msg_send![label, setText: create_ns_string(text)];
+        let _: () = msg_send![label, setText: ns_string(text)];
         let _: () = msg_send![label, setFont: font];
         let _: () = msg_send![label, setTextColor: colour];
         let _: () = msg_send![label, setAdjustsFontSizeToFitWidth: true];

@@ -1,9 +1,13 @@
 //! Provides a touch interface and accompanying logic to allow the user to interact with scripts, cheats and settings.
 
-use crate::gui::{self, create_ns_string, CGPoint, CGRect, CGSize};
+use crate::{
+    gui::{self, ns_string, CGPoint, CGRect, CGSize},
+    language::Message,
+};
 use objc::{class, msg_send, runtime::Object, sel};
 use once_cell::{sync::OnceCell, unsync::Lazy};
 use std::{
+    borrow::Cow,
     collections::HashMap,
     sync::{
         mpsc::{self, Sender},
@@ -12,14 +16,14 @@ use std::{
 };
 
 pub enum RowDetail {
-    Info(String),
-    Warning(String),
+    Info(Message),
+    Warning(Message),
 }
 
 pub trait RowData {
-    fn title(&self) -> String;
+    fn title(&self) -> Message;
     fn detail(&self) -> RowDetail;
-    fn value(&self) -> &str;
+    fn value(&self) -> Message;
     fn tint(&self) -> Option<(u8, u8, u8)>;
 
     /// Should return true if the rows in the menu should be reloaded.
@@ -182,7 +186,7 @@ impl Row {
     }
 
     fn load(&mut self) {
-        let (detail_text, foreground_colour, background_colour) = match self.data.detail() {
+        let (detail_message, foreground_colour, background_colour) = match self.data.detail() {
             RowDetail::Info(s) => (
                 s,
                 gui::colours::white_with_alpha(1., 0.95),
@@ -201,15 +205,19 @@ impl Row {
             (background_colour, gui::colours::white_with_alpha(1., 0.95))
         };
 
+        let title_str = self.data.title().translate();
+        let value_str = self.data.value().translate();
+        let detail_str = detail_message.translate();
+
         unsafe {
             let _: () = msg_send![self.button, setBackgroundColor: background_colour];
-            let _: () = msg_send![self.button, setTitle: create_ns_string(&self.data.title()) forState: 0u64];
+            let _: () = msg_send![self.button, setTitle: ns_string(title_str) forState: 0u64];
             let _: () = msg_send![self.button, setTitleColor: foreground_colour forState: 0u64];
 
-            let _: () = msg_send![self.value_label, setText: create_ns_string(self.data.value())];
+            let _: () = msg_send![self.value_label, setText: ns_string(value_str)];
             let _: () = msg_send![self.value_label, setTextColor: value_colour];
 
-            let _: () = msg_send![self.detail_label, setText: create_ns_string(&detail_text)];
+            let _: () = msg_send![self.detail_label, setText: ns_string(&detail_str)];
             let _: () = msg_send![self.detail_label, setTextColor: foreground_colour];
         }
     }
@@ -327,7 +335,7 @@ impl Tab {
             let font = gui::get_font("HelveticaNeue-Bold", WARNING_LBL_FONT_SIZE);
             let _: () = msg_send![label, setTextColor: colour];
             let _: () = msg_send![label, setFont: font];
-            let _: () = msg_send![label, setText: create_ns_string(warning)];
+            let _: () = msg_send![label, setText: ns_string(warning)];
             let _: () = msg_send![label, setTextAlignment: 1u64];
             let _: () = msg_send![label, setAdjustsFontSizeToFitWidth: true];
             let _: () = msg_send![label, setNumberOfLines: 0u64];
@@ -369,7 +377,7 @@ impl TabButton {
             let frame = CGRect::new(width * index as f64, 0., width, TAB_BUTTON_HEIGHT);
             let btn: *mut Object = msg_send![btn, initWithFrame: frame];
 
-            let _: () = msg_send![btn, setTitle: create_ns_string(title) forState: 0u64];
+            let _: () = msg_send![btn, setTitle: ns_string(title) forState: 0u64];
 
             let label: *mut Object = msg_send![btn, titleLabel];
             let _: () =
@@ -506,7 +514,7 @@ impl Menu {
             );
 
             let btn: *mut Object = msg_send![btn, initWithFrame: btn_frame];
-            let _: () = msg_send![btn, setTitle: create_ns_string("Close") forState: 0u64];
+            let _: () = msg_send![btn, setTitle: ns_string("Close") forState: 0u64];
             let _: () = msg_send![
                 btn,
                 setBackgroundColor: gui::colours::get(gui::colours::RED, 0.35)

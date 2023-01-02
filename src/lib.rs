@@ -16,6 +16,7 @@ mod extras;
 mod github;
 mod gui;
 mod hook;
+mod language;
 mod loader;
 mod logging;
 mod menu;

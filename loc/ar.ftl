@@ -39,7 +39,7 @@ update-release-channel-opt-alpha = ألفا
 menu-close = اغلق
 
 # Title for the options tab.
-options-tab-title = خيارات
+menu-options-tab-title = خيارات
 
 ### ==== Script menu ====
 
@@ -48,9 +48,9 @@ options-tab-title = خيارات
 # Shown at the top of the script menus when at least one error has been found in any script. This
 # is not shown at all if there are zero scripts with errors in them.
 menu-script-warning-overview =
-    { $numberOfScriptsWithErrors ->
+    { $num_scripts_with_errors ->
         [one] توجد مشكله في هذا السكربت. تم تمييز هذا السكربت باللون البرتقالي.
-        *[other] وجدت مشاكل في { $numberOfScriptsWithErrors } سكربت. تم تمييز هذه السكربتات باللون البرتقالي.
+        *[other] وجدت مشاكل في { $num_scripts_with_errors } سكربت. تم تمييز هذه السكربتات باللون البرتقالي.
     }
 
 # The second line of the warning.
@@ -64,15 +64,19 @@ script-unimplemented-in-cleo = الميزات المستخدمة غير مدعو
 # The script does things that are not possible on iOS (for system reasons).
 script-impossible-on-ios = استخدمت بعض الاكواد البرمجية التي لا تعمل على iOS.
 
-# The script is identical to another script. { $originalScript } will be replaced with the name of
+# The script is identical to another script. { $original_script } will be replaced with the name of
 # the script that this one is a duplicate of.
-script-duplicate = نسخة مكررة من { $originalScript }.
+script-duplicate = نسخة مكررة من { $original_script }.
 
 # There was an error when checking the script code for problems.
 script-check-failed = تعذر فحص السكربت. الرجاء الإبلاغ عن هذا باعتباره خطأ في GitHub أو Discord.
 
 # No problems were found when scanning the script. This is a safe script!
 script-no-problems = لم يتم الكشف عن مشاكل.
+
+# Formats for script names in the menu.
+script-csa-row-title = { $script_name }
+script-csi-row-title = { $script_name }
 
 ## Script status messages
 
@@ -135,6 +139,10 @@ cheat-queued-on = في الانتظار
 
 # Cheat will be turned off when the menu is closed.
 cheat-queued-off = الغي الانتظار
+
+# Formats for cheat codes in the menu.
+cheat-code-row-title = { $cheat_code }
+cheat-no-code-title = ???
 
 ## Cheat saving option
 

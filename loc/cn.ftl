@@ -39,7 +39,7 @@ update-release-channel-opt-alpha = 测试版本
 menu-close = 关闭
 
 # Title for the options tab.
-options-tab-title = 选项
+menu-options-tab-title = 选项
 
 ### ==== Script menu ====
 
@@ -47,7 +47,7 @@ options-tab-title = 选项
 
 # Shown at the top of the script menus when at least one error has been found in any script. This
 # is not shown at all if there are zero scripts with errors in them.
-menu-script-warning-overview = 在{ $numberOfScriptsWithErrors }个脚本中发现错误。错误脚本以橙色标注。
+menu-script-warning-overview = 在{ $num_scripts_with_errors }个脚本中发现错误。错误脚本以橙色标注。
 
 # The second line of the warning.
 menu-script-see-below = 详情请见下文。
@@ -60,15 +60,19 @@ script-unimplemented-in-cleo = 此功能当前在CLEO的IOS版本中不可用。
 # The script does things that are not possible on iOS (for system reasons).
 script-impossible-on-ios = 此代码在iOS版本中不可用。
 
-# The script is identical to another script. { $originalScript } will be replaced with the name of
+# The script is identical to another script. { $original_script } will be replaced with the name of
 # the script that this one is a duplicate of.
-script-duplicate = 复制 { $originalScript }。
+script-duplicate = 复制 { $original_script }。
 
 # There was an error when checking the script code for problems.
 script-check-failed = 无法识别该脚本。请将此漏洞反馈到GitHub或Discord上。
 
 # No problems were found when scanning the script. This is a safe script!
 script-no-problems = 未检测到问题。
+
+# Formats for script names in the menu.
+script-csa-row-title = { $script_name }
+script-csi-row-title = { $script_name }
 
 ## Script status messages
 
@@ -131,6 +135,10 @@ cheat-queued-on = 即将启用
 
 # Cheat will be turned off when the menu is closed.
 cheat-queued-off = 即将禁用
+
+# Formats for cheat codes in the menu.
+cheat-code-row-title = { $cheat_code }
+cheat-no-code-title = ???
 
 ## Cheat saving option
 

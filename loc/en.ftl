@@ -1,5 +1,16 @@
+### ==== Language settings ====
+
 # Used in the settings menu to show the name of the language.
 language-name = English
+
+# Shown when this language has been selected automatically.
+language-auto-name = Automatic (English)
+
+# The name of the language setting.
+language-setting-title = Language
+
+# The language setting description.
+language-setting-desc = The language to use for CLEO. Automatic mode will use your device/game settings. Join the Discord server to add your own language!
 
 ### ==== Splash screen ====
 
@@ -39,7 +50,7 @@ update-release-channel-opt-alpha = Alpha
 menu-close = Close
 
 # Title for the options tab.
-options-tab-title = Options
+menu-options-tab-title = Options
 
 ### ==== Script menu ====
 
@@ -48,9 +59,9 @@ options-tab-title = Options
 # Shown at the top of the script menus when at least one error has been found in any script. This
 # is not shown at all if there are zero scripts with errors in them.
 menu-script-warning-overview =
-    { $numberOfScriptsWithErrors ->
+    { $num_scripts_with_errors ->
         [one] Found problems in one script. This script is highlighted in orange.
-        *[other] Found problems in { $numberOfScriptsWithErrors } scripts. These scripts are highlighted in orange.
+        *[other] Found problems in { $num_scripts_with_errors } scripts. These scripts are highlighted in orange.
     }
 
 # The second line of the warning.
@@ -64,15 +75,19 @@ script-unimplemented-in-cleo = Uses features currently unsupported by CLEO iOS.
 # The script does things that are not possible on iOS (for system reasons).
 script-impossible-on-ios = Uses some code that won't work on iOS.
 
-# The script is identical to another script. { $originalScript } will be replaced with the name of
+# The script is identical to another script. { $original_script } will be replaced with the name of
 # the script that this one is a duplicate of.
-script-duplicate = Duplicate of { $originalScript }.
+script-duplicate = Duplicate of { $original_script }.
 
 # There was an error when checking the script code for problems.
 script-check-failed = Unable to scan script. Please report this as a bug on GitHub or Discord.
 
 # No problems were found when scanning the script. This is a safe script!
 script-no-problems = No problems detected.
+
+# Formats for script names in the menu.
+script-csa-row-title = { $script_name }
+script-csi-row-title = { $script_name }
 
 ## Script status messages
 
@@ -135,6 +150,10 @@ cheat-queued-on = Queued on
 
 # Cheat will be turned off when the menu is closed.
 cheat-queued-off = Queued off
+
+# Formats for cheat codes in the menu.
+cheat-code-row-title = { $cheat_code }
+cheat-no-code-title = ???
 
 ## Cheat saving option
 

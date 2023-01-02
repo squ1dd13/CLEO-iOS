@@ -1,9 +1,13 @@
 //! Replaces the game's broken cheats system with our own system that integrates with the menu.
 
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::{
+    borrow::Cow,
+    sync::atomic::{AtomicBool, Ordering},
+};
 
 use crate::{
     call_original, gui, hook,
+    language::{Message, MessageKey},
     menu::{self, RowData, TabData},
     settings::{CheatTransience, Options},
 };
@@ -14,7 +18,7 @@ use once_cell::sync::Lazy;
 pub struct Cheat {
     index: usize,
     code: &'static str,
-    description: &'static str,
+    description: MessageKey,
 }
 
 lazy_static! {
@@ -22,7 +26,7 @@ lazy_static! {
 }
 
 impl Cheat {
-    const fn new(index: usize, code: &'static str, description: &'static str) -> Cheat {
+    const fn new(index: usize, code: &'static str, description: MessageKey) -> Cheat {
         Cheat {
             index,
             code,
@@ -178,20 +182,19 @@ impl CheatData {
 }
 
 impl RowData for CheatData {
-    fn title(&self) -> String {
+    fn title(&self) -> Message {
         if self.cheat.code.is_empty() {
-            "???"
+            MessageKey::CheatNoCodeTitle.to_message()
         } else {
-            self.cheat.code
+            MessageKey::CheatCodeRowTitle.format(todo!("cheat code title"))
         }
-        .into()
     }
 
     fn detail(&self) -> menu::RowDetail {
-        menu::RowDetail::Info(self.cheat.description.into())
+        menu::RowDetail::Info(self.cheat.description.to_message())
     }
 
-    fn value(&self) -> &str {
+    fn value(&self) -> Message {
         /*
             State                       Tint        Status
 
@@ -203,17 +206,19 @@ impl RowData for CheatData {
 
         let will_be_active = self.will_be_active();
 
-        if self.cheat.is_in_queue() {
+        let key = if self.cheat.is_in_queue() {
             if will_be_active {
-                "Queued On"
+                MessageKey::CheatQueuedOn
             } else {
-                "Queued Off"
+                MessageKey::CheatQueuedOff
             }
         } else if will_be_active {
-            "On"
+            MessageKey::CheatOn
         } else {
-            "Off"
-        }
+            MessageKey::CheatOff
+        };
+
+        key.to_message()
     }
 
     fn tint(&self) -> Option<(u8, u8, u8)> {
@@ -345,139 +350,147 @@ pub fn init() {
 //  was very helpful during research, and the page at https://gta.fandom.com/wiki/Cheats_in_GTA_San_Andreas
 //  was really useful for writing cheat descriptions.
 static CHEATS: [Cheat; 111] = [
-    Cheat::new(0, "THUGSARMOURY", "Weapon set 1"),
-    Cheat::new(1, "PROFESSIONALSKIT", "Weapon set 2"),
-    Cheat::new(2, "NUTTERSTOYS", "Weapon set 3"),
+    Cheat::new(0, "THUGSARMOURY", MessageKey::CheatThugsArmoury),
+    Cheat::new(1, "PROFESSIONALSKIT", MessageKey::CheatProfessionalsKit),
+    Cheat::new(2, "NUTTERSTOYS", MessageKey::CheatNuttersToys),
+    Cheat::new(3, "", MessageKey::CheatWeapons4),
+    Cheat::new(4, "", MessageKey::CheatClockForward),
+    Cheat::new(5, "", MessageKey::CheatSkipMission),
+    Cheat::new(6, "", MessageKey::CheatDebugMappings),
+    Cheat::new(7, "", MessageKey::CheatFullInvincibility),
+    Cheat::new(8, "", MessageKey::CheatDebugTapToTarget),
+    Cheat::new(9, "", MessageKey::CheatDebugTargeting),
+    Cheat::new(10, "INEEDSOMEHELP", MessageKey::CheatINeedSomeHelp),
+    Cheat::new(11, "TURNUPTHEHEAT", MessageKey::CheatTurnUpTheHeat),
+    Cheat::new(12, "TURNDOWNTHEHEAT", MessageKey::CheatTurnDownTheHeat),
+    Cheat::new(13, "PLEASANTLYWARM", MessageKey::CheatPleasantlyWarm),
+    Cheat::new(14, "TOODAMNHOT", MessageKey::CheatTooDamnHot),
+    Cheat::new(15, "DULLDULLDAY", MessageKey::CheatDullDullDay),
+    Cheat::new(16, "STAYINANDWATCHTV", MessageKey::CheatStayInAndWatchTv),
     Cheat::new(
-        3,
-        "",
-        "Give dildo, minigun and thermal/night-vision goggles",
+        17,
+        "CANTSEEWHEREIMGOING",
+        MessageKey::CheatCantSeeWhereImGoing,
     ),
-    Cheat::new(4, "", "Advance clock by 4 hours"),
-    Cheat::new(5, "", "Skip to completion on some missions"),
-    Cheat::new(6, "", "Debug (show mappings)"),
-    Cheat::new(7, "", "Full invincibility"),
-    Cheat::new(8, "", "Debug (show tap to target)"),
-    Cheat::new(9, "", "Debug (show targeting)"),
-    Cheat::new(10, "INEEDSOMEHELP", "Give health, armour and $250,000"),
-    Cheat::new(11, "TURNUPTHEHEAT", "Increase wanted level by two stars"),
-    Cheat::new(12, "TURNDOWNTHEHEAT", "Clear wanted level"),
-    Cheat::new(13, "PLEASANTLYWARM", "Sunny weather"),
-    Cheat::new(14, "TOODAMNHOT", "Very sunny weather"),
-    Cheat::new(15, "DULLDULLDAY", "Overcast weather"),
-    Cheat::new(16, "STAYINANDWATCHTV", "Rainy weather"),
-    Cheat::new(17, "CANTSEEWHEREIMGOING", "Foggy weather"),
-    Cheat::new(18, "TIMEJUSTFLIESBY", "Faster time"),
-    Cheat::new(19, "SPEEDITUP", "Faster gameplay"),
-    Cheat::new(20, "SLOWITDOWN", "Slower gameplay"),
+    Cheat::new(18, "TIMEJUSTFLIESBY", MessageKey::CheatTimeJustFliesBy),
+    Cheat::new(19, "SPEEDITUP", MessageKey::CheatSpeedItUp),
+    Cheat::new(20, "SLOWITDOWN", MessageKey::CheatSlowItDown),
     Cheat::new(
         21,
         "ROUGHNEIGHBOURHOOD",
-        "Pedestrians riot, give player golf club",
+        MessageKey::CheatRoughNeighbourhood,
     ),
-    Cheat::new(22, "STOPPICKINGONME", "Pedestrians attack the player"),
-    Cheat::new(23, "SURROUNDEDBYNUTTERS", "Give pedestrians weapons"),
-    Cheat::new(24, "TIMETOKICKASS", "Spawn Rhino tank"),
-    Cheat::new(25, "OLDSPEEDDEMON", "Spawn Bloodring Banger"),
-    Cheat::new(26, "", "Spawn stock car"),
-    Cheat::new(27, "NOTFORPUBLICROADS", "Spawn Hotring Racer A"),
-    Cheat::new(28, "JUSTTRYANDSTOPME", "Spawn Hotring Racer B"),
-    Cheat::new(29, "WHERESTHEFUNERAL", "Spawn Romero"),
-    Cheat::new(30, "CELEBRITYSTATUS", "Spawn Stretch Limousine"),
-    Cheat::new(31, "TRUEGRIME", "Spawn Trashmaster"),
-    Cheat::new(32, "18HOLES", "Spawn Caddy"),
-    Cheat::new(33, "ALLCARSGOBOOM", "Explode all vehicles"),
-    Cheat::new(34, "WHEELSONLYPLEASE", "Invisible cars"),
-    Cheat::new(35, "STICKLIKEGLUE", "Improved suspension and handling"),
-    Cheat::new(36, "GOODBYECRUELWORLD", "Suicide"),
-    Cheat::new(37, "DONTTRYANDSTOPME", "Traffic lights are always green"),
+    Cheat::new(22, "STOPPICKINGONME", MessageKey::CheatStopPickingOnMe),
+    Cheat::new(
+        23,
+        "SURROUNDEDBYNUTTERS",
+        MessageKey::CheatSurroundedByNutters,
+    ),
+    Cheat::new(24, "TIMETOKICKASS", MessageKey::CheatTimeToKickAss),
+    Cheat::new(25, "OLDSPEEDDEMON", MessageKey::CheatOldSpeedDemon),
+    Cheat::new(26, "", MessageKey::CheatTintedRancher),
+    Cheat::new(27, "NOTFORPUBLICROADS", MessageKey::CheatNotForPublicRoads),
+    Cheat::new(28, "JUSTTRYANDSTOPME", MessageKey::CheatJustTryAndStopMe),
+    Cheat::new(29, "WHERESTHEFUNERAL", MessageKey::CheatWheresTheFuneral),
+    Cheat::new(30, "CELEBRITYSTATUS", MessageKey::CheatCelebrityStatus),
+    Cheat::new(31, "TRUEGRIME", MessageKey::CheatTrueGrime),
+    Cheat::new(32, "18HOLES", MessageKey::Cheat18Holes),
+    Cheat::new(33, "ALLCARSGOBOOM", MessageKey::CheatAllCarsGoBoom),
+    Cheat::new(34, "WHEELSONLYPLEASE", MessageKey::CheatWheelsOnlyPlease),
+    Cheat::new(35, "STICKLIKEGLUE", MessageKey::CheatStickLikeGlue),
+    Cheat::new(36, "GOODBYECRUELWORLD", MessageKey::CheatGoodbyeCruelWorld),
+    Cheat::new(37, "DONTTRYANDSTOPME", MessageKey::CheatDontTryAndStopMe),
     Cheat::new(
         38,
         "ALLDRIVERSARECRIMINALS",
-        "All NPC drivers drive aggressively and have a wanted level",
+        MessageKey::CheatAllDriversAreCriminals,
     ),
-    Cheat::new(39, "PINKISTHENEWCOOL", "Pink traffic"),
-    Cheat::new(40, "SOLONGASITSBLACK", "Black traffic"),
-    Cheat::new(41, "", "Cars have sideways wheels"),
-    Cheat::new(42, "FLYINGFISH", "Flying boats"),
-    Cheat::new(43, "WHOATEALLTHEPIES", "Maximum fat"),
-    Cheat::new(44, "BUFFMEUP", "Maximum muscle"),
-    Cheat::new(45, "", "Maximum gambling skill"),
-    Cheat::new(46, "LEANANDMEAN", "Minimum fat and muscle"),
-    Cheat::new(47, "BLUESUEDESHOES", "All pedestrians are Elvis Presley"),
+    Cheat::new(39, "PINKISTHENEWCOOL", MessageKey::CheatPinkIsTheNewCool),
+    Cheat::new(40, "SOLONGASITSBLACK", MessageKey::CheatSoLongAsItsBlack),
+    Cheat::new(41, "", MessageKey::CheatSidewaysWheels),
+    Cheat::new(42, "FLYINGFISH", MessageKey::CheatFlyingFish),
+    Cheat::new(43, "WHOATEALLTHEPIES", MessageKey::CheatWhoAteAllThePies),
+    Cheat::new(44, "BUFFMEUP", MessageKey::CheatBuffMeUp),
+    Cheat::new(45, "", MessageKey::CheatMaxGambling),
+    Cheat::new(46, "LEANANDMEAN", MessageKey::CheatLeanAndMean),
+    Cheat::new(47, "BLUESUEDESHOES", MessageKey::CheatBlueSuedeShoes),
     Cheat::new(
         48,
         "ATTACKOFTHEVILLAGEPEOPLE",
-        "Pedestrians attack the player with guns and rockets",
+        MessageKey::CheatAttackOfTheVillagePeople,
     ),
-    Cheat::new(49, "LIFESABEACH", "Beach party theme"),
-    Cheat::new(50, "ONLYHOMIESALLOWED", "Gang wars"),
+    Cheat::new(49, "LIFESABEACH", MessageKey::CheatLifesABeach),
+    Cheat::new(50, "ONLYHOMIESALLOWED", MessageKey::CheatOnlyHomiesAllowed),
+    Cheat::new(51, "BETTERSTAYINDOORS", MessageKey::CheatBetterStayIndoors),
+    Cheat::new(52, "NINJATOWN", MessageKey::CheatNinjaTown),
+    Cheat::new(53, "LOVECONQUERSALL", MessageKey::CheatLoveConquersAll),
+    Cheat::new(54, "EVERYONEISPOOR", MessageKey::CheatEveryoneIsPoor),
+    Cheat::new(55, "EVERYONEISRICH", MessageKey::CheatEveryoneIsRich),
     Cheat::new(
-        51,
-        "BETTERSTAYINDOORS",
-        "Pedestrians replaced with fighting gang members",
+        56,
+        "CHITTYCHITTYBANGBANG",
+        MessageKey::CheatChittyChittyBangBang,
     ),
-    Cheat::new(52, "NINJATOWN", "Triad theme"),
-    Cheat::new(53, "LOVECONQUERSALL", "Pimp mode"),
-    Cheat::new(54, "EVERYONEISPOOR", "Rural traffic"),
-    Cheat::new(55, "EVERYONEISRICH", "Sports car traffic"),
-    Cheat::new(56, "CHITTYCHITTYBANGBANG", "Flying cars"),
-    Cheat::new(57, "CJPHONEHOME", "Very high bunny hops"),
-    Cheat::new(58, "JUMPJET", "Spawn Hydra"),
-    Cheat::new(59, "IWANTTOHOVER", "Spawn Vortex"),
+    Cheat::new(57, "CJPHONEHOME", MessageKey::CheatCjPhoneHome),
+    Cheat::new(58, "JUMPJET", MessageKey::CheatJumpJet),
+    Cheat::new(59, "IWANTTOHOVER", MessageKey::CheatIWantToHover),
+    Cheat::new(60, "TOUCHMYCARYOUDIE", MessageKey::CheatTouchMyCarYouDie),
+    Cheat::new(61, "SPEEDFREAK", MessageKey::CheatSpeedFreak),
+    Cheat::new(62, "BUBBLECARS", MessageKey::CheatBubbleCars),
+    Cheat::new(63, "NIGHTPROWLER", MessageKey::CheatNightProwler),
     Cheat::new(
-        60,
-        "TOUCHMYCARYOUDIE",
-        "Destroy other vehicles on collision",
+        64,
+        "DONTBRINGONTHENIGHT",
+        MessageKey::CheatDontBringOnTheNight,
     ),
-    Cheat::new(61, "SPEEDFREAK", "All cars have nitro"),
-    Cheat::new(62, "BUBBLECARS", "Cars float away when hit"),
-    Cheat::new(63, "NIGHTPROWLER", "Always midnight"),
-    Cheat::new(64, "DONTBRINGONTHENIGHT", "Always 9PM"),
-    Cheat::new(65, "SCOTTISHSUMMER", "Stormy weather"),
-    Cheat::new(66, "SANDINMYEARS", "Sandstorm"),
-    Cheat::new(67, "", "Predator?"),
-    Cheat::new(68, "KANGAROO", "10x jump height"),
-    Cheat::new(69, "NOONECANHURTME", "Infinite health"),
-    Cheat::new(70, "MANFROMATLANTIS", "Infinite lung capacity"),
-    Cheat::new(71, "LETSGOBASEJUMPING", "Spawn Parachute"),
-    Cheat::new(72, "ROCKETMAN", "Spawn Jetpack"),
-    Cheat::new(73, "IDOASIPLEASE", "Lock wanted level"),
-    Cheat::new(74, "BRINGITON", "Six-star wanted level"),
-    Cheat::new(75, "STINGLIKEABEE", "Super punches"),
-    Cheat::new(76, "IAMNEVERHUNGRY", "Player never gets hungry"),
-    Cheat::new(77, "STATEOFEMERGENCY", "Pedestrians riot"),
-    Cheat::new(78, "CRAZYTOWN", "Carnival theme"),
-    Cheat::new(79, "TAKEACHILLPILL", "Adrenaline effects"),
-    Cheat::new(80, "FULLCLIP", "Everyone has unlimited ammo"),
-    Cheat::new(81, "IWANNADRIVEBY", "Full weapon control in vehicles"),
-    Cheat::new(82, "GHOSTTOWN", "No pedestrians, reduced live traffic"),
-    Cheat::new(83, "HICKSVILLE", "Rural theme"),
-    Cheat::new(84, "WANNABEINMYGANG", "Recruit anyone with pistols"),
-    Cheat::new(85, "NOONECANSTOPUS", "Recruit anyone with AK-47s"),
-    Cheat::new(86, "ROCKETMAYHEM", "Recruit anyone with rocket launchers"),
-    Cheat::new(87, "WORSHIPME", "Maximum respect"),
-    Cheat::new(88, "HELLOLADIES", "Maximum sex appeal"),
-    Cheat::new(89, "ICANGOALLNIGHT", "Maximum stamina"),
-    Cheat::new(90, "PROFESSIONALKILLER", "Hitman level for all weapons"),
-    Cheat::new(91, "NATURALTALENT", "Maximum vehicle skills"),
-    Cheat::new(92, "OHDUDE", "Spawn Hunter"),
-    Cheat::new(93, "FOURWHEELFUN", "Spawn Quad"),
-    Cheat::new(94, "HITTHEROADJACK", "Spawn Tanker with Tanker Trailer"),
-    Cheat::new(95, "ITSALLBULL", "Spawn Dozer"),
-    Cheat::new(96, "FLYINGTOSTUNT", "Spawn Stunt Plane"),
-    Cheat::new(97, "MONSTERMASH", "Spawn Monster Truck"),
-    Cheat::new(98, "", "Prostitutes pay you"),
-    Cheat::new(99, "", "Taxis have hydraulics and nitro"),
-    Cheat::new(100, "", "CRASHES! Slot cheat 1"),
-    Cheat::new(101, "", "CRASHES! Slot cheat 2"),
-    Cheat::new(102, "", "CRASHES! Slot cheat 3"),
-    Cheat::new(103, "", "CRASHES! Slot cheat 4"),
-    Cheat::new(104, "", "CRASHES! Slot cheat 5"),
-    Cheat::new(105, "", "CRASHES! Slot cheat 6"),
-    Cheat::new(106, "", "CRASHES! Slot cheat 7"),
-    Cheat::new(107, "", "CRASHES! Slot cheat 8"),
-    Cheat::new(108, "", "CRASHES! Slot cheat 9"),
-    Cheat::new(109, "", "CRASHES! Slot cheat 10"),
-    Cheat::new(110, "", "Xbox helper"),
+    Cheat::new(65, "SCOTTISHSUMMER", MessageKey::CheatScottishSummer),
+    Cheat::new(66, "SANDINMYEARS", MessageKey::CheatSandInMyEars),
+    Cheat::new(67, "", MessageKey::CheatPredator),
+    Cheat::new(68, "KANGAROO", MessageKey::CheatKangaroo),
+    Cheat::new(69, "NOONECANHURTME", MessageKey::CheatNooneCanHurtMe),
+    Cheat::new(70, "MANFROMATLANTIS", MessageKey::CheatManFromAtlantis),
+    Cheat::new(71, "LETSGOBASEJUMPING", MessageKey::CheatLetsGoBaseJumping),
+    Cheat::new(72, "ROCKETMAN", MessageKey::CheatRocketman),
+    Cheat::new(73, "IDOASIPLEASE", MessageKey::CheatIDoAsIPlease),
+    Cheat::new(74, "BRINGITON", MessageKey::CheatBringItOn),
+    Cheat::new(75, "STINGLIKEABEE", MessageKey::CheatStingLikeABee),
+    Cheat::new(76, "IAMNEVERHUNGRY", MessageKey::CheatIAmNeverHungry),
+    Cheat::new(77, "STATEOFEMERGENCY", MessageKey::CheatStateOfEmergency),
+    Cheat::new(78, "CRAZYTOWN", MessageKey::CheatCrazyTown),
+    Cheat::new(79, "TAKEACHILLPILL", MessageKey::CheatTakeAChillPill),
+    Cheat::new(80, "FULLCLIP", MessageKey::CheatFullClip),
+    Cheat::new(81, "IWANNADRIVEBY", MessageKey::CheatIWannaDriveby),
+    Cheat::new(82, "GHOSTTOWN", MessageKey::CheatGhostTown),
+    Cheat::new(83, "HICKSVILLE", MessageKey::CheatHicksville),
+    Cheat::new(84, "WANNABEINMYGANG", MessageKey::CheatWannaBeInMyGang),
+    Cheat::new(85, "NOONECANSTOPUS", MessageKey::CheatNooneCanStopUs),
+    Cheat::new(86, "ROCKETMAYHEM", MessageKey::CheatRocketMayhem),
+    Cheat::new(87, "WORSHIPME", MessageKey::CheatWorshipMe),
+    Cheat::new(88, "HELLOLADIES", MessageKey::CheatHelloLadies),
+    Cheat::new(89, "ICANGOALLNIGHT", MessageKey::CheatICanGoAllNight),
+    Cheat::new(
+        90,
+        "PROFESSIONALKILLER",
+        MessageKey::CheatProfessionalKiller,
+    ),
+    Cheat::new(91, "NATURALTALENT", MessageKey::CheatNaturalTalent),
+    Cheat::new(92, "OHDUDE", MessageKey::CheatOhDude),
+    Cheat::new(93, "FOURWHEELFUN", MessageKey::CheatFourWheelFun),
+    Cheat::new(94, "HITTHEROADJACK", MessageKey::CheatHitTheRoadJack),
+    Cheat::new(95, "ITSALLBULL", MessageKey::CheatItsAllBull),
+    Cheat::new(96, "FLYINGTOSTUNT", MessageKey::CheatFlyingToStunt),
+    Cheat::new(97, "MONSTERMASH", MessageKey::CheatMonsterMash),
+    Cheat::new(98, "", MessageKey::CheatProstitutesPay),
+    Cheat::new(99, "", MessageKey::CheatCoolTaxis),
+    Cheat::new(100, "", MessageKey::CheatSlotMelee),
+    Cheat::new(101, "", MessageKey::CheatSlotHandgun),
+    Cheat::new(102, "", MessageKey::CheatSlotSmg),
+    Cheat::new(103, "", MessageKey::CheatSlotShotgun),
+    Cheat::new(104, "", MessageKey::CheatSlotAssaultRifle),
+    Cheat::new(105, "", MessageKey::CheatSlotLongRifle),
+    Cheat::new(106, "", MessageKey::CheatSlotThrown),
+    Cheat::new(107, "", MessageKey::CheatSlotHeavy),
+    Cheat::new(108, "", MessageKey::CheatSlotEquipment),
+    Cheat::new(109, "", MessageKey::CheatSlotOther),
+    Cheat::new(110, "", MessageKey::CheatXboxHelper),
 ];

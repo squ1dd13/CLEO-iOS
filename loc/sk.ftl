@@ -39,7 +39,7 @@ update-release-channel-opt-alpha = Alpha
 menu-close = Zavrieť
 
 # Title for the options tab.
-options-tab-title = Možnosti
+menu-options-tab-title = Možnosti
 
 ### ==== Script menu ====
 
@@ -48,9 +48,9 @@ options-tab-title = Možnosti
 # Shown at the top of the script menus when at least one error has been found in any script. This
 # is not shown at all if there are zero scripts with errors in them.
 menu-script-warning-overview =
-    { $numberOfScriptsWithErrors ->
+    { $num_scripts_with_errors ->
         [one] Chyby sa zistili v jednom skripte. Tento skript je zvýraznený oranžovou farbou.
-        *[other] Chyby sa zistili v { $numberOfScriptsWithErrors } skriptoch. Tieto skripty sú zvýraznené oranžovou farbou.
+        *[other] Chyby sa zistili v { $num_scripts_with_errors } skriptoch. Tieto skripty sú zvýraznené oranžovou farbou.
     }
 
 # The second line of the warning.
@@ -64,15 +64,19 @@ script-unimplemented-in-cleo = Používajúce funkcie sa aktuálne nepodporujú 
 # The script does things that are not possible on iOS (for system reasons).
 script-impossible-on-ios = Nejaký používajúci kód sa nebude fungovať v systéme IOS
 
-# The script is identical to another script. { $originalScript } will be replaced with the name of
+# The script is identical to another script. { $original_script } will be replaced with the name of
 # the script that this one is a duplicate of.
-script-duplicate = Duplikát { $originalScript }.
+script-duplicate = Duplikát { $original_script }.
 
 # There was an error when checking the script code for problems.
 script-check-failed = Nie je možné skenovať skript. Nahláste to prosím ako chybu na GitHube, alebo na Discorde.
 
 # No problems were found when scanning the script. This is a safe script!
 script-no-problems = Neboli zistené žiadne chyby.
+
+# Formats for script names in the menu.
+script-csa-row-title = { $script_name }
+script-csi-row-title = { $script_name }
 
 ## Script status messages
 
@@ -135,6 +139,10 @@ cheat-queued-on = Vo fronte
 
 # Cheat will be turned off when the menu is closed.
 cheat-queued-off = Odstrániť z frontu
+
+# Formats for cheat codes in the menu.
+cheat-code-row-title = { $cheat_code }
+cheat-no-code-title = ???
 
 ## Cheat saving option
 

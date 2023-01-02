@@ -12,16 +12,17 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     gui::colours::Colour,
+    language::{self, Language, Message, MessageKey},
     menu::{self, RowData, RowDetail},
 };
 
 /// Trait for option values.
 trait Setting {
     /// The title of the setting. This is shown in the menu.
-    fn title(&self) -> &'static str;
+    fn title(&self) -> Message;
 
     /// The description of the setting. This is shown in the menu.
-    fn description(&self) -> &'static str;
+    fn description(&self) -> Message;
 
     /// Sets this setting's value in `options`.
     fn apply(&self, options: &mut Options);
@@ -35,23 +36,23 @@ trait Setting {
     fn status_colour(&self) -> Option<Colour>;
 
     /// Returns a string describing the value.
-    fn as_str(&self) -> &'static str;
+    fn to_str(&self) -> Message;
 }
 
 impl<Opt> RowData for Opt
 where
     Opt: Setting,
 {
-    fn title(&self) -> String {
-        Setting::title(self).to_string()
+    fn title(&self) -> Message {
+        Setting::title(self)
     }
 
     fn detail(&self) -> RowDetail {
-        RowDetail::Info(self.description().to_string())
+        RowDetail::Info(self.description())
     }
 
-    fn value(&self) -> &str {
-        self.as_str()
+    fn value(&self) -> Message {
+        self.to_str()
     }
 
     fn tint(&self) -> Option<(u8, u8, u8)> {
@@ -104,12 +105,12 @@ impl Default for FpsLock {
 }
 
 impl Setting for FpsLock {
-    fn title(&self) -> &'static str {
-        "FPS Lock"
+    fn title(&self) -> Message {
+        MessageKey::FpsLockOptTitle.to_message()
     }
 
-    fn description(&self) -> &'static str {
-        "The maximum framerate. 30 FPS looks worse but saves battery."
+    fn description(&self) -> Message {
+        MessageKey::FpsLockOptDesc.to_message()
     }
 
     fn apply(&self, options: &mut Options) {
@@ -127,11 +128,12 @@ impl Setting for FpsLock {
         None
     }
 
-    fn as_str(&self) -> &'static str {
+    fn to_str(&self) -> Message {
         match self {
-            FpsLock::Thirty => "30 FPS",
-            FpsLock::Sixty => "60 FPS",
+            FpsLock::Thirty => MessageKey::FpsLockOpt30,
+            FpsLock::Sixty => MessageKey::FpsLockOpt30,
         }
+        .to_message()
     }
 }
 
@@ -152,12 +154,12 @@ impl Default for FpsVisibility {
 }
 
 impl Setting for FpsVisibility {
-    fn title(&self) -> &'static str {
-        "FPS Counter"
+    fn title(&self) -> Message {
+        MessageKey::FpsCounterOptTitle.to_message()
     }
 
-    fn description(&self) -> &'static str {
-        "Enables or disables the on-screen FPS counter."
+    fn description(&self) -> Message {
+        MessageKey::FpsCounterOptDesc.to_message()
     }
 
     fn apply(&self, options: &mut Options) {
@@ -175,11 +177,12 @@ impl Setting for FpsVisibility {
         None
     }
 
-    fn as_str(&self) -> &'static str {
+    fn to_str(&self) -> Message {
         match self {
-            FpsVisibility::Hidden => "Disabled",
-            FpsVisibility::Visible => "Enabled",
+            FpsVisibility::Hidden => MessageKey::FpsCounterOptHidden,
+            FpsVisibility::Visible => MessageKey::FpsCounterOptEnabled,
         }
+        .to_message()
     }
 }
 
@@ -200,12 +203,12 @@ impl Default for CheatTransience {
 }
 
 impl Setting for CheatTransience {
-    fn title(&self) -> &'static str {
-        "Cheat Saving"
+    fn title(&self) -> Message {
+        MessageKey::CheatTransienceOptTitle.to_message()
     }
 
-    fn description(&self) -> &'static str {
-        "Controls how cheats are managed when reloading/restarting the game."
+    fn description(&self) -> Message {
+        MessageKey::CheatTransienceOptDesc.to_message()
     }
 
     fn apply(&self, options: &mut Options) {
@@ -223,11 +226,12 @@ impl Setting for CheatTransience {
         None
     }
 
-    fn as_str(&self) -> &'static str {
+    fn to_str(&self) -> Message {
         match self {
-            CheatTransience::Transient => "Reset all",
-            CheatTransience::Persistent => "Save states",
+            CheatTransience::Transient => MessageKey::CheatTransienceOptTransient,
+            CheatTransience::Persistent => MessageKey::CheatTransienceOptPersistent,
         }
+        .to_message()
     }
 }
 
@@ -248,12 +252,12 @@ impl Default for BreakMode {
 }
 
 impl Setting for BreakMode {
-    fn title(&self) -> &'static str {
-        "Loop Break Mode"
+    fn title(&self) -> Message {
+        MessageKey::ScriptModeOptTitle.to_message()
     }
 
-    fn description(&self) -> &'static str {
-        "How CLEO deals with scripts that take too long to run every frame."
+    fn description(&self) -> Message {
+        MessageKey::ScriptModeOptDesc.to_message()
     }
 
     fn apply(&self, options: &mut Options) {
@@ -271,11 +275,12 @@ impl Setting for BreakMode {
         None
     }
 
-    fn as_str(&self) -> &'static str {
+    fn to_str(&self) -> Message {
         match self {
-            BreakMode::DontBreak => "Maximise stability",
-            BreakMode::Break => "Minimise lag",
+            BreakMode::DontBreak => MessageKey::ScriptModeOptDontBreak,
+            BreakMode::Break => MessageKey::ScriptModeOptBreak,
         }
+        .to_message()
     }
 }
 
@@ -301,13 +306,12 @@ impl Default for ReleaseChannel {
 }
 
 impl Setting for ReleaseChannel {
-    fn title(&self) -> &'static str {
-        "Release Channel"
+    fn title(&self) -> Message {
+        MessageKey::UpdateReleaseChannelOptTitle.to_message()
     }
 
-    fn description(&self) -> &'static str {
-        "Which CLEO updates you get notifications for. \
-Alpha gives newer features sooner but might have more bugs. Disabling updates is not recommended."
+    fn description(&self) -> Message {
+        MessageKey::UpdateReleaseChannelOptDesc.to_message()
     }
 
     fn apply(&self, options: &mut Options) {
@@ -330,12 +334,79 @@ Alpha gives newer features sooner but might have more bugs. Disabling updates is
         }
     }
 
-    fn as_str(&self) -> &'static str {
+    fn to_str(&self) -> Message {
         match self {
-            ReleaseChannel::None => "Disabled",
-            ReleaseChannel::Stable => "Stable",
-            ReleaseChannel::Alpha => "Alpha",
+            ReleaseChannel::None => MessageKey::UpdateReleaseChannelOptDisabled,
+            ReleaseChannel::Stable => MessageKey::UpdateReleaseChannelOptStable,
+            ReleaseChannel::Alpha => MessageKey::UpdateReleaseChannelOptAlpha,
         }
+        .to_message()
+    }
+}
+
+#[derive(Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Debug)]
+pub enum LanguageMode {
+    /// Matches the CLEO language to the device/game settings.
+    Automatic,
+
+    /// Forces CLEO to use a specific language.
+    Explicit(Language),
+}
+
+impl Default for LanguageMode {
+    fn default() -> Self {
+        LanguageMode::Automatic
+    }
+}
+
+impl Setting for LanguageMode {
+    fn title(&self) -> Message {
+        MessageKey::LanguageOptTitle.to_message()
+    }
+
+    fn description(&self) -> Message {
+        MessageKey::LanguageOptDesc.to_message()
+    }
+
+    fn apply(&self, options: &mut Options) {
+        options.language_mode = *self;
+
+        language::set(match self {
+            LanguageMode::Automatic => None,
+            LanguageMode::Explicit(language) => Some(*language),
+        });
+    }
+
+    fn cycle_value(&mut self) {
+        *self = match self {
+            // If we're currently set to automatic mode, choose English first, because it has the
+            // largest number of speakers.
+            LanguageMode::Automatic => LanguageMode::Explicit(Language::English),
+
+            LanguageMode::Explicit(current) => {
+                // If we're on an explicit choice which isn't the last language, move to the next
+                // language.
+                if let Some(next_most_spoken) = current.next_most_spoken() {
+                    LanguageMode::Explicit(next_most_spoken)
+                } else {
+                    // If we've reached the end of the supported languages, go back to automatic
+                    // mode.
+                    LanguageMode::Automatic
+                }
+            }
+        }
+    }
+
+    fn status_colour(&self) -> Option<Colour> {
+        None
+    }
+
+    fn to_str(&self) -> Message {
+        match self {
+            LanguageMode::Automatic => MessageKey::LanguageAutoName,
+            LanguageMode::Explicit(_) => MessageKey::LanguageName,
+        }
+        .to_message()
     }
 }
 
@@ -356,6 +427,9 @@ pub struct Options {
 
     /// Controls when the user is prompted to update their game.
     pub release_channel: ReleaseChannel,
+
+    /// Determines which language CLEO will use.
+    pub language_mode: LanguageMode,
 }
 
 impl Options {
@@ -433,8 +507,9 @@ impl Options {
                 BreakMode::DontBreak,
             ),
 
-            // This option didn't exist.
+            // These options didn't exist.
             release_channel: ReleaseChannel::default(),
+            language_mode: LanguageMode::default(),
         }))
     }
 
@@ -519,6 +594,7 @@ pub fn tab_data() -> menu::TabData {
         Box::new(options.fps_visibility) as Box<dyn RowData>,
         Box::new(options.cheat_transience) as Box<dyn RowData>,
         Box::new(options.loop_break) as Box<dyn RowData>,
+        Box::new(options.language_mode) as Box<dyn RowData>,
         Box::new(options.release_channel) as Box<dyn RowData>,
     ];
 

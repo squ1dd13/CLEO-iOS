@@ -14,7 +14,7 @@ fn open_url(url: impl AsRef<str>) {
     unsafe {
         let url: *const Object = msg_send![
             class!(NSURL),
-            URLWithString: crate::gui::create_ns_string(url.as_ref())
+            URLWithString: crate::gui::ns_string(url.as_ref())
         ];
 
         let shared_app: *const Object = msg_send![class!(UIApplication), sharedApplication];
