@@ -1,4 +1,4 @@
-﻿# Used in the settings menu to show the name of the language.
+# Used in the settings menu to show the name of the language.
 language-name = slovenčina
 
 ### ==== Splash screen ====

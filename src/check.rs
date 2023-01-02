@@ -437,10 +437,7 @@ impl ScriptIssue {
             ScriptIssue::AndroidSpecific => MessageKey::ScriptImpossibleOnIos.to_message(),
             ScriptIssue::CheckFailed => MessageKey::ScriptCheckFailed.to_message(),
 
-            ScriptIssue::Duplicate(original_name) => Message::Formatted(
-                MessageKey::ScriptDuplicate,
-                todo!("duplicate script message"),
-            ),
+            ScriptIssue::Duplicate(original_name) => MessageKey::ScriptDuplicate.format(todo!()),
         }
     }
 }

@@ -7,10 +7,10 @@ language-name = English
 language-auto-name = Automatic (English)
 
 # The name of the language setting.
-language-setting-title = Language
+language-opt-title = Language
 
 # The language setting description.
-language-setting-desc = The language to use for CLEO. Automatic mode will use your device/game settings. Join the Discord server to add your own language!
+language-opt-desc = The language to use for CLEO. Automatic mode will use your device/game settings. Join the Discord server to add your own language!
 
 ### ==== Splash screen ====
 

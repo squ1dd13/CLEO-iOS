@@ -429,6 +429,7 @@ pub struct Options {
     pub release_channel: ReleaseChannel,
 
     /// Determines which language CLEO will use.
+    #[serde(default)]
     pub language_mode: LanguageMode,
 }
 

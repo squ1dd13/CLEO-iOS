@@ -217,7 +217,7 @@ impl Row {
             let _: () = msg_send![self.value_label, setText: ns_string(value_str)];
             let _: () = msg_send![self.value_label, setTextColor: value_colour];
 
-            let _: () = msg_send![self.detail_label, setText: ns_string(&detail_str)];
+            let _: () = msg_send![self.detail_label, setText: ns_string(detail_str)];
             let _: () = msg_send![self.detail_label, setTextColor: foreground_colour];
         }
     }

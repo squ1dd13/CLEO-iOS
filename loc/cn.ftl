@@ -1,4 +1,4 @@
-﻿# Used in the settings menu to show the name of the language.
+# Used in the settings menu to show the name of the language.
 language-name = 中文（简体）
 
 ### ==== Splash screen ====

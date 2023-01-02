@@ -35,3 +35,6 @@ eyre = "0.6.5"
 itertools = "0.10.5"
 case_insensitive_hashmap = "1.0.0"
 strum = { version = "0.24", features = ["derive"] }
+fluent = { git = "https://github.com/squ1dd13/fluent-rs" }
+fluent-bundle = { git = "https://github.com/squ1dd13/fluent-rs" }
+unic-langid = { version = "0.9.1", features = ["macros"] }

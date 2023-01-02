@@ -158,6 +158,7 @@ fn load() {
     log::info!("Cargo package version is {}", env!("CARGO_PKG_VERSION"));
 
     settings::init();
+    language::init();
 
     // Start checking for updates in the background.
     github::start_update_check_thread();
