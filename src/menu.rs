@@ -32,7 +32,7 @@ pub trait RowData {
 
 pub struct TabData {
     pub name: String,
-    pub warning: Option<String>,
+    pub warning: Option<Message>,
     pub row_data: Vec<Box<dyn RowData>>,
 }
 
@@ -249,9 +249,7 @@ const WARNING_HEIGHT_FRAC: f64 = 0.1;
 const WARNING_LBL_FONT_SIZE: f64 = 10.;
 
 struct Tab {
-    // We don't use the name or warning, but we may in the future.
-    _name: String,
-    _warning: Option<String>,
+    name: String,
     scroll_view: *mut Object,
     warning_label: Option<*mut Object>,
     rows: Vec<Row>,
@@ -321,6 +319,8 @@ impl Tab {
         }
 
         let warning_label = data.warning.as_ref().map(|warning| unsafe {
+            let warning = warning.clone().translate();
+
             let warning_frame = CGRect::new(
                 0.,
                 tab_frame.origin.y,
@@ -347,8 +347,7 @@ impl Tab {
         });
 
         let mut tab = Tab {
-            _name: data.name,
-            _warning: data.warning,
+            name: data.name,
             scroll_view,
             warning_label,
             rows,
@@ -575,7 +574,7 @@ impl Menu {
 
                 // todo: Add tab selection state to TAB_STATES when menu is removed.
                 TAB_STATES.insert(
-                    tab._name.clone(),
+                    tab.name.clone(),
                     TabState {
                         selected: false,
                         scroll_y: content_offset.y,

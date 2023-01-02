@@ -386,7 +386,6 @@ pub enum MessageKey {
     CheatTabTitle,
 
     CheatMenuWarning,
-    CheatMenuAdvice,
 
     CheatOn,
     CheatOff,

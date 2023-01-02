@@ -127,7 +127,7 @@ cheat-tab-title = Cheats
 
 # Two lines of text shown at the top of the cheats menu.
 cheat-menu-warning = Cheats gebruiken kan voor bugs zorgen of zelfs verlies van spel progressie.
-cheat-menu-advice = Als je toch cheats wil gebruiken maar ook bang bent om je progressie te verliezen kan je een reservekopie maken van je progressie door in een ander save-slot op te slaan.
+  Als je toch cheats wil gebruiken maar ook bang bent om je progressie te verliezen kan je een reservekopie maken van je progressie door in een ander save-slot op te slaan.
 
 ## Status messages for cheats
 

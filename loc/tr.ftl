@@ -122,7 +122,7 @@ cheat-tab-title = Hileler
 
 # Two lines of text shown at the top of the cheats menu.
 cheat-menu-warning = Hile kullanmak oyununuzu cokertip ilerleme kaybetmenize sebep olabilir.
-cheat-menu-advice = Eger ilerleme kaybetmek istemiyorsaniz save dosyanizi yedekleyin.
+  Eger ilerleme kaybetmek istemiyorsaniz save dosyanizi yedekleyin.
 
 ## Status messages for cheats
 

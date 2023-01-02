@@ -127,7 +127,7 @@ cheat-tab-title = قائمة الغش
 
 # Two lines of text shown at the top of the cheats menu.
 cheat-menu-warning = يمكن أن يؤدي استخدام الغش إلى حدوث أعطال وربما فقدان التقدم اللعبة.
-cheat-menu-advice = اذا كنت لا تريد المخاطرة في فقدان تقدمك, اعمل نسخ احتياطي لتقدمك في مكان اخر.
+  اذا كنت لا تريد المخاطرة في فقدان تقدمك, اعمل نسخ احتياطي لتقدمك في مكان اخر.
 
 ## Status messages for cheats
 

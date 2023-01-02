@@ -127,7 +127,7 @@ cheat-tab-title = Cheaty
 
 # Two lines of text shown at the top of the cheats menu.
 cheat-menu-warning = Používanie cheatov môže viesť k pádom a prípadne k strate postupu v hre.
-cheat-menu-advice = Pokiaľ nechcete riskovať prelomenie vášho uloženia, zálohujte si svoj postup najskôr do iného slotu.
+  Pokiaľ nechcete riskovať prelomenie vášho uloženia, zálohujte si svoj postup najskôr do iného slotu.
 
 ## Status messages for cheats
 

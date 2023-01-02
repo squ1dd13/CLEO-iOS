@@ -123,7 +123,7 @@ cheat-tab-title = 作弊器
 
 # Two lines of text shown at the top of the cheats menu.
 cheat-menu-warning = 使用作弊器可能会导致游戏崩溃且有可能丢失游戏进度。
-cheat-menu-advice = 如果您不愿冒游戏存档损失的风险，请先将您的游戏进度备份到其它卡槽中。
+  如果您不愿冒游戏存档损失的风险，请先将您的游戏进度备份到其它卡槽中。
 
 ## Status messages for cheats
 

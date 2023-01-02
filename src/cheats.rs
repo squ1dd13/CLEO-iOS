@@ -279,11 +279,7 @@ pub fn tab_data() -> TabData {
 
     TabData {
         name: "Cheats".to_string(),
-        warning: Some(
-            r#"Using cheats can lead to a crash and/or loss of progress.
-If you don't want to risk breaking your save, back up your progress to a different slot first."#
-                .to_string(),
-        ),
+        warning: Some(MessageKey::CheatMenuWarning.to_message()),
         row_data: sorted_cheats
             .iter()
             .map(|cheat| Box::new(CheatData::new(cheat)) as Box<dyn RowData>)

@@ -709,7 +709,8 @@ impl CsaMenuInfo {
 
 impl menu::RowData for CsaMenuInfo {
     fn title(&self) -> Message {
-        MessageKey::ScriptCsaRowTitle.to_message()
+        MessageKey::ScriptCsaRowTitle
+            .format(language::msg_args!["script_name" => self.name.clone()])
     }
 
     fn detail(&self) -> menu::RowDetail {
@@ -790,24 +791,15 @@ impl menu::RowData for CsaMenuInfo {
     }
 }
 
-fn gen_warning_string(count: usize) -> Option<String> {
-    const NUMBERS: &[&str] = &[
-        "one", "two", "three", "four", "five", "six", "seven", "eight", "nine",
-    ];
-
+fn gen_warning_string(count: usize) -> Option<Message> {
     if count == 0 {
         return None;
     }
 
-    Some(format!(
-        "Problems identified with {} script{}. {} highlighted in orange.\nSee below for further details.",
-        NUMBERS
-            .get(count - 1)
-            .map(|s| s.to_string())
-            .unwrap_or_else(|| count.to_string()),
-            if count == 1 { "" } else { "s" },
-        if count == 1 { "This script is" } else { "These scripts are" },
-    ))
+    Some(
+        MessageKey::MenuScriptWarningOverview
+            .format(language::msg_args!["num_scripts_with_errors" => count]),
+    )
 }
 
 pub fn tab_data_csa() -> menu::TabData {

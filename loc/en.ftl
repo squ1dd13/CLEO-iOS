@@ -138,7 +138,7 @@ cheat-tab-title = Cheats
 
 # Two lines of text shown at the top of the cheats menu.
 cheat-menu-warning = Using cheats can lead to crashes and possibly a loss of game progress.
-cheat-menu-advice = If you don't want to risk breaking your save, back up your progress to a different slot first.
+  If you don't want to risk breaking your save, back up your progress to a different slot first.
 
 ## Status messages for cheats
 
