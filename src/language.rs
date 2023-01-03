@@ -76,6 +76,9 @@ pub fn init() {
         panic!();
     }
 
+    // Set the language override based on the langauge chosen in the settings.
+    loader.language_override = crate::settings::Options::get().language_mode.language();
+
     loader.find_auto_language();
 }
 

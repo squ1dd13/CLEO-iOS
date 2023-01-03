@@ -353,6 +353,17 @@ pub enum LanguageMode {
     Explicit(Language),
 }
 
+impl LanguageMode {
+    /// Returns the language that this mode represents, or `None` if the language should be chosen
+    /// automatically.
+    pub fn language(self) -> Option<Language> {
+        match self {
+            LanguageMode::Automatic => None,
+            LanguageMode::Explicit(language) => Some(language),
+        }
+    }
+}
+
 impl Default for LanguageMode {
     fn default() -> Self {
         LanguageMode::Automatic
