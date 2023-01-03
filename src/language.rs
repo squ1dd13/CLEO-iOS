@@ -5,7 +5,6 @@ use std::{borrow::Cow, collections::HashMap, sync::Mutex};
 use strum::{EnumIter, EnumString, EnumVariantNames, IntoEnumIterator, IntoStaticStr};
 
 pub use fluent::fluent_args as msg_args;
-use itertools::Itertools;
 
 lazy_static::lazy_static! {
     static ref LOADER: Mutex<Loader> = Mutex::new(Loader::new_empty());
@@ -172,11 +171,12 @@ pub enum Language {
     Arabic,
     Chinese,
     Czech,
+    Dutch,
     English,
     Khmer,
-    Dutch,
     Slovak,
     Turkish,
+    Vietnamese,
 }
 
 impl Language {
@@ -186,11 +186,12 @@ impl Language {
             Language::Arabic => "ar",
             Language::Chinese => "cn",
             Language::Czech => "cz",
+            Language::Dutch => "nl",
             Language::English => "en",
             Language::Khmer => "km",
-            Language::Dutch => "nl",
             Language::Slovak => "sk",
             Language::Turkish => "tr",
+            Language::Vietnamese => "vi",
         }
         .parse()
         .unwrap()
@@ -202,11 +203,12 @@ impl Language {
             Language::Arabic => include_str!("../loc/ar.ftl"),
             Language::Chinese => include_str!("../loc/cn.ftl"),
             Language::Czech => include_str!("../loc/cz.ftl"),
+            Language::Dutch => include_str!("../loc/nl.ftl"),
             Language::English => include_str!("../loc/en.ftl"),
             Language::Khmer => include_str!("../loc/kh.ftl"),
-            Language::Dutch => include_str!("../loc/nl.ftl"),
             Language::Slovak => include_str!("../loc/sk.ftl"),
             Language::Turkish => include_str!("../loc/tr.ftl"),
+            Language::Vietnamese => include_str!("../loc/vi.ftl"),
         }
     }
 
@@ -252,8 +254,11 @@ impl Language {
             // 371 million
             Language::Arabic => Some(Language::Turkish),
 
-            // 80 million
-            Language::Turkish => Some(Language::Dutch),
+            // 88 million
+            Language::Turkish => Some(Language::Vietnamese),
+
+            // 85 million
+            Language::Vietnamese => Some(Language::Dutch),
 
             // 30 million
             Language::Dutch => Some(Language::Khmer),
