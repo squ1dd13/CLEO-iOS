@@ -224,7 +224,7 @@ cheat-rocketman = Klásť raketový batoh
 # descriptions (in brackets) do need to be translated.
 cheat-time-to-kick-ass = Klásť Rhino (tank armády)
 cheat-old-speed-demon = Klásť Bloodring Banger (voz demolačných derby)
-cheat-tinted-rancher = Klásť Rancher s dvoma drobnými oknami (dvojdverové SUV)
+cheat-tinted-rancher = Klásť Rancher s dvoma tónovanými oknami (dvojdverové SUV)
 cheat-not-for-public-roads = Klásť Hotring Racer A (závodné auto)
 cheat-just-try-and-stop-me = Klásť Hotring Racer B (závodné auto)
 cheat-wheres-the-funeral = Klásť Romero (pohrebné vozidlo)
