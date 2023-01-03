@@ -1,9 +1,6 @@
 //! Replaces the game's broken cheats system with our own system that integrates with the menu.
 
-use std::{
-    borrow::Cow,
-    sync::atomic::{AtomicBool, Ordering},
-};
+use std::sync::atomic::{AtomicBool, Ordering};
 
 use crate::{
     call_original, gui, hook,
@@ -35,7 +32,7 @@ impl Cheat {
     }
 
     fn get_function(&self) -> Option<fn()> {
-        let entry_address = 0x10065c358 + (self.index as usize * 8);
+        let entry_address = 0x10065c358 + (self.index * 8);
         let ptr = hook::slide::<*const *const u64>(entry_address);
 
         // The array pointer shouldn't be null, but we check it just in case.
@@ -54,7 +51,7 @@ impl Cheat {
 
     fn get_active_mut(&self) -> &'static mut bool {
         unsafe {
-            hook::slide::<*mut bool>(0x10072dda8 + (self.index as usize))
+            hook::slide::<*mut bool>(0x10072dda8 + self.index)
                 .as_mut()
                 .unwrap()
         }
@@ -110,7 +107,7 @@ fn do_cheats() {
     if let Ok(waiting) = WAITING_CHEATS.lock().as_mut() {
         // Perform all queued cheat actions.
         for cheat_index in waiting.iter() {
-            CHEATS[*cheat_index as usize].run();
+            CHEATS[*cheat_index].run();
         }
 
         // Clear the queue.

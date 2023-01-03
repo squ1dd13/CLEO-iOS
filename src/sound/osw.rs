@@ -4,10 +4,9 @@ use byteorder::{ReadBytesExt, LE};
 use case_insensitive_hashmap::CaseInsensitiveHashMap as UnicaseHashMap;
 use eyre::{eyre, Context, Result};
 use std::{
-    collections::HashMap,
     fs::File,
     io::{BufReader, Read, Seek, SeekFrom},
-    path::{Path, PathBuf},
+    path::{Path},
 };
 
 /// An area within an OSW file.

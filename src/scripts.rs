@@ -13,10 +13,9 @@ use crate::{
     targets, touch,
 };
 use std::{
-    borrow::Cow,
     collections::HashMap,
     hash::{Hash, Hasher},
-    sync::{atomic::Ordering, Mutex},
+    sync::{Mutex},
 };
 
 #[repr(C, align(8))]

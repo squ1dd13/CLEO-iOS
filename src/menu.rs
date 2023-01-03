@@ -7,7 +7,6 @@ use crate::{
 use objc::{class, msg_send, runtime::Object, sel};
 use once_cell::{sync::OnceCell, unsync::Lazy};
 use std::{
-    borrow::Cow,
     collections::HashMap,
     sync::{
         mpsc::{self, Sender},
