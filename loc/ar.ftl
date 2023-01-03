@@ -138,7 +138,7 @@ cheat-off = ايقاف
 cheat-queued-on = في الانتظار
 
 # Cheat will be turned off when the menu is closed.
-cheat-queued-off = الغي الانتظار
+cheat-queued-off = الغيت
 
 # Formats for cheat codes in the menu.
 cheat-code-row-title = { $cheat_code }
