@@ -2,7 +2,7 @@
 
 use crate::{
     gui::{self, ns_string, CGPoint, CGRect, CGSize},
-    language::Message,
+    language::{Message, MessageKey},
 };
 use objc::{class, msg_send, runtime::Object, sel};
 use once_cell::{sync::OnceCell, unsync::Lazy};
@@ -501,6 +501,8 @@ impl Menu {
         // We collect here instead of chaining so that the formatting above is nicer.
         let tabs = tabs.collect();
 
+        let close_message = MessageKey::MenuClose.to_message();
+
         let close_button: *mut Object = unsafe {
             let btn: *mut Object = msg_send![class!(UIButton), alloc];
 
@@ -512,7 +514,10 @@ impl Menu {
             );
 
             let btn: *mut Object = msg_send![btn, initWithFrame: btn_frame];
-            let _: () = msg_send![btn, setTitle: ns_string("Close") forState: 0u64];
+
+            let close_string = ns_string(close_message.translate());
+
+            let _: () = msg_send![btn, setTitle: close_string forState: 0u64];
             let _: () = msg_send![
                 btn,
                 setBackgroundColor: gui::colours::get(gui::colours::RED, 0.35)
