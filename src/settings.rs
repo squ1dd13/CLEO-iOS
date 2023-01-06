@@ -131,7 +131,7 @@ impl Setting for FpsLock {
     fn to_str(&self) -> Message {
         match self {
             FpsLock::Thirty => MessageKey::FpsLockOpt30,
-            FpsLock::Sixty => MessageKey::FpsLockOpt30,
+            FpsLock::Sixty => MessageKey::FpsLockOpt60,
         }
         .to_message()
     }
