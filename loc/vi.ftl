@@ -38,7 +38,7 @@ update-release-channel-opt-alpha = Phiên bản thử nghiệm
 menu-close = Tắt
 
 # Title for the options tab.
-options-tab-title = Tùy chọn
+menu-options-tab-title = Tùy chọn
 
 ### ==== Script menu ====
 
@@ -50,6 +50,9 @@ menu-script-warning-overview = Đã tìm thấy lỗi trong { $numberOfScriptsWi
 
 # The second line of the warning.
 menu-script-see-below = Xem bên dưới để biết chi tiết.
+
+menu-script-csa-tab-title = CSA
+menu-script-csi-tab-title = CSI
 
 ## Specific script warnings
 

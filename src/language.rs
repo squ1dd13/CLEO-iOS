@@ -287,7 +287,7 @@ pub enum Message {
 
 impl Message {
     /// Translates the message into the user's selected language.
-    pub fn translate(self) -> Cow<'static, str> {
+    pub fn translate(&self) -> Cow<'static, str> {
         log::warn!(
             "cloning all messages at the moment: {}",
             match self {
@@ -312,6 +312,12 @@ impl Message {
             ),
         }
     }
+
+    pub fn key(&self) -> MessageKey {
+        match self {
+            Message::Message(key) | Message::Formatted(key, _) => *key,
+        }
+    }
 }
 
 // Implementation before definition because the definition is long.
@@ -330,7 +336,7 @@ impl MessageKey {
     }
 }
 
-#[derive(Clone, Copy, Debug, EnumString, EnumVariantNames, IntoStaticStr)]
+#[derive(Clone, Copy, Debug, EnumString, EnumVariantNames, IntoStaticStr, PartialEq, Eq, Hash)]
 #[strum(serialize_all = "kebab-case")]
 pub enum MessageKey {
     LanguageOptTitle,
@@ -357,6 +363,9 @@ pub enum MessageKey {
 
     MenuScriptWarningOverview,
     MenuScriptSeeBelow,
+
+    MenuScriptCsaTabTitle,
+    MenuScriptCsiTabTitle,
 
     ScriptUnimplementedInCleo,
     ScriptImpossibleOnIos,

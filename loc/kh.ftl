@@ -54,6 +54,9 @@ menu-script-warning-overview =
 
 # The second line of the warning.
 menu-script-see-below = សូមមើលខាងក្រោមសម្រាប់ព័ត៌មានលម្អិត.
+menu-script-csa-tab-title = CSA
+menu-script-csi-tab-title = CSI
+
 ## Specific script warnings
 
 # The script does things that CLEO doesn't support yet.

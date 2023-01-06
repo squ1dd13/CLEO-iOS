@@ -30,7 +30,7 @@ pub trait RowData {
 }
 
 pub struct TabData {
-    pub name: String,
+    pub name: Message,
     pub warning: Option<Message>,
     pub row_data: Vec<Box<dyn RowData>>,
 }
@@ -49,7 +49,19 @@ struct TabState {
 }
 
 struct TabButton {
+    message: Message,
     view: *mut Object,
+}
+
+impl TabButton {
+    /// Sets the tab button's title based on `self.message`.
+    fn reload_title(&mut self) {
+        let title_string_objc = ns_string(self.message.translate());
+
+        unsafe {
+            let _: () = msg_send![self.view, setTitle: title_string_objc forState: 0u64];
+        }
+    }
 }
 
 #[repr(C)]
@@ -248,7 +260,7 @@ const WARNING_HEIGHT_FRAC: f64 = 0.1;
 const WARNING_LBL_FONT_SIZE: f64 = 10.;
 
 struct Tab {
-    name: String,
+    name: Message,
     scroll_view: *mut Object,
     warning_label: Option<*mut Object>,
     rows: Vec<Row>,
@@ -346,7 +358,7 @@ impl Tab {
         });
 
         let mut tab = Tab {
-            name: data.name,
+            name: data.name.clone(),
             scroll_view,
             warning_label,
             rows,
@@ -368,14 +380,14 @@ impl Tab {
 }
 
 impl TabButton {
-    fn new(title: &str, index: usize, width: f64) -> TabButton {
+    fn new(title: Message, index: usize, width: f64) -> TabButton {
         let view = unsafe {
             let btn: *mut Object = msg_send![class!(UIButton), alloc];
 
             let frame = CGRect::new(width * index as f64, 0., width, TAB_BUTTON_HEIGHT);
             let btn: *mut Object = msg_send![btn, initWithFrame: frame];
 
-            let _: () = msg_send![btn, setTitle: ns_string(title) forState: 0u64];
+            let _: () = msg_send![btn, setTitle: ns_string(title.translate()) forState: 0u64];
 
             let label: *mut Object = msg_send![btn, titleLabel];
             let _: () =
@@ -386,7 +398,10 @@ impl TabButton {
             btn
         };
 
-        TabButton { view }
+        TabButton {
+            message: title,
+            view,
+        }
     }
 
     fn set_selected(&mut self, selected: bool) {
@@ -447,7 +462,7 @@ fn set_game_timer_paused(want_pause: bool) {
 
 // hack: Using names for TabState structures will not work if the tab changes its contents.
 // todo: Remember the selected tab.
-static mut TAB_STATES: Lazy<HashMap<String, TabState>> = Lazy::new(HashMap::new);
+static mut TAB_STATES: Lazy<HashMap<MessageKey, TabState>> = Lazy::new(HashMap::new);
 
 struct Menu {
     tabs: Vec<Tab>,
@@ -468,7 +483,7 @@ impl Menu {
         let tab_buttons = tab_data
             .iter()
             .enumerate()
-            .map(|(index, data)| TabButton::new(&data.name, index, tab_btn_width))
+            .map(|(index, data)| TabButton::new(data.name.clone(), index, tab_btn_width))
             .collect();
 
         let tab_frame = CGRect::new(
@@ -483,7 +498,7 @@ impl Menu {
             let state = unsafe {
                 // We remove the existing state from the map if it exists, because we need to move it into
                 //  the Tab we're about to create. It will be returned to the map when the menu is closed.
-                TAB_STATES.remove(&data.name).unwrap_or(TabState {
+                TAB_STATES.remove(&data.name.key()).unwrap_or(TabState {
                     selected: false,
                     scroll_y: 0.,
                 })
@@ -578,7 +593,7 @@ impl Menu {
 
                 // todo: Add tab selection state to TAB_STATES when menu is removed.
                 TAB_STATES.insert(
-                    tab.name.clone(),
+                    tab.name.key(),
                     TabState {
                         selected: false,
                         scroll_y: content_offset.y,
@@ -622,6 +637,16 @@ impl Menu {
             for row in &mut tab.rows {
                 row.load();
             }
+        }
+
+        for tab_button in &mut self.tab_buttons {
+            tab_button.reload_title();
+        }
+
+        let close_title_objc = ns_string(MessageKey::MenuClose.to_message().translate());
+
+        unsafe {
+            let _: () = msg_send![self.close_button, setTitle: close_title_objc forState: 0u64];
         }
     }
 

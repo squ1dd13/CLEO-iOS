@@ -275,7 +275,7 @@ pub fn tab_data() -> TabData {
     });
 
     TabData {
-        name: "Cheats".to_string(),
+        name: MessageKey::CheatTabTitle.to_message(),
         warning: Some(MessageKey::CheatMenuWarning.to_message()),
         row_data: sorted_cheats
             .iter()

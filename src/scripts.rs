@@ -15,7 +15,7 @@ use crate::{
 use std::{
     collections::HashMap,
     hash::{Hash, Hasher},
-    sync::{Mutex},
+    sync::Mutex,
 };
 
 #[repr(C, align(8))]
@@ -825,7 +825,7 @@ pub fn tab_data_csa() -> menu::TabData {
     row_data.sort_by_cached_key(|x| x.title().translate());
 
     TabData {
-        name: "CSA".to_string(),
+        name: MessageKey::MenuScriptCsaTabTitle.to_message(),
         warning: gen_warning_string(errs),
         row_data,
     }
@@ -855,7 +855,7 @@ pub fn tab_data_csi() -> menu::TabData {
     row_data.sort_by_cached_key(|x| x.title().translate());
 
     TabData {
-        name: "CSI".to_string(),
+        name: MessageKey::MenuScriptCsiTabTitle.to_message(),
         warning: gen_warning_string(errs),
         row_data,
     }

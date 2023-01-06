@@ -611,7 +611,7 @@ pub fn tab_data() -> menu::TabData {
     ];
 
     menu::TabData {
-        name: "Options".to_string(),
+        name: MessageKey::MenuOptionsTabTitle.to_message(),
         warning: None,
         row_data: options,
     }

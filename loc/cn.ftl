@@ -52,6 +52,9 @@ menu-script-warning-overview = 在{ $num_scripts_with_errors }个脚本中发现
 # The second line of the warning.
 menu-script-see-below = 详情请见下文。
 
+menu-script-csa-tab-title = CSA
+menu-script-csi-tab-title = CSI
+
 ## Specific script warnings
 
 # The script does things that CLEO doesn't support yet.
