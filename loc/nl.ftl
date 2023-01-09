@@ -65,14 +65,14 @@ menu-script-csi-tab-title = CSI
 script-unimplemented-in-cleo = Dit script probeert functies te gebruiken die nog niet in CLEO zitten.
 
 # The script does things that are not possible on iOS (for system reasons).
-script-impossible-on-ios = Dit script gebruikt fincties die niet werken op iOS.
+script-impossible-on-ios = Dit script gebruikt functies die niet werken op iOS.
 
 # The script is identical to another script. { $original_script } will be replaced with the name of
 # the script that this one is a duplicate of.
 script-duplicate = Duplicaat van { $original_script }.
 
 # There was an error when checking the script code for problems.
-script-check-failed = Script kan niet gescand worden. Geef dit probleem A.U.B. aan in de discord of op Github.
+script-check-failed = Script kan niet gescand worden. Geef dit probleem A.U.B. aan in de discord server of op Github.
 
 # No problems were found when scanning the script. This is a safe script!
 script-no-problems = Geen problemen gevonden met dit script.
@@ -285,7 +285,7 @@ cheat-cool-taxis = Taxis hebben hydraulica en nitro
 cheat-chitty-chitty-bang-bang = Vliegende autos
 cheat-cj-phone-home = Hoge bunny hops op de fiets
 cheat-touch-my-car-you-die = Sloop andere voertuigen als je ze aanraakt
-cheat-bubble-cars = Autos weven weg als ze geraakt worden
+cheat-bubble-cars = Autos zweven weg als ze geraakt worden
 cheat-stick-like-glue = Betere ophanging en bestuurbaarheid
 cheat-dont-try-and-stop-me = Verkeerslichten staan altijd op groen
 cheat-flying-fish = Vliegende boten
@@ -300,7 +300,7 @@ cheat-take-a-chill-pill = Adrenaline effecten
 cheat-prostitutes-pay = Prostituees betalen jou
 
 ## Miscellaneous
-cheat-xbox-helper = Zet je stats zodat je bijna de Xbox prestaties hebt
+cheat-xbox-helper = Zet je statistieken zodat je bijna de Xbox prestaties hebt
 
 ## Pointless cheats
 
