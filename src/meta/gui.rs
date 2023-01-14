@@ -89,10 +89,10 @@ pub mod colours {
         /// Returns the RGB values for this colour.
         pub const fn rgb(self) -> Rgb {
             match self {
-                Colour::Red => (255, 83, 94),
-                Colour::Orange => (255, 128, 0),
-                Colour::Green => (78, 149, 64),
-                Colour::Blue => (120, 200, 255),
+                Colour::Red => (255, 59, 76),
+                Colour::Orange => (255, 120, 0),
+                Colour::Green => (78, 183, 64),
+                Colour::Blue => (100, 200, 255),
             }
         }
     }

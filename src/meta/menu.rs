@@ -48,6 +48,9 @@ struct TabState {
     scroll_y: f64,
 }
 
+const MENU_BACKGROUND_ALPHA: f64 = 0.2;
+const MENU_INACTIVE_ALPHA: f64 = 0.1;
+
 struct TabButton {
     message: Message,
     view: *mut Object,
@@ -237,13 +240,16 @@ impl Row {
             ),
             RowDetail::Warning(s) => (
                 s,
-                gui::colours::get(gui::colours::ORANGE, 1.),
-                gui::colours::get(gui::colours::ORANGE, 0.2),
+                gui::colours::get(gui::colours::ORANGE, 0.95),
+                gui::colours::get(gui::colours::ORANGE, MENU_BACKGROUND_ALPHA),
             ),
         };
 
         let (background_colour, value_colour) = if let Some(tint) = self.data.tint() {
-            (gui::colours::get(tint, 0.2), gui::colours::get(tint, 0.95))
+            (
+                gui::colours::get(tint, MENU_BACKGROUND_ALPHA),
+                gui::colours::get(tint, 0.95),
+            )
         } else {
             (background_colour, gui::colours::white_with_alpha(1., 0.95))
         };
@@ -357,7 +363,7 @@ impl Tab {
 
             let _: () = msg_send![scroll_view, setContentOffset: content_offset animated: false];
 
-            let background = gui::colours::white_with_alpha(0., 0.95);
+            let background = gui::colours::white_with_alpha(0., MENU_BACKGROUND_ALPHA);
             let _: () = msg_send![scroll_view, setBackgroundColor: background];
         }
 
@@ -383,7 +389,7 @@ impl Tab {
             let _: () = msg_send![label, setAdjustsFontSizeToFitWidth: true];
             let _: () = msg_send![label, setNumberOfLines: 0u64];
 
-            let colour = gui::colours::get((0, 0, 0), 0.95);
+            let colour = gui::colours::get((0, 0, 0), MENU_BACKGROUND_ALPHA);
             let _: () = msg_send![label, setBackgroundColor: colour];
 
             label
@@ -437,10 +443,15 @@ impl TabButton {
     }
 
     fn set_selected(&mut self, selected: bool) {
-        let colour_alpha = if selected { 0.95 } else { 0.7 };
+        let text_alpha = if selected { 0.95 } else { 0.4 };
+        let background_alpha = if selected {
+            MENU_BACKGROUND_ALPHA
+        } else {
+            MENU_INACTIVE_ALPHA
+        };
 
-        let foreground = gui::colours::white_with_alpha(1., colour_alpha);
-        let background = gui::colours::white_with_alpha(0., colour_alpha);
+        let foreground = gui::colours::white_with_alpha(1., text_alpha);
+        let background = gui::colours::white_with_alpha(0., background_alpha);
 
         unsafe {
             let _: () = msg_send![self.view, setTitleColor: foreground forState: 0u64];
@@ -500,10 +511,38 @@ struct Menu {
     tabs: Vec<Tab>,
     tab_buttons: Vec<TabButton>,
     close_button: *mut Object,
+    blur_view: *mut Object,
+}
+
+/// Creates a new UIBlurEffect object with the given UIBlurEffectStyle value. The values are 0 for
+/// extra light, 1 for light, 2 for dark, 3 for extra dark, 4 for regular and 5 for prominent.
+fn create_blur_effect(number: u32) -> *mut Object {
+    let uiblureffect = class!(UIBlurEffect);
+    unsafe { msg_send![uiblureffect, effectWithStyle: number] }
+}
+
+/// Creates a new visual effect view with a blur. See `create_blur_effect` for details on
+/// `blur_mode`.
+fn create_blur_view(frame: CGRect, blur_mode: u32) -> *mut Object {
+    let effect = create_blur_effect(blur_mode);
+
+    let view = unsafe {
+        let view: *mut Object = msg_send![class!(UIVisualEffectView), alloc];
+        let view: *mut Object = msg_send![view, initWithEffect: effect];
+        let _: () = msg_send![view, setFrame: frame];
+
+        view
+    };
+
+    view
 }
 
 impl Menu {
-    fn new(tab_data: Vec<TabData>) -> Menu {
+    fn new(mut tab_data: Vec<TabData>) -> Menu {
+        if super::language::is_rtl() {
+            tab_data.reverse();
+        }
+
         let frame: CGRect = unsafe {
             let application: *mut Object = msg_send![class!(UIApplication), sharedApplication];
             let key_window: *mut Object = msg_send![application, keyWindow];
@@ -512,7 +551,7 @@ impl Menu {
 
         let tab_btn_width = frame.size.width / tab_data.len() as f64;
 
-        let tab_buttons = tab_data
+        let tab_buttons: Vec<_> = tab_data
             .iter()
             .enumerate()
             .map(|(index, data)| TabButton::new(data.name.clone(), index, tab_btn_width))
@@ -546,7 +585,7 @@ impl Menu {
         });
 
         // We collect here instead of chaining so that the formatting above is nicer.
-        let tabs = tabs.collect();
+        let tabs: Vec<_> = tabs.collect();
 
         let close_message = MessageKey::MenuClose.to_message();
 
@@ -579,10 +618,34 @@ impl Menu {
             btn
         };
 
+        // Create the blur view to hold the menu components. The blur is important because it
+        // allows the menu to be translucent without ruining the readability of the text.
+        let blur_view = create_blur_view(frame, 3);
+
+        // Add everything to the blur view.
+        unsafe {
+            let content_view: *mut Object = msg_send![blur_view, contentView];
+
+            for tab_button in &tab_buttons {
+                let _: () = msg_send![content_view, addSubview: tab_button.view];
+            }
+
+            for tab in &tabs {
+                let _: () = msg_send![content_view, addSubview: tab.scroll_view];
+
+                if let Some(label) = tab.warning_label {
+                    let _: () = msg_send![content_view, addSubview: label];
+                }
+            }
+
+            let _: () = msg_send![content_view, addSubview: close_button];
+        }
+
         Menu {
             tabs,
             tab_buttons,
             close_button,
+            blur_view,
         }
     }
 
@@ -593,19 +656,7 @@ impl Menu {
             let application: *mut Object = msg_send![class!(UIApplication), sharedApplication];
             let key_window: *mut Object = msg_send![application, keyWindow];
 
-            for tab_button in &self.tab_buttons {
-                let _: () = msg_send![key_window, addSubview: tab_button.view];
-            }
-
-            for tab in &self.tabs {
-                let _: () = msg_send![key_window, addSubview: tab.scroll_view];
-
-                if let Some(label) = tab.warning_label {
-                    let _: () = msg_send![key_window, addSubview: label];
-                }
-            }
-
-            let _: () = msg_send![key_window, addSubview: self.close_button];
+            let _: () = msg_send![key_window, addSubview: self.blur_view];
         }
 
         for i in 0..self.tabs.len() {
@@ -640,6 +691,7 @@ impl Menu {
             }
 
             let _: () = msg_send![self.close_button, removeFromSuperview];
+            let _: () = msg_send![self.blur_view, removeFromSuperview];
         }
 
         set_game_timer_paused(false);
@@ -874,6 +926,7 @@ impl Drop for Menu {
     fn drop(&mut self) {
         unsafe {
             let _: () = msg_send![self.close_button, release];
+            let _: () = msg_send![self.blur_view, release];
         }
     }
 }
