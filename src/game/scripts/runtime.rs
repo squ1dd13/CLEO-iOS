@@ -3,14 +3,17 @@
 
 use once_cell::sync::Lazy;
 
+use super::check::{self, ScriptIssue};
 use crate::{
-    call_original,
-    check::{self, ScriptIssue},
-    hook,
-    language::{self, Message, MessageKey},
-    menu::{self, MenuMessage, TabData},
-    settings::{BreakMode, Options},
-    targets, touch,
+    call_original, hook,
+    meta::{
+        language::{self, Message, MessageKey},
+        menu::{self, MenuMessage, TabData},
+        resources,
+        settings::{BreakMode, Options},
+        touch,
+    },
+    targets,
 };
 use std::{
     collections::HashMap,
@@ -307,7 +310,7 @@ impl CleoScript {
                 // This isn't really an issue, since to get to this point the user must have ignored the warnings
                 //  about this script being incompatible with iOS.
                 // todo: In the future, we should show an alert informing the user that the game will exit and telling them which script is at fault.
-                crate::gui::exit_to_homescreen();
+                crate::meta::gui::exit_to_homescreen();
 
                 true
             }
@@ -484,7 +487,7 @@ fn script_update() {
 static SAVED_STATES: Lazy<Mutex<HashMap<u64, CsaState>>> = Lazy::new(|| Mutex::new(HashMap::new()));
 
 fn load_csa_states() {
-    let bytes = match std::fs::read(crate::resources::get_documents_path("cleo_csa_states.bin")) {
+    let bytes = match std::fs::read(resources::get_documents_path("cleo_csa_states.bin")) {
         Ok(bytes) => bytes,
         Err(err) => {
             log::warn!("Unable to read CSA states: {}", err);
@@ -525,10 +528,7 @@ fn save_csa_states() {
 
     let bytes = bincode::serialize(&states as &HashMap<u64, CsaState>).unwrap();
 
-    if let Err(err) = std::fs::write(
-        crate::resources::get_documents_path("cleo_csa_states.bin"),
-        bytes,
-    ) {
+    if let Err(err) = std::fs::write(resources::get_documents_path("cleo_csa_states.bin"), bytes) {
         log::error!("Error while saving CSA script states: {}", err);
     } else {
         log::info!("CSA script states saved successfully.");
@@ -582,7 +582,7 @@ fn init_stage_three(p: usize) {
 
     let mut scripts = SCRIPTS.lock().unwrap();
 
-    crate::check::check_all(
+    crate::game::scripts::check::check_all(
         scripts
             .iter_mut()
             .map(|script| script.get_cleo_script_mut())
@@ -670,7 +670,7 @@ impl menu::RowData for CsiMenuInfo {
 
     fn tint(&self) -> Option<(u8, u8, u8)> {
         if self.running {
-            Some(crate::gui::colours::GREEN)
+            Some(crate::meta::gui::colours::GREEN)
         } else {
             None
         }
@@ -739,7 +739,7 @@ impl menu::RowData for CsaMenuInfo {
         if let CsaState::Disabled = self.state {
             None
         } else {
-            Some(crate::gui::colours::GREEN)
+            Some(crate::meta::gui::colours::GREEN)
         }
     }
 

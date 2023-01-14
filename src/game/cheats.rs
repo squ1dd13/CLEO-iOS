@@ -3,10 +3,13 @@
 use std::sync::atomic::{AtomicBool, Ordering};
 
 use crate::{
-    call_original, gui, hook,
-    language::{self, Message, MessageKey},
-    menu::{self, RowData, TabData},
-    settings::{CheatTransience, Options},
+    call_original, hook,
+    meta::{
+        gui,
+        language::{self, Message, MessageKey},
+        menu::{self, RowData, TabData},
+        settings::{CheatTransience, Options},
+    },
 };
 use lazy_static::lazy_static;
 use log::error;
@@ -139,7 +142,7 @@ fn do_cheats() {
 
         std::thread::spawn(|| {
             if let Err(err) = std::fs::write(
-                crate::resources::get_documents_path("cleo_saved_cheats.u8"),
+                crate::meta::resources::get_documents_path("cleo_saved_cheats.u8"),
                 cheat_state_bytes,
             ) {
                 log::error!("Error while saving cheat states: {}", err);
@@ -295,7 +298,7 @@ fn reset_cheats() {
 
     log::info!("Loading saved cheats.");
 
-    let path = crate::resources::get_documents_path("cleo_saved_cheats.u8");
+    let path = crate::meta::resources::get_documents_path("cleo_saved_cheats.u8");
 
     if !path.exists() {
         log::info!("No saved cheats file found.");

@@ -1,7 +1,7 @@
 //! Provides touch information to other modules, and directly controls the showing/hiding
 //! of the menu when related to touch events.
 
-use crate::gui::CGRect;
+use crate::meta::gui::CGRect;
 use crate::{call_original, targets};
 use cached::proc_macro::cached;
 use lazy_static::lazy_static;
@@ -181,7 +181,7 @@ fn process_touch(x: f32, y: f32, timestamp: f64, force: f32, touch_type: TouchTy
                                 log::info!("Ignoring menu swipe because there are other touches.");
                             } else {
                                 log::info!("Detected valid menu swipe.");
-                                crate::menu::MenuMessage::Show.send();
+                                crate::meta::menu::MenuMessage::Show.send();
                                 // MenuAction::queue(MenuAction::Show(false));
                             }
                         }

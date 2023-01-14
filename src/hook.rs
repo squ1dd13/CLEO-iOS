@@ -6,8 +6,6 @@ use dlopen::symbor::Library;
 use eyre::Context;
 use log::error;
 
-const GAME_SLIDE_INDEX: u32 = 1;
-
 fn get_single_symbol<T: Copy>(path: &str, sym_name: &str) -> eyre::Result<T> {
     let lib = Library::open(path).wrap_err_with(|| format!("failed to open library {path}"))?;
     let symbol = unsafe { lib.symbol::<T>(sym_name) }

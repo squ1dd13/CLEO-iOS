@@ -135,7 +135,10 @@ Backtrace: see below
 
     log::error!("{info_dump}");
 
-    let _ = std::fs::write(crate::resources::get_documents_path("PANIC.txt"), info_dump);
+    let _ = std::fs::write(
+        crate::meta::resources::get_documents_path("PANIC.txt"),
+        info_dump,
+    );
 
     std::process::abort();
 }
@@ -167,7 +170,7 @@ pub fn init() {
         None
     };
 
-    let mut file = File::create(crate::resources::get_log_path()).unwrap();
+    let mut file = File::create(crate::meta::resources::get_log_path()).unwrap();
 
     // Start receiving log messages on a background thread. This eliminates the massive performance
     //  impact of writing to files/sockets in normal game code.

@@ -10,7 +10,7 @@ use std::{
 use eyre::Result;
 use itertools::Itertools;
 
-use crate::settings::{Options, ReleaseChannel};
+use crate::meta::settings::{Options, ReleaseChannel};
 
 /// Represents a version number in the format "x.y.z", where "x", "y" and "z" are integers.
 #[derive(Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
@@ -217,7 +217,7 @@ fn fetch_releases_from_github() -> Result<impl Iterator<Item = Version>> {
 
 /// Returns the path of the cache file for the releases.
 fn release_cache_path() -> PathBuf {
-    crate::resources::get_documents_path("release_list.cleo")
+    crate::meta::resources::get_documents_path("release_list.cleo")
 }
 
 /// Attempts to load the list of CLEO releases from the cache, returning the releases and the cache

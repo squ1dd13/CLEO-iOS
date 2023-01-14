@@ -9,25 +9,10 @@ use objc::runtime::Object;
 use objc::runtime::Sel;
 use std::os::raw::c_char;
 
-mod cheats;
-mod check;
-mod controller;
-mod extras;
-mod github;
-mod gui;
+mod game;
 mod hook;
-mod language;
-mod loader;
 mod logging;
-mod menu;
-mod resources;
-mod scripts;
-mod settings;
-mod sound;
-mod streaming;
-mod text;
-mod touch;
-mod update;
+mod meta;
 
 mod targets {
     use super::*;
@@ -37,7 +22,7 @@ mod targets {
     create_soft_target!(
         process_touch,
         0x1004e831c,
-        fn(f32, f32, f64, f32, touch::TouchType)
+        fn(f32, f32, f64, f32, meta::touch::TouchType)
     );
 
     create_soft_target!(
@@ -118,26 +103,6 @@ mod targets {
     create_soft_target!(init_stage_three, 0x1002f9b20, fn(usize));
 }
 
-fn initialise() {
-    log::info!(
-        "game ASLR slide is {:#x}",
-        crate::hook::get_game_aslr_offset(),
-    );
-
-    streaming::init();
-    update::init();
-    loader::init();
-    gui::init();
-    menu::init();
-    touch::init();
-    text::init();
-    extras::init();
-    scripts::init();
-    cheats::init();
-    controller::init();
-    resources::init();
-}
-
 #[ctor]
 fn load() {
     // Load the logging system before everything else so we can log from constructors.
@@ -157,12 +122,14 @@ fn load() {
     // todo: Log game version.
     log::info!("Cargo package version is {}", env!("CARGO_PKG_VERSION"));
 
-    settings::init();
-    language::init();
+    log::info!(
+        "game ASLR slide is {:#x}",
+        crate::hook::get_game_aslr_offset(),
+    );
 
-    // Start checking for updates in the background.
-    github::start_update_check_thread();
+    // Set up CLEO first.
+    meta::init();
 
-    // Load all the modules.
-    initialise();
+    // Load all of our game systems.
+    game::init();
 }

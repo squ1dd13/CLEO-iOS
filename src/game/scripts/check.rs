@@ -1,6 +1,6 @@
 //! Provides facilities for examining scripts to determine their compatibility with iOS.
 
-use crate::language::{self, Message, MessageKey};
+use crate::meta::language::{self, Message, MessageKey};
 use byteorder::{LittleEndian, ReadBytesExt};
 use once_cell::sync::OnceCell;
 use serde::{Deserialize, Serialize};
@@ -254,7 +254,7 @@ struct Command {
 }
 
 fn load_all_commands() -> eyre::Result<HashMap<u16, Command>, Box<bincode::ErrorKind>> {
-    let commands_bin = include_bytes!("../commands.bin");
+    let commands_bin = include_bytes!("../../../commands.bin");
     bincode::deserialize(commands_bin)
 }
 
@@ -443,7 +443,7 @@ impl ScriptIssue {
     }
 }
 
-pub fn check_all(mut scripts: Vec<&mut crate::scripts::CleoScript>) {
+pub fn check_all(mut scripts: Vec<&mut crate::game::scripts::runtime::CleoScript>) {
     // Sort the scripts so we have a defined order for identifying duplicates. (The first script once sorted
     //  will not be marked as a duplicate, but any scripts after it which have the same hash will be.)
     scripts.sort_by_cached_key(|script| script.name.clone());

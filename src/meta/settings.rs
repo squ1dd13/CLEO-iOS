@@ -8,13 +8,12 @@ use std::{
 
 use eyre::Result;
 
-use serde::{Deserialize, Serialize};
-
-use crate::{
+use super::{
     gui::colours::Colour,
     language::{self, Language, Message, MessageKey},
     menu::{self, RowData, RowDetail},
 };
+use serde::{Deserialize, Serialize};
 
 /// Trait for option values.
 trait Setting {
@@ -468,7 +467,7 @@ impl Options {
     /// Looks for an old-style settings file and loads it. If an old file does exist, it will be
     /// deleted after loading.
     fn load_from_old_file() -> Result<Option<Options>> {
-        let old_path = crate::resources::get_documents_path("cleo_settings.json");
+        let old_path = crate::meta::resources::get_documents_path("cleo_settings.json");
 
         if !old_path.exists() {
             return Ok(None);
@@ -527,7 +526,7 @@ impl Options {
 
     /// Returns the path of the file that options are saved to.
     fn path() -> PathBuf {
-        crate::resources::get_documents_path("settings.cleo.json")
+        crate::meta::resources::get_documents_path("settings.cleo.json")
     }
 
     /// Looks for a settings file and loads it.

@@ -4,7 +4,7 @@ use libc::c_char;
 
 use crate::{
     call_original, hook,
-    settings::{FpsVisibility, Options},
+    meta::settings::{FpsVisibility, Options},
     targets,
 };
 
