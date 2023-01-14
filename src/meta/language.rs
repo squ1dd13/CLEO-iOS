@@ -1,10 +1,11 @@
 use eyre::{eyre, Result};
 use fluent::{concurrent::FluentBundle, FluentArgs, FluentResource};
 use serde::{Deserialize, Serialize};
-use std::{borrow::Cow, collections::HashMap, sync::Mutex};
+use std::{borrow::Cow, collections::HashMap, ffi::CStr, sync::Mutex};
 use strum::{EnumIter, EnumString, EnumVariantNames, IntoEnumIterator, IntoStaticStr};
 
 pub use fluent::fluent_args as msg_args;
+use objc::runtime::Object;
 
 lazy_static::lazy_static! {
     static ref LOADER: Mutex<Loader> = Mutex::new(Loader::new_empty());
@@ -48,8 +49,7 @@ impl Loader {
 
     /// Sets `auto_language` to the most sensible language available.
     fn find_auto_language(&mut self) {
-        log::warn!("No automatic languages yet");
-        self.auto_language = Language::English;
+        self.auto_language = Language::system_language().unwrap_or(Language::English);
     }
 
     /// Loads all of the language bundles.
@@ -185,6 +185,23 @@ pub enum Language {
 }
 
 impl Language {
+    /// Returns the `Language` variant matching the given identifier, or `None` if no such language
+    /// exists for CLEO.
+    fn from_id(id: impl AsRef<str>) -> Option<Language> {
+        Some(match id.as_ref() {
+            "ar" => Language::Arabic,
+            "zh" => Language::Chinese,
+            "cz" => Language::Czech,
+            "nl" => Language::Dutch,
+            "en" => Language::English,
+            "km" => Language::Khmer,
+            "sk" => Language::Slovak,
+            "tr" => Language::Turkish,
+            "vi" => Language::Vietnamese,
+            _ => return None,
+        })
+    }
+
     /// Returns the Unicode language ID for this language.
     fn lang_id(self) -> unic_langid::LanguageIdentifier {
         match self {
@@ -203,7 +220,7 @@ impl Language {
     }
 
     /// Returns the FTL translation for this language.
-    fn ftl_str(self) -> &'static str {
+    const fn ftl_str(self) -> &'static str {
         match self {
             Language::Arabic => include_str!("../../loc/ar.ftl"),
             Language::Chinese => include_str!("../../loc/zh.ftl"),
@@ -242,6 +259,41 @@ impl Language {
             language: self,
             bundle,
         })
+    }
+
+    /// Returns the system's language, or `None` if the system language isn't available for CLEO.
+    fn system_language() -> Option<Language> {
+        // Normally we'd use `[[NSLocale currentLocale] languageCode]` to get the language code for
+        // the app, but GTA only offers the system the languages that it supports, so iOS will only
+        // ever set the current locale for the app to one of them. If we ask for the user's
+        // preferred languages instead, we can find out what they actually want.
+
+        let preferred_languages: *const Object = unsafe {
+            let class = objc::class!(NSLocale);
+            objc::msg_send![class, preferredLanguages]
+        };
+
+        let language_count: i32 = unsafe { objc::msg_send![preferred_languages, count] };
+
+        let mut preferred_languages = (0..language_count).into_iter().map(|index| {
+            let language_code = &unsafe {
+                let nsstring: *const Object =
+                    objc::msg_send![preferred_languages, objectAtIndex: index];
+
+                CStr::from_ptr(objc::msg_send![nsstring, UTF8String])
+            }
+            .to_str()
+            // Take only the first two characters, because we don't want the region identifier.
+            // Also, iOS does some pretty weird things, like invent `nl-GB`.
+            .expect("invalid language identifier string")[..2];
+
+            log::info!("Language {index} is {language_code}");
+
+            language_code
+        });
+
+        // Find the first language in the array that we have in CLEO.
+        preferred_languages.find_map(Language::from_id)
     }
 
     /// Returns the next most-spoken language after this one. Returns `None` if this is the
