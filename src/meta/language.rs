@@ -189,7 +189,7 @@ impl Language {
     fn lang_id(self) -> unic_langid::LanguageIdentifier {
         match self {
             Language::Arabic => "ar",
-            Language::Chinese => "cn",
+            Language::Chinese => "zh",
             Language::Czech => "cz",
             Language::Dutch => "nl",
             Language::English => "en",
@@ -206,7 +206,7 @@ impl Language {
     fn ftl_str(self) -> &'static str {
         match self {
             Language::Arabic => include_str!("../../loc/ar.ftl"),
-            Language::Chinese => include_str!("../../loc/cn.ftl"),
+            Language::Chinese => include_str!("../../loc/zh.ftl"),
             Language::Czech => include_str!("../../loc/cz.ftl"),
             Language::Dutch => include_str!("../../loc/nl.ftl"),
             Language::English => include_str!("../../loc/en.ftl"),
