@@ -84,6 +84,11 @@ pub fn init() {
     loader.find_auto_language();
 }
 
+/// Returns `true` if the current language is read right-to-left.
+pub fn is_rtl() -> bool {
+    Loader::lock().current_language().is_rtl()
+}
+
 /// Sets the current translation to the given language, or automatically select a language if
 /// `language` is `None`.
 pub fn set(language: Option<Language>) {
@@ -232,6 +237,11 @@ impl Language {
             Language::Turkish => include_str!("../../loc/tr.ftl"),
             Language::Vietnamese => include_str!("../../loc/vi.ftl"),
         }
+    }
+
+    /// Returns `true` if this language is read right-to-left.
+    fn is_rtl(self) -> bool {
+        matches!(self, Language::Arabic)
     }
 
     /// Creates and loads a new `LanguageBundle` with resources for this language.

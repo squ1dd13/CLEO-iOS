@@ -143,10 +143,24 @@ impl Row {
             let button: *mut Object = msg_send![class!(UIButton), alloc];
             let button: *mut Object = msg_send![button, initWithFrame: frame];
 
-            let _: () = msg_send![button, setContentHorizontalAlignment: 1u64];
+            let is_rtl = super::language::is_rtl();
 
-            let edge_insets =
-                gui::UIEdgeInsets::new(0., frame.size.width * 0.05, frame.size.height * 0.4, 0.);
+            let button_alignment = if is_rtl {
+                // Right
+                2u64
+            } else {
+                // Left
+                1u64
+            };
+
+            let _: () = msg_send![button, setContentHorizontalAlignment: button_alignment];
+
+            let edge_insets = if is_rtl {
+                gui::UIEdgeInsets::new(0., 0., frame.size.height * 0.4, frame.size.width * 0.05)
+            } else {
+                gui::UIEdgeInsets::new(0., frame.size.width * 0.05, frame.size.height * 0.4, 0.)
+            };
+
             let _: () = msg_send![button, setTitleEdgeInsets: edge_insets];
 
             let label: *mut Object = msg_send![button, titleLabel];
@@ -164,7 +178,16 @@ impl Row {
             let value_label: *mut Object = msg_send![class!(UILabel), alloc];
             let value_label: *mut Object = msg_send![value_label, initWithFrame: value_frame];
             let _: () = msg_send![value_label, setFont: font];
-            let _: () = msg_send![value_label, setTextAlignment: 2u64];
+
+            let value_alignment = if is_rtl {
+                // Left
+                0u64
+            } else {
+                // Right
+                2u64
+            };
+
+            let _: () = msg_send![value_label, setTextAlignment: value_alignment];
 
             let detail_frame = CGRect::new(
                 frame.size.width * 0.05,
@@ -182,7 +205,16 @@ impl Row {
             let font = gui::get_font("ChaletComprime-CologneSixty", ROW_DETAIL_FONT_SIZE);
             let _: () = msg_send![detail_label, setFont: font];
             let _: () = msg_send![detail_label, setAdjustsFontSizeToFitWidth: true];
-            let _: () = msg_send![detail_label, setTextAlignment: 0u64];
+
+            let desc_alignment = if is_rtl {
+                // Right
+                2u64
+            } else {
+                // Left
+                0u64
+            };
+
+            let _: () = msg_send![detail_label, setTextAlignment: desc_alignment];
 
             let mut row = Row {
                 data,
@@ -358,7 +390,7 @@ impl Tab {
         });
 
         let mut tab = Tab {
-            name: data.name.clone(),
+            name: data.name,
             scroll_view,
             warning_label,
             rows,
