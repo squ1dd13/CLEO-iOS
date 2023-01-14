@@ -2,7 +2,7 @@
 language-name = Nederlands
 
 # Shown when this language has been selected automatically.
-language-auto-name = automatisch(Nederlands)
+language-auto-name = Automatisch (Nederlands)
 
 # The name of the language setting.
 language-opt-title = Taal
