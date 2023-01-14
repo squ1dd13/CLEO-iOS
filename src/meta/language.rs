@@ -232,7 +232,7 @@ impl Language {
             Language::Czech => include_str!("../../loc/cz.ftl"),
             Language::Dutch => include_str!("../../loc/nl.ftl"),
             Language::English => include_str!("../../loc/en.ftl"),
-            Language::Khmer => include_str!("../../loc/kh.ftl"),
+            Language::Khmer => include_str!("../../loc/km.ftl"),
             Language::Slovak => include_str!("../../loc/sk.ftl"),
             Language::Turkish => include_str!("../../loc/tr.ftl"),
             Language::Vietnamese => include_str!("../../loc/vi.ftl"),
