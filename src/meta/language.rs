@@ -352,14 +352,6 @@ pub enum Message {
 impl Message {
     /// Translates the message into the user's selected language.
     pub fn translate(&self) -> Cow<'static, str> {
-        log::warn!(
-            "cloning all messages at the moment: {}",
-            match self {
-                Message::Message(key) => key.key_str(),
-                Message::Formatted(key, _) => key.key_str(),
-            }
-        );
-
         match self {
             Message::Message(key) => Cow::Owned(
                 Loader::lock()
