@@ -1,6 +1,15 @@
 # Used in the settings menu to show the name of the language.
 language-name = Nederlands
 
+# Shown when this language has been selected automatically.
+language-auto-name = automatisch(Nederlands)
+
+# The name of the language setting.
+language-opt-title = Taal
+
+# The language setting description.
+language-opt-desc = De taal waar in je CLEO wil gebruiken. Automatische modus gaat uit van je systeem taal. Voeg je eige taal toe in de Discord!
+
 ### ==== Splash screen ====
 
 # First line at the bottom of the screen.
