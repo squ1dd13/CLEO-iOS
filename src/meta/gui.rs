@@ -161,7 +161,7 @@ fn legal_splash_did_load(this: *mut Object, _sel: Sel) {
             let text_colour: *const Object =
                 msg_send![class!(UIColor), colorWithRed: 0.77 green: 0.089 blue: 0.102 alpha: 1.0];
 
-            let ver_string = crate::github::current_version().to_string();
+            let ver_string = crate::meta::github::current_version().to_string();
 
             let state_label: *mut Object = create_label(bounds, &ver_string, font, text_colour, 1);
             let _: () = msg_send![state_label, sizeToFit];

@@ -77,7 +77,9 @@ pub fn init() {
     }
 
     // Set the language override based on the langauge chosen in the settings.
-    loader.language_override = crate::settings::Options::get().language_mode.language();
+    loader.language_override = crate::meta::settings::Options::get()
+        .language_mode
+        .language();
 
     loader.find_auto_language();
 }
@@ -203,15 +205,15 @@ impl Language {
     /// Returns the FTL translation for this language.
     fn ftl_str(self) -> &'static str {
         match self {
-            Language::Arabic => include_str!("../loc/ar.ftl"),
-            Language::Chinese => include_str!("../loc/cn.ftl"),
-            Language::Czech => include_str!("../loc/cz.ftl"),
-            Language::Dutch => include_str!("../loc/nl.ftl"),
-            Language::English => include_str!("../loc/en.ftl"),
-            Language::Khmer => include_str!("../loc/kh.ftl"),
-            Language::Slovak => include_str!("../loc/sk.ftl"),
-            Language::Turkish => include_str!("../loc/tr.ftl"),
-            Language::Vietnamese => include_str!("../loc/vi.ftl"),
+            Language::Arabic => include_str!("../../loc/ar.ftl"),
+            Language::Chinese => include_str!("../../loc/cn.ftl"),
+            Language::Czech => include_str!("../../loc/cz.ftl"),
+            Language::Dutch => include_str!("../../loc/nl.ftl"),
+            Language::English => include_str!("../../loc/en.ftl"),
+            Language::Khmer => include_str!("../../loc/kh.ftl"),
+            Language::Slovak => include_str!("../../loc/sk.ftl"),
+            Language::Turkish => include_str!("../../loc/tr.ftl"),
+            Language::Vietnamese => include_str!("../../loc/vi.ftl"),
         }
     }
 

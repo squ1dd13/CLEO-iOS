@@ -1,7 +1,7 @@
 //! Creates a flattened version of the CLEO directory and delegates to other modules for
 //! handling specific types of resources.
 
-use crate::*;
+use crate::game::{loader, scripts, streaming, text};
 use cached::proc_macro::cached;
 use itertools::Itertools;
 use std::{
@@ -205,7 +205,7 @@ fn create_archive_dirs() {
     // The layout of file replacements can be difficult to explain, especially with the added
     //  complication of replacing files within IMG archives being a different process. In order
     //  to make things easier, we create all the folders for replacement IMG contents for the user.
-    let game_dir = loader::get_game_path().expect("Unable to get game path.");
+    let game_dir = crate::game::loader::get_game_path().expect("Unable to get game path.");
 
     for entry in game_dir.read_dir().expect("Unable to read game directory.") {
         let entry = if let Err(err) = entry {
@@ -311,8 +311,8 @@ pub fn init() {
         log::info!("Attempting to load {}.", resource);
 
         let load_error = match resource {
-            ModResource::StartupScript(path) => scripts::load_running_script(path).err(),
-            ModResource::InvokedScript(path) => scripts::load_invoked_script(path).err(),
+            ModResource::StartupScript(path) => scripts::runtime::load_running_script(path).err(),
+            ModResource::InvokedScript(path) => scripts::runtime::load_invoked_script(path).err(),
             ModResource::LanguageFile(path) => text::load_fxt(path).err(),
             ModResource::StreamReplacement(_, _) => None,
             ModResource::FileReplacement(path) => loader::load_replacement(&path).err(),

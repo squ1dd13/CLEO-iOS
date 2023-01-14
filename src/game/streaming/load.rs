@@ -587,7 +587,7 @@ fn load_cd_directory_hook(path: *const i8, image_id: u32) {
         .expect("Unable to convert image path to string slice");
 
     // Convert the Windows path to a real file path.
-    let path = match crate::loader::find_absolute_path(&windows_path.to_lowercase()) {
+    let path = match crate::game::loader::find_absolute_path(&windows_path.to_lowercase()) {
         Some(path) => path,
         None => {
             log::error!("Unable to resolve image path '{}'", windows_path);

@@ -1,6 +1,6 @@
 //! Provides a touch interface and accompanying logic to allow the user to interact with scripts, cheats and settings.
 
-use crate::{
+use super::{
     gui::{self, ns_string, CGPoint, CGRect, CGSize},
     language::{Message, MessageKey},
 };
@@ -621,14 +621,14 @@ impl Menu {
         if game_state == 9 {
             // In a game, so allow access to all the tabs.
             vec![
-                crate::scripts::tab_data_csi(),
-                crate::scripts::tab_data_csa(),
-                crate::cheats::tab_data(),
-                crate::settings::tab_data(),
+                crate::game::scripts::runtime::tab_data_csi(),
+                crate::game::scripts::runtime::tab_data_csa(),
+                crate::game::cheats::tab_data(),
+                crate::meta::settings::tab_data(),
             ]
         } else {
             // Not in a game, so only allow access to the settings tab.
-            vec![crate::settings::tab_data()]
+            vec![crate::meta::settings::tab_data()]
         }
     }
 

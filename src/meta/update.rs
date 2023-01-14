@@ -3,8 +3,9 @@
 
 use crate::{
     call_original,
-    github::{CheckStatus, Version},
-    hook, text,
+    game::text,
+    hook,
+    meta::github::{CheckStatus, Version},
 };
 
 use objc::{runtime::Object, *};
@@ -14,7 +15,7 @@ fn open_url(url: impl AsRef<str>) {
     unsafe {
         let url: *const Object = msg_send![
             class!(NSURL),
-            URLWithString: crate::gui::ns_string(url.as_ref())
+            URLWithString: crate::meta::gui::ns_string(url.as_ref())
         ];
 
         let shared_app: *const Object = msg_send![class!(UIApplication), sharedApplication];
@@ -78,12 +79,13 @@ fn show_yes_no_menu(
 /// Shows the user a yes/no prompt asking if they'd like to update.
 fn show_update_prompt(screen: *mut u8, update_ver: Version) {
     fn on_yes(_: usize) {
-        let version =
-            if let CheckStatus::Finished(Ok(Some(version))) = *crate::github::get_check_status() {
-                version
-            } else {
-                panic!("User answered 'yes' to update, but no update found");
-            };
+        let version = if let CheckStatus::Finished(Ok(Some(version))) =
+            *crate::meta::github::get_check_status()
+        {
+            version
+        } else {
+            panic!("User answered 'yes' to update, but no update found");
+        };
 
         let url = version.url();
 
@@ -114,7 +116,7 @@ fn init_for_title(screen: *mut u8) {
     // Set up the title menu.
     call_original!(crate::targets::init_for_title, screen);
 
-    match &*crate::github::get_check_status() {
+    match &*crate::meta::github::get_check_status() {
         CheckStatus::NotStarted => log::info!("Update check never started"),
         CheckStatus::NotFinished => log::warn!("Update check took too long"),
         CheckStatus::Finished(result) => match result {
