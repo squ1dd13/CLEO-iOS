@@ -1,7 +1,12 @@
 use eyre::{eyre, Result};
 use fluent::{concurrent::FluentBundle, FluentArgs, FluentResource};
 use serde::{Deserialize, Serialize};
-use std::{borrow::Cow, collections::HashMap, ffi::CStr, sync::Mutex};
+use std::{
+    borrow::Cow,
+    collections::HashMap,
+    ffi::{CStr, CString},
+    sync::Mutex,
+};
 use strum::{EnumIter, EnumString, EnumVariantNames, IntoEnumIterator, IntoStaticStr};
 
 use super::gui::{Font, FontSet};
@@ -357,7 +362,33 @@ impl Language {
 
         let preferred_languages: *const Object = unsafe {
             let class = objc::class!(NSLocale);
-            objc::msg_send![class, preferredLanguages]
+
+            // Class methods are just instance methods of the metaclass, so to check for the
+            // existence of the `_globalPreferredLanguages` class method on `NSLocale` we need to
+            // find `NSLocale`'s metaclass first.
+            let metaclass = {
+                let name = CString::new("NSLocale").unwrap();
+
+                objc::runtime::objc_getMetaClass(name.as_ptr())
+                    .as_ref()
+                    .expect("couldn't find NSLocale metaclass")
+            };
+
+            // We're supposed to use `preferredLanguages` here, but it doesn't always return the
+            // same value on different game launches, even less than a minute apart and without
+            // changing any settings. `_globalPreferredLanguages` seems to be (more) stable, but I
+            // can't verify how far back it exists. I've only found headers with it from iOS 15,
+            // but it exists on my iOS 13 iP8. We'll use `preferredLanguages` as a fallback only.
+            if metaclass
+                .instance_method(objc::sel!(_globalPreferredLanguages))
+                .is_some()
+            {
+                log::info!("_globalPreferredLanguages exists");
+                objc::msg_send![class, _globalPreferredLanguages]
+            } else {
+                log::warn!("_globalPreferredLanguages does not exist");
+                objc::msg_send![class, preferredLanguages]
+            }
         };
 
         let language_count: i32 = unsafe { objc::msg_send![preferred_languages, count] };
