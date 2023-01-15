@@ -9,6 +9,8 @@ use objc::{
 };
 use std::os::raw::c_long;
 
+mod menu;
+
 /// Fonts that we can use in CLEO's GUI. These have been selected to support all the different
 /// devices and languages we support.
 #[derive(Clone, Copy, Debug)]
