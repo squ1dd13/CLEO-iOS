@@ -1,5 +1,15 @@
 # Used in the settings menu to show the name of the language.
 language-name = Turkce
+
+# Shown when this language has been selected automatically.
+language-auto-name = Otomatik (Turkce)
+
+# The name of the language setting.
+language-opt-title = Dil
+
+# The language setting description.
+language-opt-desc = CLEO kullanmak icin tercih edilen dil. Otomatik mod sistem dil tercihlerinizi kullanir. Kendi dilinizi eklemek icin Discorddan basvuru yapin!
+
 ### ==== Splash screen ====
 
 # First line at the bottom of the screen.
