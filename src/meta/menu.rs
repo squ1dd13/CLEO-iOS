@@ -1,7 +1,7 @@
 //! Provides a touch interface and accompanying logic to allow the user to interact with scripts, cheats and settings.
 
 use super::{
-    gui::{self, ns_string, CGPoint, CGRect, CGSize, Font},
+    gui::{self, ns_string, CGPoint, CGRect, CGSize},
     language::{Message, MessageKey},
 };
 use objc::{class, msg_send, runtime::Object, sel};

@@ -554,6 +554,7 @@ pub enum MessageKey {
     CheatThugsArmoury,
     CheatProfessionalsKit,
     CheatNuttersToys,
+    #[strum(serialize = "cheat-weapons-4")]
     CheatWeapons4,
 
     CheatDebugMappings,

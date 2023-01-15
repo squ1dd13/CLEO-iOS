@@ -55,7 +55,7 @@ menu-options-tab-title = Tùy chọn
 
 # Shown at the top of the script menus when at least one error has been found in any script. This
 # is not shown at all if there are zero scripts with errors in them.
-menu-script-warning-overview = Đã tìm thấy lỗi trong { $numberOfScriptsWithErrors } tập lệnh. Tập lệnh lỗi được đánh dấu bằng màu cam.
+menu-script-warning-overview = Đã tìm thấy lỗi trong { $num_scripts_with_errors } tập lệnh. Tập lệnh lỗi được đánh dấu bằng màu cam.
 
 # The second line of the warning.
 menu-script-see-below = Xem bên dưới để biết chi tiết.
@@ -73,7 +73,7 @@ script-impossible-on-ios = Mã này không có sẵn trong phiên bản iOS.
 
 # The script is identical to another script. { $originalScript } will be replaced with the name of
 # the script that this one is a duplicate of.
-script-duplicate = Sao chép { $originalScript }.
+script-duplicate = Sao chép { $original_script }.
 
 # There was an error when checking the script code for problems.
 script-check-failed = Tập lệnh không được nhận dạng. Vui lòng báo cáo lỗi này trên GitHub hay Discord.
