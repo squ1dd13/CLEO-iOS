@@ -60,9 +60,13 @@ impl TabButton {
     /// Sets the tab button's title based on `self.message`.
     fn reload_title(&mut self) {
         let title_string_objc = ns_string(self.message.translate());
+        let font = super::language::current().font_set().title_uifont();
 
         unsafe {
             let _: () = msg_send![self.view, setTitle: title_string_objc forState: 0u64];
+
+            let label: *mut Object = msg_send![self.view, titleLabel];
+            let _: () = msg_send![label, setFont: font];
         }
     }
 }
@@ -149,26 +153,6 @@ impl Row {
             let button: *mut Object = msg_send![class!(UIButton), alloc];
             let button: *mut Object = msg_send![button, initWithFrame: frame];
 
-            let is_rtl = language.is_rtl();
-
-            let button_alignment = if is_rtl {
-                // Right
-                2u64
-            } else {
-                // Left
-                1u64
-            };
-
-            let _: () = msg_send![button, setContentHorizontalAlignment: button_alignment];
-
-            let edge_insets = if is_rtl {
-                gui::UIEdgeInsets::new(0., 0., frame.size.height * 0.4, frame.size.width * 0.05)
-            } else {
-                gui::UIEdgeInsets::new(0., frame.size.width * 0.05, frame.size.height * 0.4, 0.)
-            };
-
-            let _: () = msg_send![button, setTitleEdgeInsets: edge_insets];
-
             let label: *mut Object = msg_send![button, titleLabel];
             let subtitle_font = font_set.subtitle_uifont();
             let _: () = msg_send![label, setFont: subtitle_font];
@@ -184,16 +168,6 @@ impl Row {
             let value_label: *mut Object = msg_send![class!(UILabel), alloc];
             let value_label: *mut Object = msg_send![value_label, initWithFrame: value_frame];
             let _: () = msg_send![value_label, setFont: subtitle_font];
-
-            let value_alignment = if is_rtl {
-                // Left
-                0u64
-            } else {
-                // Right
-                2u64
-            };
-
-            let _: () = msg_send![value_label, setTextAlignment: value_alignment];
 
             let detail_frame = CGRect::new(
                 frame.size.width * 0.05,
@@ -212,16 +186,6 @@ impl Row {
             let _: () = msg_send![detail_label, setFont: font];
             let _: () = msg_send![detail_label, setAdjustsFontSizeToFitWidth: true];
 
-            let desc_alignment = if is_rtl {
-                // Right
-                2u64
-            } else {
-                // Left
-                0u64
-            };
-
-            let _: () = msg_send![detail_label, setTextAlignment: desc_alignment];
-
             let mut row = Row {
                 data,
                 detail_label,
@@ -235,6 +199,8 @@ impl Row {
     }
 
     fn load(&mut self) {
+        self.align_text();
+
         let (detail_message, foreground_colour, background_colour) = match self.data.detail() {
             RowDetail::Info(s) => (
                 s,
@@ -257,6 +223,8 @@ impl Row {
             (background_colour, gui::colours::white_with_alpha(1., 0.95))
         };
 
+        let font_set = super::language::current().font_set();
+
         let title_str = self.data.title().translate();
         let value_str = self.data.value().translate();
         let detail_str = detail_message.translate();
@@ -271,6 +239,70 @@ impl Row {
 
             let _: () = msg_send![self.detail_label, setText: ns_string(detail_str)];
             let _: () = msg_send![self.detail_label, setTextColor: foreground_colour];
+
+            let subtitle_font = font_set.subtitle_uifont();
+
+            let btn_label: *mut Object = msg_send![self.button, titleLabel];
+            let _: () = msg_send![btn_label, setFont: subtitle_font];
+            let _: () = msg_send![self.value_label, setFont: subtitle_font];
+
+            let _: () = msg_send![self.detail_label, setFont: font_set.text_uifont()];
+        }
+    }
+
+    /// Aligns the row's text and adjusts it to match the language's direction.
+    fn align_text(&mut self) {
+        let language = super::language::current();
+
+        let is_rtl = language.is_rtl();
+
+        let button_alignment = if is_rtl {
+            // Right
+            2u64
+        } else {
+            // Left
+            1u64
+        };
+
+        let value_alignment = if is_rtl {
+            // Left
+            0u64
+        } else {
+            // Right
+            2u64
+        };
+
+        let desc_alignment = if is_rtl {
+            // Right
+            2u64
+        } else {
+            // Left
+            0u64
+        };
+
+        let button_frame: CGRect = unsafe { msg_send![self.button, frame] };
+
+        let button_edge_insets = if is_rtl {
+            gui::UIEdgeInsets::new(
+                0.,
+                0.,
+                button_frame.size.height * 0.4,
+                button_frame.size.width * 0.05,
+            )
+        } else {
+            gui::UIEdgeInsets::new(
+                0.,
+                button_frame.size.width * 0.05,
+                button_frame.size.height * 0.4,
+                0.,
+            )
+        };
+
+        unsafe {
+            let _: () = msg_send![self.button, setContentHorizontalAlignment: button_alignment];
+            let _: () = msg_send![self.value_label, setTextAlignment: value_alignment];
+            let _: () = msg_send![self.detail_label, setTextAlignment: desc_alignment];
+            let _: () = msg_send![self.button, setTitleEdgeInsets: button_edge_insets];
         }
     }
 
@@ -416,6 +448,16 @@ impl Tab {
             }
         }
     }
+
+    fn reload_fonts(&mut self) {
+        let font_set = super::language::current().font_set();
+
+        if let Some(warning_label) = self.warning_label {
+            unsafe {
+                let _: () = msg_send![warning_label, setFont: font_set.small_uifont()];
+            }
+        }
+    }
 }
 
 impl TabButton {
@@ -541,12 +583,8 @@ fn create_blur_view(frame: CGRect, blur_mode: u32) -> *mut Object {
 }
 
 impl Menu {
-    fn new(mut tab_data: Vec<TabData>) -> Menu {
+    fn new(tab_data: Vec<TabData>) -> Menu {
         let language = super::language::current();
-
-        if language.is_rtl() {
-            tab_data.reverse();
-        }
 
         let frame: CGRect = unsafe {
             let application: *mut Object = msg_send![class!(UIApplication), sharedApplication];
@@ -724,6 +762,8 @@ impl Menu {
 
     fn reload_rows(&mut self) {
         for tab in &mut self.tabs {
+            tab.reload_fonts();
+
             for row in &mut tab.rows {
                 row.load();
             }
@@ -734,9 +774,16 @@ impl Menu {
         }
 
         let close_title_objc = ns_string(MessageKey::MenuClose.to_message().translate());
+        let close_font = super::language::current()
+            .font_set()
+            .title_font
+            .uifont(CLOSE_BTN_FONT_SIZE);
 
         unsafe {
             let _: () = msg_send![self.close_button, setTitle: close_title_objc forState: 0u64];
+
+            let label: *mut Object = msg_send![self.close_button, titleLabel];
+            let _: () = msg_send![label, setFont: close_font];
         }
     }
 
