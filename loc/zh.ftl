@@ -1,6 +1,15 @@
 # Used in the settings menu to show the name of the language.
 language-name = 中文（简体）
 
+# Shown when this language has been selected automatically.
+language-auto-name = 自动（{ language-name }）
+
+# The name of the language setting.
+language-opt-title = 语言
+
+# The language setting description.
+language-opt-desc = CLEO的语言。自动模式将采用您的系统语言。敬请在Discord上增添您的母语！
+
 ### ==== Splash screen ====
 
 # First line at the bottom of the screen.
