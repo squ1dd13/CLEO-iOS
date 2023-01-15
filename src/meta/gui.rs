@@ -9,6 +9,103 @@ use objc::{
 };
 use std::os::raw::c_long;
 
+/// Fonts that we can use in CLEO's GUI. These have been selected to support all the different
+/// devices and languages we support.
+#[derive(Clone, Copy, Debug)]
+pub enum Font {
+    AvenirNextCondensed,
+    AvenirNextHeavy,
+    AvenirNextMedium,
+    PingFangLight,
+    PingFangSemibold,
+    PingFangMedium,
+    ChaletComprime,
+    KhmerSangam,
+    Pricedown,
+    GtaLicense,
+}
+
+impl Font {
+    /// Returns the name of the font. This can be used with UIKit.
+    fn name(self) -> &'static str {
+        match self {
+            Font::AvenirNextCondensed => "AvenirNextCondensed-Regular",
+            Font::AvenirNextHeavy => "AvenirNext-Heavy",
+            Font::AvenirNextMedium => "AvenirNext-Medium",
+
+            Font::PingFangLight => "PingFangSC-Light",
+            Font::PingFangSemibold => "PingFangSC-Semibold",
+            Font::PingFangMedium => "PingFangSC-Medium",
+
+            Font::ChaletComprime => "ChaletComprime-CologneSixty",
+            Font::KhmerSangam => "KhmerSangamMN",
+            Font::Pricedown => "PricedownGTAVInt",
+            Font::GtaLicense => "GTALICENSE-REGULAR",
+        }
+    }
+
+    /// Creates a `UIFont` object for the font at a particular size.
+    pub fn uifont(self, size: f64) -> *mut Object {
+        unsafe { msg_send![class!(UIFont), fontWithName: ns_string(self.name()) size: size] }
+    }
+
+    /// Converts a pair containing a font and a size into a `UIFont`.
+    pub fn pair_uifont((font, size): (Font, f64)) -> *mut Object {
+        font.uifont(size)
+    }
+}
+
+/// Represents a group of fonts used for the CLEO GUI. Different font sets are used for different
+/// languages in order to improve readability and appearance.
+#[derive(Clone, Copy)]
+pub struct FontSet {
+    /// The font used for large, bold titles.
+    pub title_font: Font,
+
+    /// The size used for the title font.
+    pub title_size: f64,
+
+    /// The font used for small but important text.
+    pub small_font: Font,
+
+    /// The size used for the small font.
+    pub small_size: f64,
+
+    /// The font used for normal text.
+    pub text_font: Font,
+
+    /// The size used for the normal text font.
+    pub text_size: f64,
+
+    /// The font used for fairly small subtitles.
+    pub subtitle_font: Font,
+
+    /// The size used for the subtitle font.
+    pub subtitle_size: f64,
+}
+
+impl FontSet {
+    /// Returns the `UIFont` to be used for titles.
+    pub fn title_uifont(self) -> *mut Object {
+        self.title_font.uifont(self.title_size)
+    }
+
+    /// Returns the `UIFont` to be used for small text.
+    pub fn small_uifont(self) -> *mut Object {
+        self.small_font.uifont(self.small_size)
+    }
+
+    /// Returns the `UIFont` to be used for normal text.
+    pub fn text_uifont(self) -> *mut Object {
+        self.text_font.uifont(self.text_size)
+    }
+
+    /// Returns the `UIFont` to be used for subtitles.
+    pub fn subtitle_uifont(self) -> *mut Object {
+        self.subtitle_font.uifont(self.subtitle_size)
+    }
+}
+
 #[repr(C)]
 #[derive(Clone, Copy)]
 pub struct CGSize {
@@ -111,10 +208,6 @@ pub mod colours {
     pub fn white_with_alpha(white: f64, alpha: f64) -> *const Object {
         unsafe { msg_send![class!(UIColor), colorWithWhite: white alpha: alpha] }
     }
-}
-
-pub fn get_font(name: &str, size: f64) -> *const Object {
-    unsafe { msg_send![class!(UIFont), fontWithName: ns_string(name) size: size] }
 }
 
 pub fn ns_string(rust_string: impl AsRef<str>) -> *const Object {
@@ -304,7 +397,7 @@ fn legal_splash_did_load(this: *mut Object, _sel: Sel) {
 
         let label: *mut Object = msg_send![class!(UILabel), alloc];
         let label: *mut Object = msg_send![label, initWithFrame: bottom_text_frame];
-        let font = get_font("HelveticaNeue", 10.);
+        let font = super::language::current().font_set().small_uifont();
         let colour = colours::white_with_alpha(0.5, 0.7);
         let _: () = msg_send![label, setTextColor: colour];
         let _: () = msg_send![label, setFont: font];

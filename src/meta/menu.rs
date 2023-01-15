@@ -1,7 +1,7 @@
 //! Provides a touch interface and accompanying logic to allow the user to interact with scripts, cheats and settings.
 
 use super::{
-    gui::{self, ns_string, CGPoint, CGRect, CGSize},
+    gui::{self, ns_string, CGPoint, CGRect, CGSize, Font},
     language::{Message, MessageKey},
 };
 use objc::{class, msg_send, runtime::Object, sel};
@@ -142,11 +142,14 @@ impl MenuMessage {
 
 impl Row {
     fn new(data: Box<dyn RowData>, frame: gui::CGRect) -> Row {
+        let language = super::language::current();
+        let font_set = language.font_set();
+
         unsafe {
             let button: *mut Object = msg_send![class!(UIButton), alloc];
             let button: *mut Object = msg_send![button, initWithFrame: frame];
 
-            let is_rtl = super::language::is_rtl();
+            let is_rtl = language.is_rtl();
 
             let button_alignment = if is_rtl {
                 // Right
@@ -167,8 +170,8 @@ impl Row {
             let _: () = msg_send![button, setTitleEdgeInsets: edge_insets];
 
             let label: *mut Object = msg_send![button, titleLabel];
-            let font = gui::get_font("ChaletComprime-CologneSixty", ROW_TOP_FONT_SIZE);
-            let _: () = msg_send![label, setFont: font];
+            let subtitle_font = font_set.subtitle_uifont();
+            let _: () = msg_send![label, setFont: subtitle_font];
 
             let value_frame = CGRect::new(
                 frame.size.width * 0.05,
@@ -180,7 +183,7 @@ impl Row {
 
             let value_label: *mut Object = msg_send![class!(UILabel), alloc];
             let value_label: *mut Object = msg_send![value_label, initWithFrame: value_frame];
-            let _: () = msg_send![value_label, setFont: font];
+            let _: () = msg_send![value_label, setFont: subtitle_font];
 
             let value_alignment = if is_rtl {
                 // Left
@@ -205,7 +208,7 @@ impl Row {
             let detail_label: *mut Object = msg_send![class!(UILabel), alloc];
             let detail_label: *mut Object = msg_send![detail_label, initWithFrame: detail_frame];
 
-            let font = gui::get_font("ChaletComprime-CologneSixty", ROW_DETAIL_FONT_SIZE);
+            let font = font_set.text_uifont();
             let _: () = msg_send![detail_label, setFont: font];
             let _: () = msg_send![detail_label, setAdjustsFontSizeToFitWidth: true];
 
@@ -282,20 +285,16 @@ impl Row {
 //  smaller devices, but on iPads, many things were too big and the menu as a whole looked strange.
 // Now we just hardcode the same values for all displays.
 
-const ROW_HEIGHT: f64 = 57.;
-const ROW_TOP_FONT_SIZE: f64 = 21.;
-const ROW_DETAIL_FONT_SIZE: f64 = 15.;
+const ROW_HEIGHT: f64 = 50.;
 
 const TAB_BUTTON_HEIGHT: f64 = 50.;
-const TAB_NAME_FONT_SIZE: f64 = 26.;
 
 const CLOSE_BUTTON_HEIGHT: f64 = 30.;
-const CLOSE_BTN_FONT_SIZE: f64 = 23.;
+const CLOSE_BTN_FONT_SIZE: f64 = 20.;
 
 // Some elements are still proportional to others. The height of the warning label is proportional
 //  to the height of the tab view as a whole.
 const WARNING_HEIGHT_FRAC: f64 = 0.1;
-const WARNING_LBL_FONT_SIZE: f64 = 10.;
 
 struct Tab {
     name: Message,
@@ -306,6 +305,8 @@ struct Tab {
 
 impl Tab {
     fn new(data: TabData, tab_frame: gui::CGRect, state: TabState) -> Tab {
+        let language = super::language::current();
+
         let scroll_frame = if data.warning.is_some() {
             // Make the scroll view slightly shorter so we can fit the warning above it.
             CGRect::new(
@@ -381,7 +382,7 @@ impl Tab {
             let label: *mut Object = msg_send![label, initWithFrame: warning_frame];
 
             let colour = gui::colours::get(gui::colours::ORANGE, 1.);
-            let font = gui::get_font("HelveticaNeue-Bold", WARNING_LBL_FONT_SIZE);
+            let font = language.font_set().small_uifont();
             let _: () = msg_send![label, setTextColor: colour];
             let _: () = msg_send![label, setFont: font];
             let _: () = msg_send![label, setText: ns_string(warning)];
@@ -428,8 +429,10 @@ impl TabButton {
             let _: () = msg_send![btn, setTitle: ns_string(title.translate()) forState: 0u64];
 
             let label: *mut Object = msg_send![btn, titleLabel];
-            let _: () =
-                msg_send![label, setFont: gui::get_font("PricedownGTAVInt", TAB_NAME_FONT_SIZE)];
+
+            let font = super::language::current().font_set().title_uifont();
+
+            let _: () = msg_send![label, setFont: font];
 
             add_button_handler(btn, ButtonTag::new_tab(index));
 
@@ -539,7 +542,9 @@ fn create_blur_view(frame: CGRect, blur_mode: u32) -> *mut Object {
 
 impl Menu {
     fn new(mut tab_data: Vec<TabData>) -> Menu {
-        if super::language::is_rtl() {
+        let language = super::language::current();
+
+        if language.is_rtl() {
             tab_data.reverse();
         }
 
@@ -610,8 +615,9 @@ impl Menu {
             ];
 
             let label: *mut Object = msg_send![btn, titleLabel];
-            let _: () =
-                msg_send![label, setFont: gui::get_font("PricedownGTAVInt", CLOSE_BTN_FONT_SIZE)];
+
+            let font = language.font_set().title_font.uifont(CLOSE_BTN_FONT_SIZE);
+            let _: () = msg_send![label, setFont: font];
 
             add_button_handler(btn, ButtonTag::new_close());
 

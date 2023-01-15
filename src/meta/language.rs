@@ -4,6 +4,7 @@ use serde::{Deserialize, Serialize};
 use std::{borrow::Cow, collections::HashMap, ffi::CStr, sync::Mutex};
 use strum::{EnumIter, EnumString, EnumVariantNames, IntoEnumIterator, IntoStaticStr};
 
+use super::gui::{Font, FontSet};
 pub use fluent::fluent_args as msg_args;
 use objc::runtime::Object;
 
@@ -84,9 +85,9 @@ pub fn init() {
     loader.find_auto_language();
 }
 
-/// Returns `true` if the current language is read right-to-left.
-pub fn is_rtl() -> bool {
-    Loader::lock().current_language().is_rtl()
+/// Returns the current language.
+pub fn current() -> Language {
+    Loader::lock().current_language()
 }
 
 /// Sets the current translation to the given language, or automatically select a language if
@@ -239,8 +240,84 @@ impl Language {
         }
     }
 
+    /// Returns the set of fonts that should be used for this language.
+    pub fn font_set(self) -> FontSet {
+        // Define some standard sizes to work with.
+        const STD_TITLE: f64 = 25.0;
+        const STD_SMALL: f64 = 10.0;
+        const STD_TEXT: f64 = 15.0;
+        const STD_SUBTITLE: f64 = 17.0;
+
+        match self {
+            // Czech, Slovak and Vietnamese need a font that covers all of the accented characters.
+            // Arabic always makes use of Geeza Pro (I think) so we could just leave it with Chalet
+            // Comprime, but Avenir Next has easier-to-read Latin letters.
+            Language::Arabic | Language::Czech | Language::Slovak => FontSet {
+                title_font: Font::AvenirNextHeavy,
+                title_size: STD_TITLE,
+                small_font: Font::AvenirNextMedium,
+                small_size: STD_SMALL,
+                text_font: Font::AvenirNextCondensed,
+                text_size: STD_TEXT,
+                subtitle_font: Font::AvenirNextCondensed,
+                subtitle_size: STD_SUBTITLE,
+            },
+
+            // PingFang SC is the variant of PingFang for Simplified Chinese. It has large and
+            // obvious Latin characters.
+            Language::Chinese => FontSet {
+                title_font: Font::PingFangSemibold,
+                title_size: STD_TITLE,
+                small_font: Font::PingFangMedium,
+                small_size: STD_SMALL,
+                text_font: Font::PingFangLight,
+                text_size: STD_TEXT,
+                subtitle_font: Font::PingFangMedium,
+                subtitle_size: STD_SUBTITLE,
+            },
+
+            // Chalet Comprime has support for rich Latin alphabets, so English and Dutch are fine.
+            // Our Turkish translation uses only ASCII, so it's fine too.
+            Language::Dutch | Language::English | Language::Turkish => FontSet {
+                title_font: Font::Pricedown,
+                title_size: STD_TITLE,
+                small_font: Font::AvenirNextMedium,
+                small_size: STD_SMALL,
+                text_font: Font::ChaletComprime,
+                text_size: STD_TEXT,
+                subtitle_font: Font::ChaletComprime,
+                subtitle_size: STD_SUBTITLE + 2.0,
+            },
+
+            // Khmer characters always fall back to Khmer Sangam MN, because it's the only font
+            // that has them (I think), so the only reason to use it explicitly is for the Latin
+            // characters.
+            Language::Khmer => FontSet {
+                title_font: Font::KhmerSangam,
+                title_size: STD_TITLE,
+                small_font: Font::KhmerSangam,
+                small_size: STD_SMALL,
+                text_font: Font::KhmerSangam,
+                text_size: STD_TEXT,
+                subtitle_font: Font::KhmerSangam,
+                subtitle_size: STD_SUBTITLE,
+            },
+
+            Language::Vietnamese => FontSet {
+                title_font: Font::AvenirNextMedium,
+                title_size: STD_TITLE,
+                small_font: Font::AvenirNextMedium,
+                small_size: STD_SMALL,
+                text_font: Font::AvenirNextCondensed,
+                text_size: STD_TEXT,
+                subtitle_font: Font::AvenirNextCondensed,
+                subtitle_size: STD_SUBTITLE,
+            },
+        }
+    }
+
     /// Returns `true` if this language is read right-to-left.
-    fn is_rtl(self) -> bool {
+    pub fn is_rtl(self) -> bool {
         matches!(self, Language::Arabic)
     }
 
