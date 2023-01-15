@@ -289,7 +289,7 @@ const ROW_HEIGHT: f64 = 50.;
 
 const TAB_BUTTON_HEIGHT: f64 = 50.;
 
-const CLOSE_BUTTON_HEIGHT: f64 = 30.;
+const CLOSE_BUTTON_HEIGHT: f64 = 35.;
 const CLOSE_BTN_FONT_SIZE: f64 = 20.;
 
 // Some elements are still proportional to others. The height of the warning label is proportional
