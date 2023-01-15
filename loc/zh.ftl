@@ -67,7 +67,7 @@ menu-script-csi-tab-title = CSI
 ## Specific script warnings
 
 # The script does things that CLEO doesn't support yet.
-script-unimplemented-in-cleo = 此功能当前在CLEO的IOS版本中不可用。
+script-unimplemented-in-cleo = 此功能当前在CLEO的iOS版本中不可用。
 
 # The script does things that are not possible on iOS (for system reasons).
 script-impossible-on-ios = 此代码在iOS版本中不可用。
