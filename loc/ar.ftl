@@ -1,6 +1,15 @@
 # Used in the settings menu to show the name of the language.
 language-name = العربيه
 
+# Shown whe this language has been selected automatically.
+language-auto-name = تلقائي (عربي)
+
+# The name of the language setting.
+language-opt-title = اللغة
+
+# The language setting description.
+language-opt-desc = اللغة المستخدمة في cleo. تستخدم الوضع التلقائي لاعدادات النظام.  أضف لغتك الخاصة على Discord!
+
 ### ==== Splash screen ====
 
 # First line at the bottom of the screen.
