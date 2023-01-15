@@ -331,6 +331,7 @@ const WARNING_HEIGHT_FRAC: f64 = 0.1;
 struct Tab {
     name: Message,
     scroll_view: *mut Object,
+    warning_message: Option<Message>,
     warning_label: Option<*mut Object>,
     rows: Vec<Row>,
 }
@@ -429,6 +430,7 @@ impl Tab {
         });
 
         let mut tab = Tab {
+            warning_message: data.warning,
             name: data.name,
             scroll_view,
             warning_label,
@@ -445,6 +447,16 @@ impl Tab {
 
             if let Some(label) = self.warning_label {
                 let _: () = msg_send![label, setHidden: !selected];
+            }
+        }
+    }
+
+    fn reload_warning(&mut self) {
+        if let Some(warning) = self.warning_message.as_ref() {
+            let label = self.warning_label.unwrap();
+
+            unsafe {
+                let _: () = msg_send![label, setText: ns_string(warning.translate())];
             }
         }
     }
@@ -762,6 +774,7 @@ impl Menu {
 
     fn reload_rows(&mut self) {
         for tab in &mut self.tabs {
+            tab.reload_warning();
             tab.reload_fonts();
 
             for row in &mut tab.rows {
