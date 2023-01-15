@@ -4,6 +4,24 @@ use super::{
 };
 use crate::meta::language::Message;
 
+/// System managing multiple tabs.
+pub struct Tabs {
+    /// The tabs.
+    tabs: Vec<Tab>,
+
+    /// The index of the currently-selected tab.
+    selection_index: usize,
+}
+
+/// Data and visuals for a single tab.
+struct Tab {
+    /// The tab's state. This persists between menu loads.
+    state: State,
+
+    /// The tab's view system. This will be `None` when the menu is not showing.
+    view: Option<ViewSystem>,
+}
+
 /// A trait for objects that can provide the data for a menu tab.
 trait DataProvider {
     /// Returns the tab title.
