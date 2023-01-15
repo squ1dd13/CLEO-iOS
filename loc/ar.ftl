@@ -305,17 +305,17 @@ cheat-xbox-helper = ضبط الإحصائيات لتكون قريبة من ال�
 ## Pointless cheats
 
 # Tells the user that a cheat will ALWAYS crash their game.
--cheat-crash-warning = خروج مفاجئ
+cheat-crash-warning = خروج مفاجئ
 
-cheat-slot-melee = { -cheat-crash-warning } خانة عراك
-cheat-slot-handgun = { -cheat-crash-warning } خانة اسلحه يدويه
-cheat-slot-smg = { -cheat-crash-warning } SMG خانة
-cheat-slot-shotgun = { -cheat-crash-warning } خانة بنادق
-cheat-slot-assault-rifle = { -cheat-crash-warning } خانة رشاشات
-cheat-slot-long-rifle = { -cheat-crash-warning } خانة اسلحه طويله
-cheat-slot-thrown = { -cheat-crash-warning } رمية فتحة السلاح
-cheat-slot-heavy = { -cheat-crash-warning } خانة مدفعية ثقيلة
-cheat-slot-equipment = { -cheat-crash-warning } خانة معدات
-cheat-slot-other = { -cheat-crash-warning } خانات اخرى
+cheat-slot-melee = { cheat-crash-warning } خانة عراك
+cheat-slot-handgun = { cheat-crash-warning } خانة اسلحه يدويه
+cheat-slot-smg = { cheat-crash-warning } SMG خانة
+cheat-slot-shotgun = { cheat-crash-warning } خانة بنادق
+cheat-slot-assault-rifle = { cheat-crash-warning } خانة رشاشات
+cheat-slot-long-rifle = { cheat-crash-warning } خانة اسلحه طويله
+cheat-slot-thrown = { cheat-crash-warning } رمية فتحة السلاح
+cheat-slot-heavy = { cheat-crash-warning } خانة مدفعية ثقيلة
+cheat-slot-equipment = { cheat-crash-warning } خانة معدات
+cheat-slot-other = { cheat-crash-warning } خانات اخرى
 
 cheat-predator = لا يفعل شيئا

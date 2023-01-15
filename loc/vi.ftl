@@ -1,6 +1,15 @@
 # Used in the settings menu to show the name of the language.
 language-name = Tiếng Việt
 
+# Shown when this language has been selected automatically.
+language-auto-name = Tự động ({ language-name })
+
+# The name of the language setting.
+language-opt-title = Ngôn ngữ
+
+# The language setting description.
+language-opt-desc = Ngôn ngữ sử dụng của CLEO. Chế độ tự động sẽ sử dụng ngôn ngữ hệ thống của bạn. Vui lòng thêm ngôn ngữ của bạn trên Discord!
+
 ### ==== Splash screen ====
 
 # First line at the bottom of the screen.
@@ -300,17 +309,17 @@ cheat-xbox-helper = Điều chỉnh số liệu thống kê để gần đạt �
 ## Pointless cheats
 
 # Tells the user that a cheat will ALWAYS crash their game.
--cheat-crash-warning = Sự cố!
+cheat-crash-warning = Sự cố!
 
-cheat-slot-melee = { -cheat-crash-warning } Khe cận chiến
-cheat-slot-handgun = { -cheat-crash-warning } Khe súng lục
-cheat-slot-smg = { -cheat-crash-warning } Khe súng tiểu liên
-cheat-slot-shotgun = { -cheat-crash-warning } Khe súng ngắn
-cheat-slot-assault-rifle = { -cheat-crash-warning } Khe súng trường tấn công
-cheat-slot-long-rifle = { -cheat-crash-warning } Khe súng trường dài
-cheat-slot-thrown = { -cheat-crash-warning } Khe ném vũ khí
-cheat-slot-heavy = { -cheat-crash-warning } Khe pháo hạng nặng
-cheat-slot-equipment = { -cheat-crash-warning } Khe trang bị
-cheat-slot-other = { -cheat-crash-warning } Khe khác
+cheat-slot-melee = { cheat-crash-warning } Khe cận chiến
+cheat-slot-handgun = { cheat-crash-warning } Khe súng lục
+cheat-slot-smg = { cheat-crash-warning } Khe súng tiểu liên
+cheat-slot-shotgun = { cheat-crash-warning } Khe súng ngắn
+cheat-slot-assault-rifle = { cheat-crash-warning } Khe súng trường tấn công
+cheat-slot-long-rifle = { cheat-crash-warning } Khe súng trường dài
+cheat-slot-thrown = { cheat-crash-warning } Khe ném vũ khí
+cheat-slot-heavy = { cheat-crash-warning } Khe pháo hạng nặng
+cheat-slot-equipment = { cheat-crash-warning } Khe trang bị
+cheat-slot-other = { cheat-crash-warning } Khe khác
 
 cheat-predator = Vô hiệu

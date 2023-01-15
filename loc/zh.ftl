@@ -301,17 +301,17 @@ cheat-xbox-helper = 调整统计数据至接近值，以获得Xbox成就。
 ## Pointless cheats
 
 # Tells the user that a cheat will ALWAYS crash their game.
--cheat-crash-warning = 崩溃!
+cheat-crash-warning = 崩溃!
 
-cheat-slot-melee = { -cheat-crash-warning } 近战武器槽
-cheat-slot-handgun = { -cheat-crash-warning } 手枪槽
-cheat-slot-smg = { -cheat-crash-warning } 冲锋枪槽
-cheat-slot-shotgun = { -cheat-crash-warning } 霰弹枪槽
-cheat-slot-assault-rifle = { -cheat-crash-warning } 突击步枪槽
-cheat-slot-long-rifle = { -cheat-crash-warning } 长步枪槽
-cheat-slot-thrown = { -cheat-crash-warning } 投掷武器槽
-cheat-slot-heavy = { -cheat-crash-warning } 重炮槽
-cheat-slot-equipment = { -cheat-crash-warning } 装备槽
-cheat-slot-other = { -cheat-crash-warning } 其它槽
+cheat-slot-melee = { cheat-crash-warning } 近战武器槽
+cheat-slot-handgun = { cheat-crash-warning } 手枪槽
+cheat-slot-smg = { cheat-crash-warning } 冲锋枪槽
+cheat-slot-shotgun = { cheat-crash-warning } 霰弹枪槽
+cheat-slot-assault-rifle = { cheat-crash-warning } 突击步枪槽
+cheat-slot-long-rifle = { cheat-crash-warning } 长步枪槽
+cheat-slot-thrown = { cheat-crash-warning } 投掷武器槽
+cheat-slot-heavy = { cheat-crash-warning } 重炮槽
+cheat-slot-equipment = { cheat-crash-warning } 装备槽
+cheat-slot-other = { cheat-crash-warning } 其它槽
 
 cheat-predator = 无效

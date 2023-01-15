@@ -4,7 +4,7 @@
 language-name = English
 
 # Shown when this language has been selected automatically.
-language-auto-name = Automatic (English)
+language-auto-name = Automatic ({ language-name })
 
 # The name of the language setting.
 language-opt-title = Language
@@ -316,17 +316,17 @@ cheat-xbox-helper = Adjust stats to be close to getting Xbox achievements
 ## Pointless cheats
 
 # Tells the user that a cheat will ALWAYS crash their game.
--cheat-crash-warning = CRASHES!
+cheat-crash-warning = CRASHES!
 
-cheat-slot-melee = { -cheat-crash-warning } Melee slot
-cheat-slot-handgun = { -cheat-crash-warning } Handgun slot
-cheat-slot-smg = { -cheat-crash-warning } SMG slot
-cheat-slot-shotgun = { -cheat-crash-warning } Shotgun slot
-cheat-slot-assault-rifle = { -cheat-crash-warning } Assault rifle slot
-cheat-slot-long-rifle = { -cheat-crash-warning } Long rifle slot
-cheat-slot-thrown = { -cheat-crash-warning } Thrown weapon slot
-cheat-slot-heavy = { -cheat-crash-warning } Heavy artillery slot
-cheat-slot-equipment = { -cheat-crash-warning } Equipment slot
-cheat-slot-other = { -cheat-crash-warning } Other slot
+cheat-slot-melee = { cheat-crash-warning } Melee slot
+cheat-slot-handgun = { cheat-crash-warning } Handgun slot
+cheat-slot-smg = { cheat-crash-warning } SMG slot
+cheat-slot-shotgun = { cheat-crash-warning } Shotgun slot
+cheat-slot-assault-rifle = { cheat-crash-warning } Assault rifle slot
+cheat-slot-long-rifle = { cheat-crash-warning } Long rifle slot
+cheat-slot-thrown = { cheat-crash-warning } Thrown weapon slot
+cheat-slot-heavy = { cheat-crash-warning } Heavy artillery slot
+cheat-slot-equipment = { cheat-crash-warning } Equipment slot
+cheat-slot-other = { cheat-crash-warning } Other slot
 
 cheat-predator = Does nothing

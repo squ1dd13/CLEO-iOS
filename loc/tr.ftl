@@ -286,15 +286,15 @@ cheat-xbox-helper = XBOX basarimlarina yakinlasmak icin statlari degistir
 ## Pointless cheats
 
 # Tells the user that a cheat will ALWAYS crash their game.
--cheat-crash-warning = COKERTIR!
-cheat-slot-melee = { -cheat-crash-warning } El slotu
-cheat-slot-handgun = { -cheat-crash-warning } Tabanca slotu
-cheat-slot-smg = { -cheat-crash-warning } SMG slotu
-cheat-slot-shotgun = { -cheat-crash-warning } Pompali slotu
-cheat-slot-assault-rifle = { -cheat-crash-warning } Taramali tufek slotu
-cheat-slot-long-rifle = { -cheat-crash-warning } Tufek slotu
-cheat-slot-thrown = { -cheat-crash-warning } Atilabilir patlayici slotu
-cheat-slot-heavy = { -cheat-crash-warning } Agir silah slotu
-cheat-slot-equipment = { -cheat-crash-warning } Ekipman slotu
-cheat-slot-other = { -cheat-crash-warning } Diger slotu
+cheat-crash-warning = COKERTIR!
+cheat-slot-melee = { cheat-crash-warning } El slotu
+cheat-slot-handgun = { cheat-crash-warning } Tabanca slotu
+cheat-slot-smg = { cheat-crash-warning } SMG slotu
+cheat-slot-shotgun = { cheat-crash-warning } Pompali slotu
+cheat-slot-assault-rifle = { cheat-crash-warning } Taramali tufek slotu
+cheat-slot-long-rifle = { cheat-crash-warning } Tufek slotu
+cheat-slot-thrown = { cheat-crash-warning } Atilabilir patlayici slotu
+cheat-slot-heavy = { cheat-crash-warning } Agir silah slotu
+cheat-slot-equipment = { cheat-crash-warning } Ekipman slotu
+cheat-slot-other = { cheat-crash-warning } Diger slotu
 cheat-predator = Hicbir sey yapmiyor

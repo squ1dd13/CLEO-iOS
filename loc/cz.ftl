@@ -1,6 +1,15 @@
 # Used in the settings menu to show the name of the language.
 language-name = čeština
 
+# Shown when this language has been selected automatically.
+language-auto-name = Automatický ({ language-name })
+
+# The name of the language setting.
+language-opt-title = Jazyk
+
+# The language setting description.
+language-opt-desc = Jazyk, který se používá CLEO. Automatický režim použije nastavení vašeho systému. Přidejte prosím svůj jazyk na Discord!
+
 ### ==== Splash screen ====
 
 # First line at the bottom of the screen.
@@ -301,17 +310,17 @@ cheat-xbox-helper = Upravte statistiky tak, abyste byli blízko k získání ús
 ## Pointless cheats
 
 # Tells the user that a cheat will ALWAYS crash their game.
--cheat-crash-warning = ZHROUCENÍ!
+cheat-crash-warning = ZHROUCENÍ!
 
-cheat-slot-melee = { -cheat-crash-warning } Slot zbraní na blízko
-cheat-slot-handgun = { -cheat-crash-warning } Slot pistolí
-cheat-slot-smg = { -cheat-crash-warning } Slot samopalů
-cheat-slot-shotgun = { -cheat-crash-warning } Slot brokovnicí
-cheat-slot-assault-rifle = { -cheat-crash-warning } Slot útočných pušek
-cheat-slot-long-rifle = { -cheat-crash-warning } Slot dlouhých pušek
-cheat-slot-thrown = { -cheat-crash-warning } Slot vrhacích zbraní
-cheat-slot-heavy = { -cheat-crash-warning } Slot těžká dělostřelectva
-cheat-slot-equipment = { -cheat-crash-warning } Slot vybavení
-cheat-slot-other = { -cheat-crash-warning } Jiný slot
+cheat-slot-melee = { cheat-crash-warning } Slot zbraní na blízko
+cheat-slot-handgun = { cheat-crash-warning } Slot pistolí
+cheat-slot-smg = { cheat-crash-warning } Slot samopalů
+cheat-slot-shotgun = { cheat-crash-warning } Slot brokovnicí
+cheat-slot-assault-rifle = { cheat-crash-warning } Slot útočných pušek
+cheat-slot-long-rifle = { cheat-crash-warning } Slot dlouhých pušek
+cheat-slot-thrown = { cheat-crash-warning } Slot vrhacích zbraní
+cheat-slot-heavy = { cheat-crash-warning } Slot těžká dělostřelectva
+cheat-slot-equipment = { cheat-crash-warning } Slot vybavení
+cheat-slot-other = { cheat-crash-warning } Jiný slot
 
 cheat-predator = Nic nedělá

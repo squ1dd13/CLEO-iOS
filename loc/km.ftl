@@ -288,15 +288,15 @@ cheat-xbox-helper = Adjust stats to be close to getting Xbox achievements
 ## Pointless cheats
 
 # Tells the user that a cheat will ALWAYS crash their game.
--cheat-crash-warning = គាំង!!
-cheat-slot-melee = { -cheat-crash-warning } កន្លែងផ្នុក កាំបិត
-cheat-slot-handgun = { -cheat-crash-warning } កន្លែងផ្នុក កាំភ្លើងខ្លី
-cheat-slot-smg = { -cheat-crash-warning } កន្លែងផ្នុក កាំភ្លើងអេសអឹមជី
-cheat-slot-shotgun = { -cheat-crash-warning } កន្លែងផ្នុក កាំភ្លើងស្នប់
-cheat-slot-assault-rifle = { -cheat-crash-warning } កន្លែងផ្នុក កាំភ្លើងវែង
-cheat-slot-long-rifle = { -cheat-crash-warning } កន្លែងផ្នុក កាំភ្លើងស្នេប
-cheat-slot-thrown = { -cheat-crash-warning } កន្លែងផ្នុក គ្រាប់បែក
-cheat-slot-heavy = { -cheat-crash-warning } កន្លែងផ្នុក អាវុធធន់ធ្ងន់
-cheat-slot-equipment = { -cheat-crash-warning } កន្លែងផ្នុក គ្រឿងប្រដាប់.បរិក្ខារ
-cheat-slot-other = { -cheat-crash-warning } កន្លែងផ្ទុក ផ្សេងៗទៀត
+cheat-crash-warning = គាំង!!
+cheat-slot-melee = { cheat-crash-warning } កន្លែងផ្នុក កាំបិត
+cheat-slot-handgun = { cheat-crash-warning } កន្លែងផ្នុក កាំភ្លើងខ្លី
+cheat-slot-smg = { cheat-crash-warning } កន្លែងផ្នុក កាំភ្លើងអេសអឹមជី
+cheat-slot-shotgun = { cheat-crash-warning } កន្លែងផ្នុក កាំភ្លើងស្នប់
+cheat-slot-assault-rifle = { cheat-crash-warning } កន្លែងផ្នុក កាំភ្លើងវែង
+cheat-slot-long-rifle = { cheat-crash-warning } កន្លែងផ្នុក កាំភ្លើងស្នេប
+cheat-slot-thrown = { cheat-crash-warning } កន្លែងផ្នុក គ្រាប់បែក
+cheat-slot-heavy = { cheat-crash-warning } កន្លែងផ្នុក អាវុធធន់ធ្ងន់
+cheat-slot-equipment = { cheat-crash-warning } កន្លែងផ្នុក គ្រឿងប្រដាប់.បរិក្ខារ
+cheat-slot-other = { cheat-crash-warning } កន្លែងផ្ទុក ផ្សេងៗទៀត
 cheat-predator = ទទេរគឺទទេរ

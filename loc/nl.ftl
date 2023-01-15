@@ -2,7 +2,7 @@
 language-name = Nederlands
 
 # Shown when this language has been selected automatically.
-language-auto-name = Automatisch (Nederlands)
+language-auto-name = Automatisch ({ language-name })
 
 # The name of the language setting.
 language-opt-title = Taal
@@ -314,17 +314,17 @@ cheat-xbox-helper = Zet je statistieken zodat je bijna de Xbox prestaties hebt
 ## Pointless cheats
 
 # Tells the user that a cheat will ALWAYS crash their game.
--cheat-crash-warning = LAAT HET SPEL VASTLOPEN!
+cheat-crash-warning = LAAT HET SPEL VASTLOPEN!
 
-cheat-slot-melee = { -cheat-crash-warning } Melee slot
-cheat-slot-handgun = { -cheat-crash-warning } pistool slot
-cheat-slot-smg = { -cheat-crash-warning } SMG slot
-cheat-slot-shotgun = { -cheat-crash-warning } Shotgun slot
-cheat-slot-assault-rifle = { -cheat-crash-warning } Assault geweer slot
-cheat-slot-long-rifle = { -cheat-crash-warning } Lang geweer slot
-cheat-slot-thrown = { -cheat-crash-warning } Gooi wapen slot
-cheat-slot-heavy = { -cheat-crash-warning } Zware artillerie slot
-cheat-slot-equipment = { -cheat-crash-warning } Apperatuur slot
-cheat-slot-other = { -cheat-crash-warning } Rest slot
+cheat-slot-melee = { cheat-crash-warning } Melee slot
+cheat-slot-handgun = { cheat-crash-warning } pistool slot
+cheat-slot-smg = { cheat-crash-warning } SMG slot
+cheat-slot-shotgun = { cheat-crash-warning } Shotgun slot
+cheat-slot-assault-rifle = { cheat-crash-warning } Assault geweer slot
+cheat-slot-long-rifle = { cheat-crash-warning } Lang geweer slot
+cheat-slot-thrown = { cheat-crash-warning } Gooi wapen slot
+cheat-slot-heavy = { cheat-crash-warning } Zware artillerie slot
+cheat-slot-equipment = { cheat-crash-warning } Apperatuur slot
+cheat-slot-other = { cheat-crash-warning } Rest slot
 
 cheat-predator = Doet niks
