@@ -1,6 +1,15 @@
 # Used in the settings menu to show the name of the language.
 language-name = ខ្មែរ
 
+# Shown when this language has been selected automatically.
+language-auto-name = ស្វ័យប្រវត្តិ (ខ្មែរ)
+
+# The name of the language setting.
+language-opt-title = ភាសាខ្មែរ
+
+# The language setting description.
+language-opt-desc = ភាសាសំរាប់ប្រើក្នុងឃ្លីអូ. របៀបដំណើការស្វ័យប្រវត្តិនឹងប្រើការកំណត់ប្រព័ន្ធរបស់អ្នក.អ្នកអាចស្នើសុំដាក់ភាសារបស់អ្នកនៅបណ្ដាញសង្គម Discord!
+
 ### ==== Splash screen ====
 
 # First line at the bottom of the screen.
