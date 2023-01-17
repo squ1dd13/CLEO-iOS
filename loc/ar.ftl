@@ -162,7 +162,7 @@ cheat-transience-opt-title = حفظ الغش
 cheat-transience-opt-desc = ستبقى اعدادات الغش كما هي عند اعادة تشغيل اللعبة
 
 cheat-transience-opt-transient = إعادة ضبط الجميع
-cheat-transience-opt-persistent = حفط الحالة
+cheat-transience-opt-persistent = حفظ الحالة
 
 ### ==== Cheat descriptions ====
 
