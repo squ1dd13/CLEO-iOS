@@ -371,6 +371,13 @@ using WSL, please feel free to add an explanation here.
 
 ## Thanks to...
 
+- The translator team for their hard work in translating all of the text that CLEO uses into so
+  many different languages:
+  - AYZM (Turkish)
+  - ODIN (Khmer)
+  - RAiZOK (Arabic)
+  - tharryz (Simplified Chinese, Vietnamese, Czech, Slovak)
+  - wewewer1 (Dutch)
 - [Seemann](https://github.com/x87) for offering support and info, and for letting this project
   officially be a part of [CLEO](http://cleo.li/).
 - [Alexander Blade](http://www.dev-c.com/) for creating CLEO Android, and for publishing
