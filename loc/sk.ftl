@@ -13,7 +13,7 @@ language-opt-desc = Jazyk, ktorý sa používa CLEO. Automatický režim použij
 ### ==== Splash screen ====
 
 # First line at the bottom of the screen.
-splash-legal = Autorské právo © 2020-2023 squ1dd13, AYZM, ODIN, RAiZOK, tharryz, wewewer1. Licencované podľa licencie MIT.
+splash-legal = Autorské právo © 2020-2023 squ1dd13, AYZM, Flylarb, ODIN, RAiZOK, tharryz, wewewer1. Licencované podľa licencie MIT.
 
 # Second line.
 splash-fun = Ahojte! Slovenskí kamaráti! CLEO sa preložilo do slovenčiny tharryzom. Vyrobené s láskou vo Veľkej Británii. Bavte sa s hrou! Príjemnú zábavu!

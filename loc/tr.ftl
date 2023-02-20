@@ -13,7 +13,7 @@ language-opt-desc = CLEO kullanmak icin tercih edilen dil. Otomatik mod sistem d
 ### ==== Splash screen ====
 
 # First line at the bottom of the screen.
-splash-legal = Telif Hakki © 2020-2023 squ1dd13, AYZM, ODIN, RAiZOK, tharryz, wewewer1. MIT Lisansi Altinda Lisanslanmistir.
+splash-legal = Telif Hakki © 2020-2023 squ1dd13, AYZM, Flylarb, ODIN, RAiZOK, tharryz, wewewer1. MIT Lisansi Altinda Lisanslanmistir.
 
 # Second line.
 splash-fun = Turklere Merhaba! Ceviri Berkakahs. Ingiltere'de sevgilerle yapildi. Iyi eglenceler!
