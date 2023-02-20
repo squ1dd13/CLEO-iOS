@@ -248,7 +248,7 @@ cheat-i-want-to-hover = Vortex (เรือเร็ว)
 cheat-oh-dude = Hunter (เฮลิคอปเตอร์ทหาร)
 cheat-four-wheel-fun = Quad (รถเอทีวี)
 cheat-hit-the-road-jack = Tanker and trailer (รถน้ำมัน)
-cheat-its-all-bull = Dozer (บูลเดอร์เซิอร์)
+cheat-its-all-bull = Dozer (บูลเดอร์เซอร์)
 cheat-flying-to-stunt = Stunt Plane (เครื่องบินผาดโผน)
 cheat-monster-mash = Monster Truck (รถตีนโต/มอนสเตอร์)
 

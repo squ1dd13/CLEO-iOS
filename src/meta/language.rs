@@ -191,6 +191,7 @@ pub enum Language {
     English,
     Khmer,
     Slovak,
+    Thai,
     Turkish,
     Vietnamese,
 }
@@ -207,6 +208,7 @@ impl Language {
             "en" => Language::English,
             "km" => Language::Khmer,
             "sk" => Language::Slovak,
+            "th" => Language::Thai,
             "tr" => Language::Turkish,
             "vi" => Language::Vietnamese,
             _ => return None,
@@ -223,6 +225,7 @@ impl Language {
             Language::English => "en",
             Language::Khmer => "km",
             Language::Slovak => "sk",
+            Language::Thai => "th",
             Language::Turkish => "tr",
             Language::Vietnamese => "vi",
         }
@@ -240,6 +243,7 @@ impl Language {
             Language::English => include_str!("../../loc/en.ftl"),
             Language::Khmer => include_str!("../../loc/km.ftl"),
             Language::Slovak => include_str!("../../loc/sk.ftl"),
+            Language::Thai => include_str!("../../loc/th.ftl"),
             Language::Turkish => include_str!("../../loc/tr.ftl"),
             Language::Vietnamese => include_str!("../../loc/vi.ftl"),
         }
@@ -308,7 +312,7 @@ impl Language {
                 subtitle_size: STD_SUBTITLE,
             },
 
-            Language::Vietnamese => FontSet {
+            Language::Thai | Language::Vietnamese => FontSet {
                 title_font: Font::AvenirNextMedium,
                 title_size: STD_TITLE,
                 small_font: Font::AvenirNextMedium,
@@ -433,7 +437,10 @@ impl Language {
             Language::Turkish => Some(Language::Vietnamese),
 
             // 85 million
-            Language::Vietnamese => Some(Language::Dutch),
+            Language::Vietnamese => Some(Language::Thai),
+
+            // 40 million
+            Language::Thai => Some(Language::Dutch),
 
             // 30 million
             Language::Dutch => Some(Language::Khmer),
