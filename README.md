@@ -374,6 +374,7 @@ using WSL, please feel free to add an explanation here.
 - The translator team for their hard work in translating all of the text that CLEO uses into so
   many different languages:
   - AYZM (Turkish)
+  - Flylarb The BMO (Thai)
   - ODIN (Khmer)
   - RAiZOK (Arabic)
   - tharryz (Simplified Chinese, Vietnamese, Czech, Slovak)
