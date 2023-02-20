@@ -4,7 +4,7 @@ Depends: mobilesubstrate
 Provides: com.squ1dd13.csios, com.squ1dd13.zinc
 Conflicts: com.squ1dd13.csios, com.squ1dd13.zinc, com.brend0n.gtasa60fps
 Replaces: com.squ1dd13.csios, com.squ1dd13.zinc
-Version: 2.3.0
+Version: 2.4.0-alpha
 Architecture: iphoneos-arm
 Description: CLEO for GTA:SA. Now with extra Rust!
 Maintainer: squ1dd13
