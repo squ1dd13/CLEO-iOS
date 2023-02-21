@@ -9,16 +9,20 @@ use lazy_static::lazy_static;
 use log::error;
 use log::warn;
 use objc::{runtime::Object, *};
-use std::sync::Mutex;
+use serde::{Deserialize, Serialize};
+use std::{
+    sync::{Mutex, RwLock, RwLockReadGuard, RwLockWriteGuard},
+    time::Duration,
+};
+
+/// 2D vector type for storing position/offset information.
+type Vec2d = vector2d::Vector2D<f32>;
 
 /// Information about an isolated touch event.
 #[derive(Debug, Clone, Copy)]
 struct EventInfo {
-    /// The horizontal position at which the event ended.
-    x: f32,
-
-    /// The vertical position at which the event ended.
-    y: f32,
+    /// The position of the event on the screen.
+    position: Vec2d,
 
     /// The time at which the event occurred.
     timestamp: f32,
@@ -48,7 +52,7 @@ impl TouchEvent {
 
 /// Areas of the screen that scripts can query for touch information.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum Zone {
+pub enum Zone {
     TopLeft,
     TopMiddle,
     TopRight,
@@ -60,6 +64,29 @@ enum Zone {
     BottomLeft,
     BottomMiddle,
     BottomRight,
+}
+
+impl Zone {
+    /// Returns the `Zone` that corresponds to the given number, or `None` if the number is
+    /// invalid. These numbers are carried over from Android and are only used by scripts; they
+    /// have no relevance anywhere else in CLEO.
+    pub fn by_number(index: usize) -> Option<Zone> {
+        Some(match index {
+            1 => Zone::TopLeft,
+            2 => Zone::MiddleLeft,
+            3 => Zone::BottomLeft,
+
+            4 => Zone::TopMiddle,
+            5 => Zone::Middle,
+            6 => Zone::BottomMiddle,
+
+            7 => Zone::TopRight,
+            8 => Zone::MiddleRight,
+            9 => Zone::BottomRight,
+
+            _ => return None,
+        })
+    }
 }
 
 /// Touch event information with zone information included.
@@ -90,16 +117,24 @@ impl TrackedTouch {
         self.last_event.unwrap_or(self.down_event)
     }
 
+    /// Returns the time at which the touch began.
+    fn start_time(&self) -> f32 {
+        self.down_event.event_info.timestamp
+    }
+
     /// Returns the timestamp of the last change to the touch.
-    fn timestamp(&self) -> f32 {
+    fn last_changed(&self) -> f32 {
         self.most_recent_event().event_info.timestamp
     }
 
-    /// Returns the current position of the touch.
-    fn position(&self) -> (f32, f32) {
-        let event = self.most_recent_event().event_info;
+    /// Returns the position of the initial "touch down" event.
+    fn initial_position(&self) -> Vec2d {
+        self.down_event.event_info.position
+    }
 
-        (event.x, event.y)
+    /// Returns the latest known position of the touch.
+    fn current_position(&self) -> Vec2d {
+        self.most_recent_event().event_info.position
     }
 
     /// Returns the zone that this touch is within, or `None` if the touch doesn't fit within a
@@ -111,6 +146,24 @@ impl TrackedTouch {
             // Don't report any zone information if the touch is currently in a different zone from
             // where it started.
             None
+        }
+    }
+
+    /// Returns the distance between the starting position of the touch and the current position.
+    fn move_distance(&self) -> f32 {
+        (self.initial_position() - self.current_position()).length()
+    }
+
+    /// Returns `true` if `self` and `other_touch` were active at the same time for some period.
+    fn time_overlaps_with(&self, other_touch: &TrackedTouch) -> bool {
+        // If `self` started before `other_touch`, an overlap occurred if `other_touch` started
+        // before `self` ended.
+        if self.start_time() < other_touch.start_time() {
+            other_touch.start_time() < self.last_changed()
+        } else {
+            // If `other_touch` started before `self`, an overlap occurred if `self` started before
+            // `other_touch` ended.
+            self.start_time() < other_touch.last_changed()
         }
     }
 }
@@ -128,7 +181,8 @@ fn uiscreen_size() -> (f64, f64) {
 }
 
 /// Tracks and provides touch information.
-struct TouchInterface {
+#[derive(Default)]
+pub struct TouchInterface {
     /// The width of the game window.
     viewport_width: f32,
 
@@ -141,14 +195,41 @@ struct TouchInterface {
 
     /// Previously tracked touches that have now finished.
     finished_touches: Vec<TrackedTouch>,
+
+    /// The gesture that the player can use to trigger the CLEO menu.
+    menu_gesture: MenuGesture,
+}
+
+lazy_static! {
+    static ref TOUCH_INTERFACE: RwLock<TouchInterface> = RwLock::new(TouchInterface::default());
 }
 
 impl TouchInterface {
+    /// Returns a reference to the shared touch interface.
+    pub fn shared() -> RwLockReadGuard<'static, TouchInterface> {
+        TOUCH_INTERFACE.read().unwrap()
+    }
+
+    /// Returns a mutable reference to the shared touch interface.
+    pub fn shared_mut() -> RwLockWriteGuard<'static, TouchInterface> {
+        TOUCH_INTERFACE.write().unwrap()
+    }
+
+    /// Returns `true` if `zone` is currently being touched.
+    pub fn is_zone_pressed(&self, zone: Zone) -> bool {
+        self.tracked_touches
+            .iter()
+            .any(|touch| touch.zone() == Some(zone))
+    }
+
+    /// Sets the gesture that the player must use to activate the menu.
+    pub fn set_menu_gesture(&mut self, gesture: MenuGesture) {
+        self.menu_gesture = gesture;
+    }
+
     /// Returns the index of the tracked touch that matches best with the event described by
     /// `event_info`, or `None` if there are no realistic candidates.
     fn tracked_index(&self, event_info: EventInfo) -> Option<usize> {
-        let (event_x, event_y) = (event_info.x, event_info.y);
-
         // Obtain an iterator over the indices of the tracked touches and the squared distance of
         // each from the new event's location.
         let indexed_distances = self
@@ -160,12 +241,10 @@ impl TouchInterface {
                 // Only map if the tracked touch was last updated before the new event. Otherwise,
                 // we could end up applying two events from the same frame to a single tracked
                 // touch.
-                (tracked.timestamp() < event_info.timestamp).then_some((index, {
-                    let (tracked_x, tracked_y) = tracked.position();
-
-                    // Don't bother square rooting, since the comparison result is the same for
-                    // squared and unsquared distances.
-                    (tracked_x - event_x).abs() + (tracked_y - event_y).abs()
+                (tracked.last_changed() < event_info.timestamp).then_some((index, {
+                    // Don't bother square rooting the distance here, because the comparison result
+                    // is the same whether or not we square root, and sqrt is slow.
+                    (event_info.position - tracked.current_position()).length_squared()
                 }))
             });
 
@@ -186,8 +265,8 @@ impl TouchInterface {
             .push(self.tracked_touches.swap_remove(index));
     }
 
-    /// Returns the zone that `(x, y)` falls into.
-    fn zone_for_position(&self, x: f32, y: f32) -> Option<Zone> {
+    /// Returns the zone that `position` falls into.
+    fn zone_for_position(&self, position: Vec2d) -> Option<Zone> {
         // When we divide each coordinate by the applicable screen dimension, we get a fraction of
         // the way across the screen that the coordinate lies. Anything in the left column, for
         // example, will have an X fraction between 0 and 1/3 and anything in the middle column
@@ -195,8 +274,8 @@ impl TouchInterface {
         // get just the row/column number, and then floor the value so it is exactly 0, 1 or 2.
         // Invalid positions will not be in (0..=2, 0..=2).
 
-        let horizontal_index = ((x / self.viewport_width) * 3.0).floor() as i8;
-        let vertical_index = ((y / self.viewport_height) * 3.0).floor() as i8;
+        let horizontal_index = ((position.x / self.viewport_width) * 3.0).floor() as i8;
+        let vertical_index = ((position.y / self.viewport_height) * 3.0).floor() as i8;
 
         Some(match (horizontal_index, vertical_index) {
             (0, 0) => Zone::TopLeft,
@@ -220,12 +299,15 @@ impl TouchInterface {
     fn zoned_info(&self, event_info: EventInfo) -> ZonedEventInfo {
         ZonedEventInfo {
             event_info,
-            zone: self.zone_for_position(event_info.x, event_info.y),
+            zone: self.zone_for_position(event_info.position),
         }
     }
 
     /// Receives and handles `event` in the context of previous touches.
     fn handle_event(&mut self, event: TouchEvent) {
+        // Use the new timestamp as a reference point for removing old touch information.
+        self.remove_stale_touches(event.info().timestamp);
+
         let zoned_event_info = self.zoned_info(event.info());
 
         match event {
@@ -244,6 +326,7 @@ impl TouchInterface {
                             "unable to match event {event:?} to any tracked touch in {:?}",
                             self.tracked_touches
                         );
+
                         return;
                     }
                 };
@@ -257,6 +340,13 @@ impl TouchInterface {
         }
     }
 
+    /// Clears all touch information from the interface. This should be used if there is going to
+    /// be a break in touch reporting.
+    fn clear_touches(&mut self) {
+        self.tracked_touches.clear();
+        self.finished_touches.clear();
+    }
+
     /// Fetches and stores the viewport size.
     fn fetch_viewport_size(&mut self) {
         let (screen_w, screen_h) = uiscreen_size();
@@ -266,236 +356,211 @@ impl TouchInterface {
         self.viewport_width = screen_h as f32;
         self.viewport_height = screen_w as f32;
     }
-}
 
-#[cached]
-fn get_screen_size() -> (f64, f64) {
-    unsafe {
-        let cls = class!(UIScreen);
+    /// Removes any touches that are too old, relative to the given timestamp, to be relevant.
+    fn remove_stale_touches(&mut self, current_timestamp: f32) {
+        /// The number of seconds that can pass before we consider a finished touch stale.
+        const STALE_CUTOFF: f32 = 2.0;
 
-        let screen: *mut Object = msg_send![cls, mainScreen];
-        let bounds: CGRect = msg_send![screen, nativeBounds];
+        self.finished_touches
+            .drain_filter(|touch| (current_timestamp - touch.last_changed()) > STALE_CUTOFF);
+    }
 
-        // Flip width and height because the game is always in landscape.
-        (bounds.size.height, bounds.size.width)
+    /// Checks if the user has carried out the menu trigger gesture. If they have, this will return
+    /// `true` after clearing the touch state.
+    pub fn check_menu_trigger(&mut self) -> bool {
+        let detected = self.menu_gesture.detect(self);
+
+        // If the trigger was detected, clear the touches so that we don't detect it again.
+        // bug: Clearing the touches results in any unfinished touches failing to track.
+        if detected {
+            self.clear_touches();
+        }
+
+        detected
     }
 }
 
-#[repr(u64)]
-#[derive(std::fmt::Debug, PartialEq, Eq, PartialOrd, Ord)]
-#[allow(dead_code)]
-pub enum TouchType {
-    Up = 0,
-    Down = 2,
-    Move = 3,
+/// Gestures that can be used to trigger the menu. The player can select which to use in the
+/// settings menu.
+#[derive(Clone, Copy, Serialize, Deserialize, Debug)]
+pub enum MenuGesture {
+    /// The classic single-finger downwards swipe.
+    OneFingerSwipeDown,
+
+    /// A downwards swipe with two fingers.
+    DoubleSwipeDown,
+
+    /// A single tap with two fingers.
+    TwoFingerTap,
+
+    /// A single tap with three fingers.
+    ThreeFingerTap,
 }
 
-// BUG: `get_zone` doesn't work properly for coordinate pairs with 0 in them.
-fn get_zone(x: f32, y: f32) -> Option<i8> {
-    let (w, h) = get_screen_size();
-
-    let x = x / w as f32;
-    let y = y / h as f32;
-
-    fn coordinate_zone(coordinate: f32) -> i64 {
-        (coordinate * 3.0).ceil() as i64
-    }
-
-    let zone = coordinate_zone(y) + coordinate_zone(x) * 3 - 3;
-
-    // Sometimes -2 pops up. Other invalid values are probably possible.
-    if (1..=9).contains(&zone) {
-        Some(zone as i8)
-    } else {
-        warn!("Bad touch zone {}", zone);
-        None
+impl Default for MenuGesture {
+    fn default() -> Self {
+        MenuGesture::OneFingerSwipeDown
     }
 }
 
-struct Pos {
-    x: f32,
-    y: f32,
-}
-
-struct Touch {
-    start_time: f64,
-    start_pos: Pos,
-    current_pos: Pos,
-}
-
-lazy_static! {
-    static ref TOUCH_ZONES: Mutex<[bool; 9]> = Mutex::new([false; 9]);
-    static ref CURRENT_TOUCHES: Mutex<Vec<Touch>> = Mutex::new(Vec::new());
-}
-
-pub fn query_zone(zone: usize) -> Option<bool> {
-    if !(1..10).contains(&zone) {
-        warn!("Touch zone {} does not lie within 1..10.", zone);
-        return None;
+impl MenuGesture {
+    /// Returns `true` if the gesture is detected for the given touch interface.
+    fn detect(self, interface: &TouchInterface) -> bool {
+        match self {
+            MenuGesture::OneFingerSwipeDown => Self::detect_single_swipe(interface),
+            MenuGesture::DoubleSwipeDown => Self::detect_double_swipe(interface),
+            MenuGesture::TwoFingerTap => Self::detect_two_finger_tap(interface),
+            MenuGesture::ThreeFingerTap => Self::detect_three_finger_tap(interface),
+        }
     }
 
-    let zones = TOUCH_ZONES.lock().ok();
+    fn is_touch_swipe(touch: &TrackedTouch) -> bool {
+        const MIN_SPEED: f32 = 800.0;
+        const MIN_DISTANCE: f32 = 100.0;
 
-    if zones.is_none() {
-        warn!("Unable to lock TOUCH_ZONES!");
-        return None;
+        let displacement = touch.current_position() - touch.initial_position();
+        let duration = touch.last_changed() - touch.start_time();
+
+        let distance = displacement.length();
+
+        if distance < MIN_DISTANCE {
+            return false;
+        }
+
+        let speed = distance / duration;
+
+        if speed < MIN_SPEED {
+            return false;
+        }
+
+        // Only allow a downwards swipe, so don't tolerate very much sideways movement.
+        let x_is_static = (displacement.x / distance).abs() < 0.4;
+        let y_is_downwards = displacement.y / distance > 0.4;
+
+        x_is_static && y_is_downwards
     }
 
-    let zones = zones.unwrap();
-
-    if zone < 10 {
-        Some(zones[zone - 1])
-    } else {
-        warn!("query({})", zone);
-        None
-    }
-}
-
-fn is_menu_swipe(touch: &Touch, current_time: f64) -> bool {
-    // todo: Present user with combined "swipe sensitivity" option to configure speed and distance together.
-    const MIN_SPEED: f32 = 800.0;
-    const MIN_DISTANCE: f32 = 35.0;
-
-    if touch.start_time <= 0.0 {
-        return false;
+    /// Returns `true` if a single swipe gesture is detected in `interface`.
+    fn detect_single_swipe(interface: &TouchInterface) -> bool {
+        interface.finished_touches.iter().any(Self::is_touch_swipe)
     }
 
-    let delta_x = touch.current_pos.x - touch.start_pos.x;
-    let delta_y = touch.current_pos.y - touch.start_pos.y;
-    let delta_time = current_time - touch.start_time;
-
-    let distance = (delta_x * delta_x + delta_y * delta_y).sqrt();
-
-    if distance < MIN_DISTANCE {
-        return false;
+    /// Returns `true` if a two-finger swipe gesture is detected in `interface`.
+    fn detect_double_swipe(interface: &TouchInterface) -> bool {
+        interface
+            .finished_touches
+            .iter()
+            .tuple_windows::<(_, _)>()
+            .any(|(touch_a, touch_b)| {
+                Self::is_touch_swipe(touch_a)
+                    && Self::is_touch_swipe(touch_b)
+                    && touch_a.time_overlaps_with(touch_b)
+            })
     }
 
-    let speed = distance / delta_time as f32;
+    fn is_pair_two_finger_tap(touch_a: &TrackedTouch, touch_b: &TrackedTouch) -> bool {
+        let gesture_width_squared =
+            (touch_a.current_position() - touch_b.current_position()).length_squared();
 
-    if speed < MIN_SPEED {
-        return false;
+        const MAX_WIDTH: f32 = 500.0;
+
+        if gesture_width_squared > MAX_WIDTH * MAX_WIDTH {
+            return false;
+        }
+
+        let a_dist = touch_a.move_distance();
+        let b_dist = touch_b.move_distance();
+
+        let dist_difference = (a_dist - b_dist).abs();
+
+        if dist_difference > 5.0 || a_dist > 20.0 {
+            return false;
+        }
+
+        let a_start = touch_a.start_time();
+        let b_start = touch_b.start_time();
+
+        let start_difference = (a_start - b_start).abs();
+
+        if start_difference > 0.1 {
+            return false;
+        }
+
+        let a_end = touch_a.last_changed();
+        let b_end = touch_b.last_changed();
+
+        let end_difference = (a_end - b_end).abs();
+
+        if end_difference > 0.1 {
+            return false;
+        }
+
+        let a_duration = a_end - a_start;
+
+        if a_duration > 0.5 {
+            return false;
+        }
+
+        true
     }
 
-    // Only allow a downwards swipe, so don't tolerate very much sideways movement.
-    let x_is_static = (delta_x / distance).abs() < 0.4;
-    let y_is_downwards = delta_y / distance > 0.4;
+    /// Returns `true` if a two-finger tap gesture is detected in `interface`.
+    fn detect_two_finger_tap(interface: &TouchInterface) -> bool {
+        // Find two subsequently-completed relatively static touch events with short durations and
+        // close timestamps.
 
-    x_is_static && y_is_downwards
+        interface
+            .finished_touches
+            .iter()
+            .tuple_windows::<(&TrackedTouch, &TrackedTouch)>()
+            .any(|(touch_a, touch_b)| Self::is_pair_two_finger_tap(touch_a, touch_b))
+    }
+
+    /// Returns `true` if a three-finger tap gesture is detected in `interface`.
+    fn detect_three_finger_tap(interface: &TouchInterface) -> bool {
+        interface
+            .finished_touches
+            .iter()
+            .tuple_windows::<(&TrackedTouch, &TrackedTouch, &TrackedTouch)>()
+            .any(|(a, b, c)| {
+                let a_pos = a.current_position();
+
+                // Swap `b` and `c` if necessary to ensure that `b` is closer to `a` than `c`.
+                let (b, c) = if (a_pos - b.current_position()).length_squared()
+                    < (a_pos - c.current_position()).length_squared()
+                {
+                    (b, c)
+                } else {
+                    (c, b)
+                };
+
+                Self::is_pair_two_finger_tap(a, b) && Self::is_pair_two_finger_tap(b, c)
+            })
+    }
 }
 
 // Hook the touch handler so we can use touch zones like CLEO Android does.
 // todo: Don't pick up touches that have been handled by a non-joypad control.
 // fixme: `process_touch` nests too deeply and needs to be broken up into smaller functions.
-fn process_touch(x: f32, y: f32, timestamp: f64, force: f32, touch_type: TouchType) {
-    // Find the closest touch to the given position that we know about.
-    fn find_closest_index(touches: &[Touch], x: f32, y: f32) -> Option<usize> {
-        touches
-            .iter()
-            .enumerate()
-            .min_by(|(_, a), (_, b)| {
-                // Compare taxicab distance (in order to avoid square rooting).
-                let distance_a = (a.current_pos.x - x).abs() + (a.current_pos.y - y).abs();
-                let distance_b = (b.current_pos.x - x).abs() + (b.current_pos.y - y).abs();
+fn process_touch(x: f32, y: f32, timestamp: f64, force: f32, touch_type: u64) {
+    let event_type = match touch_type {
+        0 => TouchEvent::Up,
+        2 => TouchEvent::Down,
+        3 => TouchEvent::Move,
 
-                distance_a
-                    .partial_cmp(&distance_b)
-                    .unwrap_or(std::cmp::Ordering::Equal)
-            })
-            .map(|(index, _)| index)
-    }
-
-    // If we have registered a touch, it means the user has touched outside the menu (because
-    //  if they touch the menu, we don't get the event). This is a way of dismissing the menu.
-    // crate::menu::hide_on_main_thread();
-    // MenuAction::queue(MenuAction::Hide);
-
-    //crate::menu::MenuMessage::Hide.send();
-
-    /*
-        Problem:  We don't know how each touch event is connected to ones we already know about.
-                  Therefore, we can't easily track touches between calls to the touch handler,
-                  because all we get is the touch position/type/time/force info, and not the
-                  previous position of the touch.
-
-        Solution: Keep a record of all the touches we know about (CURRENT_TOUCHES), and every
-                  time we receive a new touch up/move event, we modify the closest touch to
-                  the event's position. This is reliable because touch up and move events can
-                  only happen to existing touches, so we must know about the touch that is
-                  being released/moved already, and that touch should be whatever is closest
-                  to the modified position. Touch down events are easy, because they simply
-                  require us to add a new touch to CURRENT_TOUCHES to be modified later with
-                  an up/move signal.
-    */
-    match CURRENT_TOUCHES.lock() {
-        Ok(mut touches) => {
-            match touch_type {
-                TouchType::Up => {
-                    if let Some(close_index) = find_closest_index(&touches[..], x, y) {
-                        let is_menu = is_menu_swipe(&touches[close_index], timestamp);
-                        touches.remove(close_index);
-
-                        if is_menu {
-                            if !touches.is_empty() {
-                                log::info!("Ignoring menu swipe because there are other touches.");
-                            } else {
-                                log::info!("Detected valid menu swipe.");
-                                crate::meta::menu::MenuMessage::Show.send();
-                                // MenuAction::queue(MenuAction::Show(false));
-                            }
-                        }
-                    } else {
-                        error!("Unable to find touch to release!");
-                    }
-                }
-
-                TouchType::Down => {
-                    touches.push(Touch {
-                        start_time: timestamp,
-
-                        // We only have a single touch event, so the starting position is the same as the current position.
-                        start_pos: Pos { x, y },
-                        current_pos: Pos { x, y },
-                    });
-                }
-
-                TouchType::Move => {
-                    if let Some(close_index) = find_closest_index(&touches[..], x, y) {
-                        touches[close_index].current_pos = Pos { x, y };
-                    } else {
-                        error!("Unable to find touch to move!");
-                    }
-                }
-            }
-
-            // Update the touch zones to match the current touches.
-            match TOUCH_ZONES.lock() {
-                Ok(mut touch_zones) => {
-                    // Clear old zone statuses.
-                    for zone_status in touch_zones.iter_mut() {
-                        *zone_status = false;
-                    }
-
-                    // Trigger the zone for each touch we find.
-                    for touch in touches.iter() {
-                        if let Some(zone) = get_zone(touch.current_pos.x, touch.current_pos.y) {
-                            touch_zones[zone as usize - 1] = true;
-                        }
-                    }
-                }
-
-                Err(err) => {
-                    error!("Error when trying to lock touch zone mutex: {}", err);
-                }
-            }
+        other => {
+            log::warn!("unhandled touch type {other}");
+            return;
         }
+    };
 
-        Err(err) => {
-            error!(
-                "Unable to lock touch vector mutex! Touch will not be registered. err = {}",
-                err
-            );
-        }
-    }
+    let event = event_type(EventInfo {
+        position: Vec2d::new(x, y),
+        timestamp: timestamp as f32,
+    });
+
+    TouchInterface::shared_mut().handle_event(event);
 
     call_original!(targets::process_touch, x, y, timestamp, force, touch_type);
 }

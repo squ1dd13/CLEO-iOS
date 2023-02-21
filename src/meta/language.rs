@@ -532,6 +532,14 @@ pub enum MessageKey {
     MenuClose,
     MenuOptionsTabTitle,
 
+    MenuGestureOptTitle,
+    MenuGestureOptDesc,
+
+    MenuGestureOptOneFingerSwipe,
+    MenuGestureOptTwoFingerSwipe,
+    MenuGestureOptTwoFingerTap,
+    MenuGestureOptThreeFingerTap,
+
     MenuScriptWarningOverview,
     MenuScriptSeeBelow,
 

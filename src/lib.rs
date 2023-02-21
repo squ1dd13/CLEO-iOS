@@ -3,6 +3,7 @@
 #![feature(panic_info_message)]
 #![feature(cstr_from_bytes_until_nul)]
 #![feature(map_try_insert)]
+#![feature(drain_filter)]
 
 use ctor::ctor;
 use objc::runtime::Object;
@@ -19,11 +20,7 @@ mod targets {
 
     create_soft_target!(script_tick, 0x1001d0f40, fn());
 
-    create_soft_target!(
-        process_touch,
-        0x1004e831c,
-        fn(f32, f32, f64, f32, meta::touch::TouchType)
-    );
+    create_soft_target!(process_touch, 0x1004e831c, fn(f32, f32, f64, f32, u64));
 
     create_soft_target!(
         get_gxt_string,

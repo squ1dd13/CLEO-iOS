@@ -420,6 +420,49 @@ impl Setting for LanguageMode {
     }
 }
 
+impl Setting for super::touch::MenuGesture {
+    fn title(&self) -> super::language::Message {
+        MessageKey::MenuGestureOptTitle.to_message()
+    }
+
+    fn description(&self) -> super::language::Message {
+        MessageKey::MenuGestureOptDesc.to_message()
+    }
+
+    fn apply(&self, options: &mut super::settings::Options) {
+        options.menu_gesture = *self;
+
+        super::touch::TouchInterface::shared_mut().set_menu_gesture(*self);
+    }
+
+    fn cycle_value(&mut self) {
+        use super::touch::MenuGesture::*;
+
+        *self = match self {
+            OneFingerSwipeDown => DoubleSwipeDown,
+            DoubleSwipeDown => TwoFingerTap,
+            TwoFingerTap => ThreeFingerTap,
+            ThreeFingerTap => OneFingerSwipeDown,
+        }
+    }
+
+    fn status_colour(&self) -> Option<super::gui::colours::Colour> {
+        None
+    }
+
+    fn to_str(&self) -> super::language::Message {
+        use super::touch::MenuGesture::*;
+
+        match self {
+            OneFingerSwipeDown => MessageKey::MenuGestureOptOneFingerSwipe,
+            DoubleSwipeDown => MessageKey::MenuGestureOptTwoFingerSwipe,
+            TwoFingerTap => MessageKey::MenuGestureOptTwoFingerTap,
+            ThreeFingerTap => MessageKey::MenuGestureOptThreeFingerTap,
+        }
+        .to_message()
+    }
+}
+
 /// The user's CLEO settings.
 #[derive(Clone, Copy, Default, Serialize, Deserialize, Debug)]
 pub struct Options {
@@ -441,6 +484,9 @@ pub struct Options {
     /// Determines which language CLEO will use.
     #[serde(default)]
     pub language_mode: LanguageMode,
+
+    #[serde(default)]
+    pub menu_gesture: super::touch::MenuGesture,
 }
 
 impl Options {
@@ -521,6 +567,7 @@ impl Options {
             // These options didn't exist.
             release_channel: ReleaseChannel::default(),
             language_mode: LanguageMode::default(),
+            menu_gesture: super::touch::MenuGesture::default(),
         }))
     }
 
@@ -607,6 +654,7 @@ pub fn tab_data() -> menu::TabData {
         Box::new(options.loop_break) as Box<dyn RowData>,
         Box::new(options.language_mode) as Box<dyn RowData>,
         Box::new(options.release_channel) as Box<dyn RowData>,
+        Box::new(options.menu_gesture) as Box<dyn RowData>,
     ];
 
     menu::TabData {

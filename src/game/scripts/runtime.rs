@@ -347,8 +347,8 @@ impl CleoScript {
 
                 let zone = unsafe { *hook::slide::<*const u32>(0x1007ad690).add(1) } as usize;
 
-                let state = if let Some(state) = touch::query_zone(zone) {
-                    state
+                let state = if let Some(zone) = touch::Zone::by_number(zone) {
+                    touch::TouchInterface::shared().is_zone_pressed(zone)
                 } else {
                     log::warn!("Returning invalid touch state for zone {}", zone);
                     false
@@ -364,8 +364,8 @@ impl CleoScript {
 
                 let zone = unsafe { *hook::slide::<*const u32>(0x1007ad690) as usize };
 
-                let out = if let Some(state) = touch::query_zone(zone) {
-                    state as i32
+                let out = if let Some(zone) = touch::Zone::by_number(zone) {
+                    touch::TouchInterface::shared().is_zone_pressed(zone) as i32
                 } else {
                     log::warn!("Returning invalid touch state for zone {}", zone);
                     0
