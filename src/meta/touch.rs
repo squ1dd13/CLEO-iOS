@@ -4,11 +4,269 @@
 use crate::meta::gui::CGRect;
 use crate::{call_original, targets};
 use cached::proc_macro::cached;
+use itertools::Itertools;
 use lazy_static::lazy_static;
 use log::error;
 use log::warn;
 use objc::{runtime::Object, *};
 use std::sync::Mutex;
+
+/// Information about an isolated touch event.
+#[derive(Debug, Clone, Copy)]
+struct EventInfo {
+    /// The horizontal position at which the event ended.
+    x: f32,
+
+    /// The vertical position at which the event ended.
+    y: f32,
+
+    /// The time at which the event occurred.
+    timestamp: f32,
+}
+
+/// Different touch events that can take place.
+#[derive(Debug, Clone, Copy)]
+enum TouchEvent {
+    /// The user lifted their finger off the screen.
+    Up(EventInfo),
+
+    /// The user placed their finger on the screen.
+    Down(EventInfo),
+
+    /// The user kept their finger on the screen, but moved it.
+    Move(EventInfo),
+}
+
+impl TouchEvent {
+    /// Returns the event information regardless of the event type.
+    fn info(self) -> EventInfo {
+        match self {
+            TouchEvent::Up(info) | TouchEvent::Down(info) | TouchEvent::Move(info) => info,
+        }
+    }
+}
+
+/// Areas of the screen that scripts can query for touch information.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Zone {
+    TopLeft,
+    TopMiddle,
+    TopRight,
+
+    MiddleLeft,
+    Middle,
+    MiddleRight,
+
+    BottomLeft,
+    BottomMiddle,
+    BottomRight,
+}
+
+/// Touch event information with zone information included.
+#[derive(Debug, Clone, Copy)]
+struct ZonedEventInfo {
+    /// The raw touch information.
+    event_info: EventInfo,
+
+    /// The zone that the event is in, or `None` if the event's position doesn't place it in any
+    /// valid zone.
+    zone: Option<Zone>,
+}
+
+/// Information that can be used to track a touch across multiple events.
+#[derive(Debug, Clone, Copy)]
+struct TrackedTouch {
+    /// The initial "touch down" event information for this touch.
+    down_event: ZonedEventInfo,
+
+    /// The most recent event information for this touch, apart from the initial "touch down"
+    /// event.
+    last_event: Option<ZonedEventInfo>,
+}
+
+impl TrackedTouch {
+    /// Returns the information about the latest event for this touch.
+    fn most_recent_event(&self) -> ZonedEventInfo {
+        self.last_event.unwrap_or(self.down_event)
+    }
+
+    /// Returns the timestamp of the last change to the touch.
+    fn timestamp(&self) -> f32 {
+        self.most_recent_event().event_info.timestamp
+    }
+
+    /// Returns the current position of the touch.
+    fn position(&self) -> (f32, f32) {
+        let event = self.most_recent_event().event_info;
+
+        (event.x, event.y)
+    }
+
+    /// Returns the zone that this touch is within, or `None` if the touch doesn't fit within a
+    /// single zone or any valid zone.
+    fn zone(&self) -> Option<Zone> {
+        if self.most_recent_event().zone == self.down_event.zone {
+            self.down_event.zone
+        } else {
+            // Don't report any zone information if the touch is currently in a different zone from
+            // where it started.
+            None
+        }
+    }
+}
+
+/// Returns the width and height of `[[UIScreen mainScreen] nativeBounds]`.
+fn uiscreen_size() -> (f64, f64) {
+    let cls = class!(UIScreen);
+
+    let bounds: CGRect = unsafe {
+        let screen: *mut Object = msg_send![cls, mainScreen];
+        msg_send![screen, nativeBounds]
+    };
+
+    (bounds.size.width, bounds.size.height)
+}
+
+/// Tracks and provides touch information.
+struct TouchInterface {
+    /// The width of the game window.
+    viewport_width: f32,
+
+    /// The height of the game window.
+    viewport_height: f32,
+
+    /// The touches currently being tracked. Touches should be removed once they end (with a "touch
+    /// up" event).
+    tracked_touches: Vec<TrackedTouch>,
+
+    /// Previously tracked touches that have now finished.
+    finished_touches: Vec<TrackedTouch>,
+}
+
+impl TouchInterface {
+    /// Returns the index of the tracked touch that matches best with the event described by
+    /// `event_info`, or `None` if there are no realistic candidates.
+    fn tracked_index(&self, event_info: EventInfo) -> Option<usize> {
+        let (event_x, event_y) = (event_info.x, event_info.y);
+
+        // Obtain an iterator over the indices of the tracked touches and the squared distance of
+        // each from the new event's location.
+        let indexed_distances = self
+            .tracked_touches
+            .iter()
+            // We're going to filter, so enumerate now so we keep the original index information.
+            .enumerate()
+            .filter_map(|(index, tracked)| {
+                // Only map if the tracked touch was last updated before the new event. Otherwise,
+                // we could end up applying two events from the same frame to a single tracked
+                // touch.
+                (tracked.timestamp() < event_info.timestamp).then_some((index, {
+                    let (tracked_x, tracked_y) = tracked.position();
+
+                    // Don't bother square rooting, since the comparison result is the same for
+                    // squared and unsquared distances.
+                    (tracked_x - event_x).abs() + (tracked_y - event_y).abs()
+                }))
+            });
+
+        // Return the index of the tracked touch that is closest to the new event.
+        indexed_distances
+            .min_by(|(_, dist_a), (_, dist_b)| dist_a.total_cmp(dist_b))
+            .map(|(index, _)| index)
+    }
+
+    /// Updates the tracked touch at `index` with `event_info`.
+    fn update_touch(&mut self, index: usize, event_info: ZonedEventInfo) {
+        self.tracked_touches[index].last_event = Some(event_info);
+    }
+
+    /// Ends the tracked touch at `index`.
+    fn end_touch(&mut self, index: usize) {
+        self.finished_touches
+            .push(self.tracked_touches.swap_remove(index));
+    }
+
+    /// Returns the zone that `(x, y)` falls into.
+    fn zone_for_position(&self, x: f32, y: f32) -> Option<Zone> {
+        // When we divide each coordinate by the applicable screen dimension, we get a fraction of
+        // the way across the screen that the coordinate lies. Anything in the left column, for
+        // example, will have an X fraction between 0 and 1/3 and anything in the middle column
+        // will have an X fraction between 1/3 and 2/3. We multiply these fractions by 3 so we can
+        // get just the row/column number, and then floor the value so it is exactly 0, 1 or 2.
+        // Invalid positions will not be in (0..=2, 0..=2).
+
+        let horizontal_index = ((x / self.viewport_width) * 3.0).floor() as i8;
+        let vertical_index = ((y / self.viewport_height) * 3.0).floor() as i8;
+
+        Some(match (horizontal_index, vertical_index) {
+            (0, 0) => Zone::TopLeft,
+            (1, 0) => Zone::TopMiddle,
+            (2, 0) => Zone::TopRight,
+
+            (0, 1) => Zone::MiddleLeft,
+            (1, 1) => Zone::Middle,
+            (2, 1) => Zone::MiddleRight,
+
+            (0, 2) => Zone::BottomLeft,
+            (1, 2) => Zone::BottomMiddle,
+            (2, 2) => Zone::BottomRight,
+
+            _ => return None,
+        })
+    }
+
+    /// Determines the zone that `event_info` falls into and returns a `ZonedEventInfo` with that
+    /// zone.
+    fn zoned_info(&self, event_info: EventInfo) -> ZonedEventInfo {
+        ZonedEventInfo {
+            event_info,
+            zone: self.zone_for_position(event_info.x, event_info.y),
+        }
+    }
+
+    /// Receives and handles `event` in the context of previous touches.
+    fn handle_event(&mut self, event: TouchEvent) {
+        let zoned_event_info = self.zoned_info(event.info());
+
+        match event {
+            TouchEvent::Down(_) => self.tracked_touches.push(TrackedTouch {
+                down_event: zoned_event_info,
+                last_event: None,
+            }),
+
+            TouchEvent::Up(event_info) | TouchEvent::Move(event_info) => {
+                let index = self.tracked_index(event_info);
+
+                let index = match index {
+                    Some(i) => i,
+                    None => {
+                        log::warn!(
+                            "unable to match event {event:?} to any tracked touch in {:?}",
+                            self.tracked_touches
+                        );
+                        return;
+                    }
+                };
+
+                self.update_touch(index, zoned_event_info);
+
+                if let TouchEvent::Up(_) = event {
+                    self.end_touch(index);
+                }
+            }
+        }
+    }
+
+    /// Fetches and stores the viewport size.
+    fn fetch_viewport_size(&mut self) {
+        let (screen_w, screen_h) = uiscreen_size();
+
+        // The viewport is always in landscape, but the screen size is measured in portrait, so we
+        // need to swap the width and height of the screen to get the viewport size
+        self.viewport_width = screen_h as f32;
+        self.viewport_height = screen_w as f32;
+    }
+}
 
 #[cached]
 fn get_screen_size() -> (f64, f64) {
