@@ -56,10 +56,10 @@ menu-gesture-opt-title = Menu Gebaar
 menu-gesture-opt-desc = De vinger beweging nodig om het CLEO menu te laten verschijnen.
 
 # A single motion where one finger moves quickly down the screen.
-menu-gesture-opt-one-finger-swipe = Een vinger naar beneden bewegen
+menu-gesture-opt-one-finger-swipe = Een vinger naar beneden vegen
 
 # A single swipe (as above) but with two fingers at the same time instead of just one.
-menu-gesture-opt-two-finger-swipe = Twee vingers naar beneden bewegen
+menu-gesture-opt-two-finger-swipe = Twee vingers naar beneden vegen
 
 # A short tap on the screen with two fingers at once.
 menu-gesture-opt-two-finger-tap = Twee vingers aanraken
