@@ -1,12 +1,17 @@
-# CLEO iOS
+<h1 style="text-align: center">CLEO iOS</h1>
 
 <!-- I love badges :D -->
 
-[![Discord](https://img.shields.io/discord/767478053139775528?color=7289DA&label=DISCORD&style=for-the-badge)](https://discord.gg/cXwkTUasJU) ![Downloads](https://img.shields.io/github/downloads/squ1dd13/CLEO-iOS/total?style=for-the-badge) ![Licence](https://img.shields.io/github/license/squ1dd13/CLEO-iOS?style=for-the-badge)
-
-[**Join the Discord server for support, info and script suggestions**](https://discord.gg/cXwkTUasJU)
-
-_Note: This branch (`main`) is for the main version of CLEO iOS, which is written in Rust. For the original C++ version, see the [`c++` branch](https://github.com/Squ1dd13/CLEO-iOS/tree/c+%2B)._
+<div style="text-align: center">
+  <p>
+    <a href="https://discord.gg/cXwkTUasJU">
+    <img src="https://img.shields.io/discord/767478053139775528?color=7289DA&amp;label=DISCORD&amp;style=for-the-badge" alt="Discord">
+    </a>
+    <img src="https://img.shields.io/github/downloads/squ1dd13/CLEO-iOS/total?style=for-the-badge" alt="Downloads">
+    <img src="https://img.shields.io/github/license/squ1dd13/CLEO-iOS?style=for-the-badge" alt="Licence">
+  </p>
+  <p><a href="https://discord.gg/cXwkTUasJU"><strong>Join the Discord server for support, info and script suggestions</strong></a></p>
+</div>
 
 ## Features
 
@@ -19,6 +24,23 @@ _Note: This branch (`main`) is for the main version of CLEO iOS, which is writte
   - Automatic file replacement
 - Cheat menu
 - 60 FPS
+
+## Languages
+
+CLEO is available in several languages. All translations are written by a brilliant team of
+volunteers. If you speak a language that isn't in this list, please ping me in the Discord server
+or DM me on Discord and you can be come a translator!
+
+* Arabic / العربيه (by RAiZOK)
+* Czech / čeština (by tharryz)
+* Dutch / Nederlands (by wewewer1)
+* English
+* Khmer / ខ្មែរ (by ODIN)
+* Simplified Chinese / 中文（简体） (by tharryz)
+* Slovak / slovenčina (by tharryz)
+* Thai / ภาษาไทย (by Flylarb The BMO)
+* Turkish / Türkçe (by AYZM)
+* Vietnamese / Tiếng Việt (by tharryz)
 
 ## Installation
 
@@ -371,14 +393,13 @@ using WSL, please feel free to add an explanation here.
 
 ## Thanks to...
 
-- The translator team for their hard work in translating all of the text that CLEO uses into so
-  many different languages:
-  - AYZM (Turkish)
-  - Flylarb The BMO (Thai)
-  - ODIN (Khmer)
-  - RAiZOK (Arabic)
-  - tharryz (Simplified Chinese, Vietnamese, Czech, Slovak)
-  - wewewer1 (Dutch)
+- The translator team for their hard work helping people from all around the world use CLEO:
+  - AYZM
+  - Flylarb The BMO
+  - ODIN
+  - RAiZOK
+  - tharryz
+  - wewewer1
 - [Seemann](https://github.com/x87) for offering support and info, and for letting this project
   officially be a part of [CLEO](http://cleo.li/).
 - [Alexander Blade](http://www.dev-c.com/) for creating CLEO Android, and for publishing
