@@ -50,6 +50,23 @@ menu-close = Sluit
 # Title for the options tab.
 menu-options-tab-title = Instellingen
 
+## Menu gesture settings
+
+menu-gesture-opt-title = Menu Gebaar
+menu-gesture-opt-desc = De vinger beweging nodig om het CLEO menu te laten verschijnen.
+
+# A single motion where one finger moves quickly down the screen.
+menu-gesture-opt-one-finger-swipe = Een vinger naar beneden vegen
+
+# A single swipe (as above) but with two fingers at the same time instead of just one.
+menu-gesture-opt-two-finger-swipe = Twee vingers naar beneden vegen
+
+# A short tap on the screen with two fingers at once.
+menu-gesture-opt-two-finger-tap = Twee vingers aanraken
+
+# A short tap on the screen with three fingers at once.
+menu-gesture-opt-three-finger-tap = Drie vingers aanraken
+
 ### ==== Script menu ====
 
 ## Script warning overview
