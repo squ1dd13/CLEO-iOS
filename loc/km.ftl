@@ -49,6 +49,23 @@ menu-close = បិទមុឺនុយ
 # Title for the options tab.
 menu-options-tab-title = ជំម្រើស
 
+## Menu gesture settings
+
+menu-gesture-opt-title = របៀបបើកហេក
+menu-gesture-opt-desc = ការកំណត់ដោយការប៉ះឬអូសលើអេក្រង់ដើម្បីបង្ហាញហេក
+
+# A single motion where one finger moves quickly down the screen.
+menu-gesture-opt-one-finger-swipe = អូសចុះក្រោមដោយប្រើម្រាមមួយ
+
+# A single swipe (as above) but with two fingers at the same time instead of just one.
+menu-gesture-opt-two-finger-swipe = អូសចុះក្រោមដោយប្រើម្រាមពីរ
+
+# A short tap on the screen with two fingers at once.
+menu-gesture-opt-two-finger-tap = ប៉ះឬចុចដោយប្រើម្រាមពីរ
+
+# A short tap on the screen with three fingers at once.
+menu-gesture-opt-three-finger-tap = ប៉ះឬចុចដោយប្រើម្រាមបី
+
 ### ==== Script menu ====
 
 ## Script warning overview
