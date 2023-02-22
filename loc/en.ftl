@@ -52,6 +52,23 @@ menu-close = Close
 # Title for the options tab.
 menu-options-tab-title = Options
 
+## Menu gesture settings
+
+menu-gesture-opt-title = Menu Gesture
+menu-gesture-opt-desc = The touch action required to show the CLEO menu.
+
+# A single motion where a single finger moves quickly down the screen.
+menu-gesture-opt-one-finger-swipe = One-finger swipe down
+
+# A single swipe (as above) but with two fingers at the same time instead of just one.
+menu-gesture-opt-two-finger-swipe = Two-finger swipe down
+
+# A short tap on the screen with two fingers at once.
+menu-gesture-opt-two-finger-tap = Two-finger tap
+
+# A short tap on the screen with three fingers at once.
+menu-gesture-opt-three-finger-tap = Three-finger tap
+
 ### ==== Script menu ====
 
 ## Script warning overview
