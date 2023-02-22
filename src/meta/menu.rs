@@ -487,6 +487,7 @@ impl TabButton {
             let font = super::language::current().font_set().title_uifont();
 
             let _: () = msg_send![label, setFont: font];
+            let _: () = msg_send![label, setAdjustsFontSizeToFitWidth: true];
 
             add_button_handler(btn, ButtonTag::new_tab(index));
 
