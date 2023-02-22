@@ -191,6 +191,7 @@ pub enum Language {
     English,
     Khmer,
     Slovak,
+    Spanish,
     Thai,
     Turkish,
     Vietnamese,
@@ -208,6 +209,7 @@ impl Language {
             "en" => Language::English,
             "km" => Language::Khmer,
             "sk" => Language::Slovak,
+            "es" => Language::Spanish,
             "th" => Language::Thai,
             "tr" => Language::Turkish,
             "vi" => Language::Vietnamese,
@@ -225,6 +227,7 @@ impl Language {
             Language::English => "en",
             Language::Khmer => "km",
             Language::Slovak => "sk",
+            Language::Spanish => "es",
             Language::Thai => "th",
             Language::Turkish => "tr",
             Language::Vietnamese => "vi",
@@ -243,6 +246,7 @@ impl Language {
             Language::English => include_str!("../../loc/en.ftl"),
             Language::Khmer => include_str!("../../loc/km.ftl"),
             Language::Slovak => include_str!("../../loc/sk.ftl"),
+            Language::Spanish => include_str!("../../loc/es.ftl"),
             Language::Thai => include_str!("../../loc/th.ftl"),
             Language::Turkish => include_str!("../../loc/tr.ftl"),
             Language::Vietnamese => include_str!("../../loc/vi.ftl"),
@@ -285,18 +289,20 @@ impl Language {
                 subtitle_size: STD_SUBTITLE,
             },
 
-            // Chalet Comprime has support for rich Latin alphabets, so English and Dutch are fine.
-            // Our Turkish translation uses only ASCII, so it's fine too.
-            Language::Dutch | Language::English | Language::Turkish => FontSet {
-                title_font: Font::Pricedown,
-                title_size: STD_TITLE,
-                small_font: Font::AvenirNextMedium,
-                small_size: STD_SMALL,
-                text_font: Font::ChaletComprime,
-                text_size: STD_TEXT,
-                subtitle_font: Font::ChaletComprime,
-                subtitle_size: STD_SUBTITLE + 2.0,
-            },
+            // Chalet Comprime has support for rich Latin alphabets, so English, Spanish and Dutch
+            // are fine. Our Turkish translation uses only ASCII, so it's fine too.
+            Language::Dutch | Language::English | Language::Spanish | Language::Turkish => {
+                FontSet {
+                    title_font: Font::Pricedown,
+                    title_size: STD_TITLE,
+                    small_font: Font::AvenirNextMedium,
+                    small_size: STD_SMALL,
+                    text_font: Font::ChaletComprime,
+                    text_size: STD_TEXT,
+                    subtitle_font: Font::ChaletComprime,
+                    subtitle_size: STD_SUBTITLE + 2.0,
+                }
+            }
 
             // Khmer characters always fall back to Khmer Sangam MN, because it's the only font
             // that has them (I think), so the only reason to use it explicitly is for the Latin
@@ -428,7 +434,10 @@ impl Language {
             Language::English => Some(Language::Chinese),
 
             // 1.1 billion
-            Language::Chinese => Some(Language::Arabic),
+            Language::Chinese => Some(Language::Spanish),
+
+            // 475 million
+            Language::Spanish => Some(Language::Arabic),
 
             // 371 million
             Language::Arabic => Some(Language::Turkish),
