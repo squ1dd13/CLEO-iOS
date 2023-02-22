@@ -57,7 +57,7 @@ menu-options-tab-title = Options
 menu-gesture-opt-title = Menu Gesture
 menu-gesture-opt-desc = The touch action required to show the CLEO menu.
 
-# A single motion where a single finger moves quickly down the screen.
+# A single motion where one finger moves quickly down the screen.
 menu-gesture-opt-one-finger-swipe = One-finger swipe down
 
 # A single swipe (as above) but with two fingers at the same time instead of just one.
