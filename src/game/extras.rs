@@ -20,13 +20,6 @@ fn cycles_per_millisecond() -> u32 {
     call_original!(targets::cycles_per_millisecond)
 }
 
-/// Checks if the user has triggered the menu, and sends the "menu show" message if they have.
-fn show_menu_if_triggered() {
-    if crate::meta::touch::TouchInterface::shared_mut().check_menu_trigger() {
-        crate::meta::menu::MenuMessage::Show.send();
-    }
-}
-
 fn idle(p1: u64, p2: u64) {
     let show_fps = matches!(Options::get().fps_visibility, FpsVisibility::Visible);
 
@@ -34,7 +27,7 @@ fn idle(p1: u64, p2: u64) {
         *hook::slide::<*mut bool>(0x10081c519) = show_fps;
     }
 
-    show_menu_if_triggered();
+    crate::meta::touch::update();
 
     call_original!(targets::idle, p1, p2);
 }

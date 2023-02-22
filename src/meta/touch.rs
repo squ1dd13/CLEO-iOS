@@ -181,7 +181,6 @@ fn uiscreen_size() -> (f64, f64) {
 }
 
 /// Tracks and provides touch information.
-#[derive(Default)]
 pub struct TouchInterface {
     /// The width of the game window.
     viewport_width: f32,
@@ -201,10 +200,25 @@ pub struct TouchInterface {
 }
 
 lazy_static! {
-    static ref TOUCH_INTERFACE: RwLock<TouchInterface> = RwLock::new(TouchInterface::default());
+    static ref TOUCH_INTERFACE: RwLock<TouchInterface> = RwLock::new(TouchInterface::new());
 }
 
 impl TouchInterface {
+    /// Creates a new touch interface.
+    fn new() -> TouchInterface {
+        let mut interface = TouchInterface {
+            viewport_width: 0.0,
+            viewport_height: 0.0,
+            tracked_touches: Vec::new(),
+            finished_touches: Vec::new(),
+            menu_gesture: crate::meta::settings::Options::get().menu_gesture,
+        };
+
+        interface.fetch_viewport_size();
+
+        interface
+    }
+
     /// Returns a reference to the shared touch interface.
     pub fn shared() -> RwLockReadGuard<'static, TouchInterface> {
         TOUCH_INTERFACE.read().unwrap()
@@ -348,7 +362,7 @@ impl TouchInterface {
     }
 
     /// Fetches and stores the viewport size.
-    fn fetch_viewport_size(&mut self) {
+    pub fn fetch_viewport_size(&mut self) {
         let (screen_w, screen_h) = uiscreen_size();
 
         // The viewport is always in landscape, but the screen size is measured in portrait, so we
@@ -415,6 +429,7 @@ impl MenuGesture {
         }
     }
 
+    /// Returns `true` if the given touch is a downwards swiping motion.
     fn is_touch_swipe(touch: &TrackedTouch) -> bool {
         const MIN_SPEED: f32 = 800.0;
         const MIN_DISTANCE: f32 = 100.0;
@@ -459,6 +474,7 @@ impl MenuGesture {
             })
     }
 
+    /// Returns `true` if the given touches appear to be a two-finger tap action.
     fn is_pair_two_finger_tap(touch_a: &TrackedTouch, touch_b: &TrackedTouch) -> bool {
         let gesture_width_squared =
             (touch_a.current_position() - touch_b.current_position()).length_squared();
@@ -563,6 +579,18 @@ fn process_touch(x: f32, y: f32, timestamp: f64, force: f32, touch_type: u64) {
     TouchInterface::shared_mut().handle_event(event);
 
     call_original!(targets::process_touch, x, y, timestamp, force, touch_type);
+}
+
+/// Refreshes the touch system, showing the menu if the user has triggered it.
+pub fn update() {
+    let mut touch_interface = TouchInterface::shared_mut();
+
+    // The screen size shouldn't change, but we'll fetch it just in case.
+    touch_interface.fetch_viewport_size();
+
+    if touch_interface.check_menu_trigger() {
+        super::menu::MenuMessage::Show.send();
+    }
 }
 
 pub fn init() {
