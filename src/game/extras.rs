@@ -27,8 +27,6 @@ fn idle(p1: u64, p2: u64) {
         *hook::slide::<*mut bool>(0x10081c519) = show_fps;
     }
 
-    crate::meta::touch::update();
-
     call_original!(targets::idle, p1, p2);
 }
 
@@ -166,5 +164,7 @@ pub fn init() {
     targets::write_fragment_shader::install(write_fragment_shader);
     targets::display_fps::install(display_fps);
     targets::loading_messages::install(set_loading_messages);
+
+    // create_soft_target!(do_game_state, 0x1004b6a54, fn());
     // targets::height_above_ceiling::install(height_above_ceiling);
 }

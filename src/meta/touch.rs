@@ -578,6 +578,9 @@ fn process_touch(x: f32, y: f32, timestamp: f64, force: f32, touch_type: u64) {
 
     TouchInterface::shared_mut().handle_event(event);
 
+    // hack: Find a better place to call this.
+    update();
+
     call_original!(targets::process_touch, x, y, timestamp, force, touch_type);
 }
 

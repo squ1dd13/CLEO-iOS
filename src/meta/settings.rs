@@ -481,12 +481,13 @@ pub struct Options {
     /// Controls when the user is prompted to update their game.
     pub release_channel: ReleaseChannel,
 
+    /// Which gesture the user must make to open the menu.
+    #[serde(default)]
+    pub menu_gesture: super::touch::MenuGesture,
+
     /// Determines which language CLEO will use.
     #[serde(default)]
     pub language_mode: LanguageMode,
-
-    #[serde(default)]
-    pub menu_gesture: super::touch::MenuGesture,
 }
 
 impl Options {
@@ -653,8 +654,8 @@ pub fn tab_data() -> menu::TabData {
         Box::new(options.cheat_transience) as Box<dyn RowData>,
         Box::new(options.loop_break) as Box<dyn RowData>,
         Box::new(options.language_mode) as Box<dyn RowData>,
-        Box::new(options.release_channel) as Box<dyn RowData>,
         Box::new(options.menu_gesture) as Box<dyn RowData>,
+        Box::new(options.release_channel) as Box<dyn RowData>,
     ];
 
     menu::TabData {
