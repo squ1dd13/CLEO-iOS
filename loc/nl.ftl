@@ -13,7 +13,7 @@ language-opt-desc = De taal waar in je CLEO wil gebruiken. Automatische modus ga
 ### ==== Splash screen ====
 
 # First line at the bottom of the screen.
-splash-legal = Copyright © 2020-2023 squ1dd13, AYZM, Flylarb, ODIN, RAiZOK, tharryz, wewewer1. Dit programma valt onder de MIT licentie.
+splash-legal = Copyright © 2020-2023 squ1dd13, AYZM, Bruno Melo, Flylarb, ODIN, RAiZOK, tharryz, wewewer1. Dit programma valt onder de MIT licentie.
 
 # Second line.
 splash-fun = Met plezier gemaakt in engeland. Nederlandse vertaaling door wewewer1#1427. Veel plezier!

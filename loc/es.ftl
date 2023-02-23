@@ -15,7 +15,7 @@ language-opt-desc = El idioma a usar para CLEO. El modo automático utilizará l
 ### ==== Splash screen ====
 
 # First line at the bottom of the screen.
-splash-legal = Derechos de Autor © 2020-2023 squ1dd13, AYZM, Flylarb, ODIN, RAiZOK, tharryz, wewewer1. Licenciado bajo la Licencia MIT.
+splash-legal = Derechos de Autor © 2020-2023 squ1dd13, AYZM, Bruno Melo, Flylarb, ODIN, RAiZOK, tharryz, wewewer1. Licenciado bajo la Licencia MIT.
 
 # Second line.
 splash-fun = Hecho con amor en el Reino Unido. ¡Divertirse! ¡Y no seas un busta!
