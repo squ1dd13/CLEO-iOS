@@ -13,7 +13,7 @@ language-opt-desc = Ngôn ngữ sử dụng của CLEO. Chế độ tự động
 ### ==== Splash screen ====
 
 # First line at the bottom of the screen.
-splash-legal = Bản quyền © 2020-2023 squ1dd13, AYZM, Bruno Melo, Flylarb, ODIN, RAiZOK, tharryz, wewewer1. Được cấp phép theo Giấy phép MIT.
+splash-legal = Bản quyền © 2020-2023 { $copyright_names }. Được cấp phép theo Giấy phép MIT.
 
 # Second line.
 splash-fun = Xin chào các bạn Việt Nam! CLEO này đam mê sản xuất ở Vương quốc Anh. Dịch sang tiếng Việt bởi tharryz.

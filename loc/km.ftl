@@ -13,7 +13,7 @@ language-opt-desc = ភាសាសំរាប់ប្រើក្នុងឃ
 ### ==== Splash screen ====
 
 # First line at the bottom of the screen.
-splash-legal = កម្មសិទ្ធបញ្ញា © 2020-2023 squ1dd13, AYZM, Bruno Melo, Flylarb, ODIN, RAiZOK, tharryz, wewewer1. មានអាជ្ញាប័ណ្ណក្រោមអាជ្ញាប័ណ្ណ MIT.
+splash-legal = កម្មសិទ្ធបញ្ញា © 2020-2023 { $copyright_names }. មានអាជ្ញាប័ណ្ណក្រោមអាជ្ញាប័ណ្ណ MIT.
 
 # Second line.
 splash-fun = ធ្វើចេញពីក្ដីស្រលាញ់,សប្បាយៗ! បកប្រែជាភាសារខ្មែរដោយ BabeODIN.

@@ -389,7 +389,10 @@ fn legal_splash_did_load(this: *mut Object, _sel: Sel) {
         };
 
         let copyright = {
-            let legal = MessageKey::SplashLegal.to_message().translate();
+            let legal = MessageKey::SplashLegal
+                .format(super::language::msg_args!["copyright_names" => super::COPYRIGHT_NAMES])
+                .translate();
+
             let fun = MessageKey::SplashFun.to_message().translate();
 
             format!("{legal}\n{fun}")
@@ -404,6 +407,7 @@ fn legal_splash_did_load(this: *mut Object, _sel: Sel) {
         let _: () = msg_send![label, setText: ns_string(copyright)];
         let _: () = msg_send![label, setTextAlignment: 1u64];
         let _: () = msg_send![label, setNumberOfLines: 2u64];
+        let _: () = msg_send![label, setAdjustsFontSizeToFitWidth: true];
 
         let _: () = msg_send![view, addSubview: background_view];
         let _: () = msg_send![background_view, release];

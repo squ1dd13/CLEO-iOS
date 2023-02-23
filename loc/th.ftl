@@ -15,7 +15,7 @@ language-opt-desc = เลือกภาษาที่จะใช้ใน CL
 ### ==== Splash screen ====
 
 # First line at the bottom of the screen.
-splash-legal = สงวนลิขสิทธิ์ © 2020-2023 squ1dd13, AYZM, Bruno Melo, Flylarb, ODIN, RAiZOK, tharryz, wewewer1. ภายใต้ MIT License
+splash-legal = สงวนลิขสิทธิ์ © 2020-2023 { $copyright_names }. ภายใต้ MIT License
 
 # Second line.
 splash-fun = ทำด้วยใจรักที่ประเทศอังกฤษ แปลที่ประเทศไทย เล่นให้สนุกนะ!

@@ -13,7 +13,7 @@ language-opt-desc = اللغة المستخدمة في cleo. تستخدم الو
 ### ==== Splash screen ====
 
 # First line at the bottom of the screen.
-splash-legal = الحقوق © 2020-2023 squ1dd13, AYZM, Bruno Melo, Flylarb, ODIN, RAiZOK, tharryz, wewewer1. MIT مرخصة بموجب ترخيص
+splash-legal = الحقوق © 2020-2023 .{ $copyright_names } MIT مرخصة بموجب ترخيص
 
 # Second line.
 splash-fun = صنعت وبحب في المملكة المتحدة.  ترجمت الى العربيه بواسطة RAiZOK. استمتع

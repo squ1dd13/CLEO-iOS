@@ -10,6 +10,9 @@ pub mod settings;
 pub mod touch;
 mod update;
 
+pub const COPYRIGHT_NAMES: &str =
+    "squ1dd13, AYZM, Bruno Melo, Flylarb, ODIN, RAiZOK, tharryz, wewewer1";
+
 pub fn init() {
     settings::init();
     language::init();
