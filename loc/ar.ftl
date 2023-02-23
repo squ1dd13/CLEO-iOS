@@ -50,6 +50,23 @@ menu-close = اغلق
 # Title for the options tab.
 menu-options-tab-title = خيارات
 
+## Menu gesture settings
+
+menu-gesture-opt-title = القائمة
+menu-gesture-opt-desc = Cleo إجراء اللمس المطلوب لإظهار قائمة
+
+# A single motion where one finger moves quickly down the screen.
+menu-gesture-opt-one-finger-swipe = اسحب بإصبع واحد لأسفل
+
+# A single swipe (as above) but with two fingers at the same time instead of just one.
+menu-gesture-opt-two-finger-swipe = اسحب بإصبعين لأسفل
+
+# A short tap on the screen with two fingers at once.
+menu-gesture-opt-two-finger-tap = النقر بإصبعين
+
+# A short tap on the screen with three fingers at once.
+menu-gesture-opt-three-finger-tap = النقر بثلاثة أصابع
+
 ### ==== Script menu ====
 
 ## Script warning overview
