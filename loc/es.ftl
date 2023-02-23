@@ -18,7 +18,7 @@ language-opt-desc = El idioma a usar para CLEO. El modo automático utilizará l
 splash-legal = Derechos de Autor © 2020-2023 squ1dd13, AYZM, Flylarb, ODIN, RAiZOK, tharryz, wewewer1. Licenciado bajo la Licencia MIT.
 
 # Second line.
-splash-fun = Hecho con amor en el Reino Unido. ¡Divertirse!
+splash-fun = Hecho con amor en el Reino Unido. ¡Divertirse! ¡Y no seas un busta!
 
 ### ==== Updates ====
 
@@ -38,7 +38,7 @@ update-prompt-message = CLEO versión { $new_version } está disponible. ¿Quier
 ## Release channel settings
 
 update-release-channel-opt-title = Canal de lanzamiento
-update-release-channel-opt-desc = Para qué actualizaciones de CLEO recibes notificaciones. Alpha brinda características más nuevas antes, pero puede tener más errores.  No se recomienda deshabilitar las actualizaciones.
+update-release-channel-opt-desc = Para qué actualizaciones de CLEO recibes notificaciones. Alpha brinda características más nuevas antes, pero puede tener más errores. No se recomienda deshabilitar las actualizaciones.
 
 update-release-channel-opt-disabled = Desactivado
 update-release-channel-opt-stable = Estable
@@ -51,6 +51,23 @@ menu-close = Cierra
 
 # Title for the options tab.
 menu-options-tab-title = Opciones
+
+## Menu gesture settings
+
+menu-gesture-opt-title = Gesto de menú
+menu-gesture-opt-desc = La acción táctil requerida para mostrar el menú CLEO.
+
+# A single motion where one finger moves quickly down the screen.
+menu-gesture-opt-one-finger-swipe = Deslizar un dedo hacia abajo
+
+# A single swipe (as above) but with two fingers at the same time instead of just one.
+menu-gesture-opt-two-finger-swipe = Deslizar dos dedos hacia abajo
+
+# A short tap on the screen with two fingers at once.
+menu-gesture-opt-two-finger-tap = Toque con dos dedos
+
+# A short tap on the screen with three fingers at once.
+menu-gesture-opt-three-finger-tap = Toque con tres dedos
 
 ### ==== Script menu ====
 
@@ -127,7 +144,7 @@ fps-lock-opt-60 = 60 FPS
 
 ## FPS counter option
 
-fps-counter-opt-title = FPS Counter
+fps-counter-opt-title = FPS Contador
 fps-counter-opt-desc = Activa o desactiva el contador de FPS en pantalla.
 
 fps-counter-opt-hidden = Desactivado
@@ -203,14 +220,14 @@ cheat-lean-and-mean = Mínimo de gordura y músculo
 cheat-i-can-go-all-night = Máxima resistencia
 
 ## Player skills
-cheat-professional-killer = Nivel Hitman para todas las armas.
+cheat-professional-killer = Nivel hitman para todas las armas.
 cheat-natural-talent = Habilidades máximas del vehículo
 
 ## Wanted level
 cheat-turn-up-the-heat = Aumenta el nivel de búsqueda en dos estrellas
 cheat-turn-down-the-heat = Completar el nivel querido
 cheat-i-do-as-i-please = Bloquear el nivel deseado al valor actual
-cheat-bring-it-on = Nivel de Búsqueda de Seis Estrellas
+cheat-bring-it-on = Nivel de búsqueda de seis estrellas
 
 ## Weather
 cheat-pleasantly-warm = Tiempo soleado
@@ -226,34 +243,34 @@ cheat-clock-forward = Adelanta el reloj 4 horas
 cheat-time-just-flies-by = Tiempo más rápido
 cheat-speed-it-up = Modalidad de juego más rápida
 cheat-slow-it-down = Juego más lento
-cheat-night-prowler = Siempre Medianoche
+cheat-night-prowler = Siempre medianoche
 cheat-dont-bring-on-the-night = Siempre 9 p.m.
 
 ## Spawning wearables
 cheat-lets-go-base-jumping = Aparece paracaídas
-cheat-rocketman = Aparece Mochila propulsora
+cheat-rocketman = Aparece mochila propulsora
 
 ## Spawning vehicles
 
 # The vehicle names (in capitals) should not be changed, as they are part of the game. The
 # descriptions (in brackets) do need to be translated.
-cheat-time-to-kick-ass = Spawn Rhino (tanque de guerra)
-cheat-old-speed-demon = Spawn Bloodring Banger (coche derby de demolición )
-cheat-tinted-rancher = Spawn Rancher with tinted windows (SUV de dos puertas)
-cheat-not-for-public-roads = Spawn Hotring Racer A (coche de carreras)
-cheat-just-try-and-stop-me = Spawn Hotring Racer B (coche de carreras)
-cheat-wheres-the-funeral = Spawn Romero (coche fúnebre)
-cheat-celebrity-status = Spawn Stretch Limousine (limusina)
-cheat-true-grime = Spawn Trashmaster (camión de la basura)
-cheat-18-holes = Spawn Caddy (carro de golf)
-cheat-jump-jet = Spawn Hydra (avión de ataque VTOL)
-cheat-i-want-to-hover = Spawn Vortex (aerodeslizador)
-cheat-oh-dude = Spawn Hunter (helicóptero de ataque militar)
-cheat-four-wheel-fun = Spawn Quad (cuatriciclo)
-cheat-hit-the-road-jack = Spawn Tanker and trailer (camión cisterna)
-cheat-its-all-bull = Spawn Dozer (excavadora)
-cheat-flying-to-stunt = Spawn Stunt Plane (avión de acrobacias)
-cheat-monster-mash = Spawn Monster Truck (camión monstruo)
+cheat-time-to-kick-ass = Aparecer Rhino (tanque de guerra)
+cheat-old-speed-demon = Aparecer Bloodring Banger (coche derby de demolición )
+cheat-tinted-rancher = Aparecer Rancher con vidrios polarizados (SUV de dos puertas)
+cheat-not-for-public-roads = Aparecer Hotring Racer A (coche de carreras)
+cheat-just-try-and-stop-me = Aparecer Hotring Racer B (coche de carreras)
+cheat-wheres-the-funeral = Aparecer Romero (coche fúnebre)
+cheat-celebrity-status = Aparecer Stretch Limousine (limusina)
+cheat-true-grime = Aparecer Trashmaster (camión de la basura)
+cheat-18-holes = Aparecer Caddy (carro de golf)
+cheat-jump-jet = Aparecer Hydra (avión de ataque VTOL)
+cheat-i-want-to-hover = Aparecer Vortex (aerodeslizador)
+cheat-oh-dude = Aparecer Hunter (helicóptero de ataque militar)
+cheat-four-wheel-fun = Aparecer Quad (cuatriciclo)
+cheat-hit-the-road-jack = Aparecer Tanker y remolque (camión cisterna)
+cheat-its-all-bull = Aparecer Dozer (excavadora)
+cheat-flying-to-stunt = Aparecer Stunt Plane (avión de acrobacias)
+cheat-monster-mash = Aparecer Monster Truck (camión monstruo)
 
 ## Gang recruitment
 cheat-wanna-be-in-my-gang = Recluta a cualquiera en tu banda y dale una pistola apuntándole con una pistola.
@@ -262,9 +279,9 @@ cheat-rocket-mayhem = Recluta a cualquiera en tu pandilla y dales un lanzacohete
 
 ## Traffic
 cheat-all-drivers-are-criminals = Todos los conductores NPC conducen agresivamente y tienen un nivel deseado
-cheat-pink-is-the-new-cool = Trafico rosado
-cheat-so-long-as-its-black = Trafico negro
-cheat-everyone-is-poor = Trafico rural
+cheat-pink-is-the-new-cool = Tráfico rosado
+cheat-so-long-as-its-black = Tráfico negro
+cheat-everyone-is-poor = Tráfico rural
 cheat-everyone-is-rich = Tráfico de autos deportivos
 
 ## Pedestrians
@@ -289,7 +306,7 @@ cheat-crazy-town = Tema del carnaval
 cheat-all-cars-go-boom = Explotar todos los vehículos
 cheat-wheels-only-please = Vehículos invisibles
 cheat-sideways-wheels = Los coches tienen ruedas laterales
-cheat-speed-freak = Todos los coches tienen Nitro
+cheat-speed-freak = Todos los coches tienen nitro
 cheat-cool-taxis = Los taxis tienen hidraulica y nitro
 
 ## Vehicle cheats for the player
