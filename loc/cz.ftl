@@ -49,6 +49,23 @@ menu-close = Zavřít
 # Title for the options tab.
 menu-options-tab-title = Možnosti
 
+## Menu gesture settings
+
+menu-gesture-opt-title = Gesto Menu
+menu-gesture-opt-desc = Dotyková akce požadovaná pro zobrazení menu CLEO.
+
+# A single motion where one finger moves quickly down the screen.
+menu-gesture-opt-one-finger-swipe = Přejeďte jedním prstem dolů
+
+# A single swipe (as above) but with two fingers at the same time instead of just one.
+menu-gesture-opt-two-finger-swipe = Přejeďte dvěma prsty dolů
+
+# A short tap on the screen with two fingers at once.
+menu-gesture-opt-two-finger-tap = Klepněte dvěma prsty
+
+# A short tap on the screen with three fingers at once.
+menu-gesture-opt-three-finger-tap = Klepněte třemi prsty
+
 ### ==== Script menu ====
 
 ## Script warning overview

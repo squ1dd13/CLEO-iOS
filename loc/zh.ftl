@@ -50,6 +50,23 @@ menu-close = 关闭
 # Title for the options tab.
 menu-options-tab-title = 选项
 
+## Menu gesture settings
+
+menu-gesture-opt-title = 菜单手势
+menu-gesture-opt-desc = 显示CLEO菜单所需的触摸动作。
+
+# A single motion where one finger moves quickly down the screen.
+menu-gesture-opt-one-finger-swipe = 单指向下滑动
+
+# A single swipe (as above) but with two fingers at the same time instead of just one.
+menu-gesture-opt-two-finger-swipe = 双指向下滑动
+
+# A short tap on the screen with two fingers at once.
+menu-gesture-opt-two-finger-tap = 双指点击
+
+# A short tap on the screen with three fingers at once.
+menu-gesture-opt-three-finger-tap = 三指点击
+
 ### ==== Script menu ====
 
 ## Script warning overview
