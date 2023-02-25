@@ -49,6 +49,23 @@ menu-close = Kapat
 # Title for the options tab.
 menu-options-tab-title = Ayarlar
 
+## Menu gesture settings
+
+menu-gesture-opt-title = Menu aktivasyonu
+menu-gesture-opt-desc = CLEO menusunu gostermek icin gerekli olan kombinasyon.
+
+# A single motion where one finger moves quickly down the screen.
+menu-gesture-opt-one-finger-swipe = Bir parmakla assagiya kaydirma
+
+# A single swipe (as above) but with two fingers at the same time instead of just one.
+menu-gesture-opt-two-finger-swipe = Iki parmak yukariya kaydirma
+
+# A short tap on the screen with two fingers at once.
+menu-gesture-opt-two-finger-tap = Ayni anda iki parmakla ekrana tiklama
+
+# A short tap on the screen with three fingers at once.
+menu-gesture-opt-three-finger-tap = Ayni anda uc parmakla ekrana tiklama
+
 ### ==== Script menu ====
 
 ## Script warning overview
