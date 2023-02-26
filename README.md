@@ -38,6 +38,7 @@ or DM me on Discord and you can be come a translator!
 * Khmer / ខ្មែរ (by ODIN)
 * Simplified Chinese / 中文（简体） (by tharryz)
 * Slovak / slovenčina (by tharryz)
+* Spanish / Español (by Bruno Melo)
 * Thai / ภาษาไทย (by Flylarb The BMO)
 * Turkish / Türkçe (by AYZM)
 * Vietnamese / Tiếng Việt (by tharryz)
@@ -395,6 +396,7 @@ using WSL, please feel free to add an explanation here.
 
 - The translator team for their hard work helping people from all around the world use CLEO:
   - AYZM
+  - Bruno Melo
   - Flylarb The BMO
   - ODIN
   - RAiZOK
