@@ -130,6 +130,9 @@ pub enum Target<FuncType: std::fmt::Debug> {
     /// A function pointer.
     _Function(FuncType),
 
+    /// A raw address to which no ASLR slide will be applied.
+    NoSlideAddress(usize),
+
     /// A raw address, to which the ASLR offset for the current image will be applied.
     Address(usize),
 
@@ -141,6 +144,8 @@ impl<FuncType: std::fmt::Debug> Target<FuncType> {
     fn get_absolute(&self) -> usize {
         match self {
             Target::_Function(func) => unsafe { std::mem::transmute_copy(func) },
+
+            Target::NoSlideAddress(addr) => *addr,
 
             Target::Address(addr) => {
                 let aslr_offset = get_game_aslr_offset();
@@ -238,6 +243,39 @@ pub fn slide<T: Copy>(address: usize) -> T {
 pub fn deref_global<T: Copy>(address: usize) -> T {
     let slid: *const T = slide(address);
     unsafe { *slid }
+}
+
+/// Returns `true` if CLEO is able to hook functions.
+pub fn can_hook() -> bool {
+    // note: `test_function` and `hooked_impl` cannot simply return a single value, because this
+    // makes them too small to hook. A log message is included in each to add some extra
+    // instructions.
+
+    fn test_function() -> bool {
+        log::warn!("unhooked implementation running");
+
+        // This will not run if we hook it successfully.
+        false
+    }
+
+    if test_function() {
+        // Test function already hooked, so we assume that hooking works (since it clearly worked
+        // at one point). This would be invalid if the hooking library worked once but doesn't work
+        // again for some reason, but that's unlikely to happen.
+        return true;
+    }
+
+    fn hooked_impl() -> bool {
+        log::info!("hooked implementation running :)");
+
+        true
+    }
+
+    // Try to hook the test function so that it returns `true`.
+    Target::NoSlideAddress(test_function as usize).hook_hard(hooked_impl as usize);
+
+    // If the hook failed, this will return `false` as normal.
+    test_function()
 }
 
 // hack: this is a really shit API. it's just here until `hook` gets rewritten from the ground up.

@@ -105,6 +105,13 @@ fn load() {
     // Load the logging system before everything else so we can log from constructors.
     logging::init();
 
+    match hook::can_hook() {
+        true => log::info!("hook test ran successfully!"),
+        false => {
+            log::error!("hook test failed! CLEO probably won't work :( please report this error!")
+        }
+    }
+
     log::info!(
         r#"
 
