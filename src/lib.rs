@@ -106,7 +106,7 @@ fn load() {
     logging::init();
 
     match hook::can_hook() {
-        true => log::info!("hook test ran successfully!"),
+        true => log::info!("hook test successful! CLEO should work ok :)"),
         false => {
             log::error!("hook test failed! CLEO probably won't work :( please report this error!")
         }
