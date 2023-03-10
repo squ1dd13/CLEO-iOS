@@ -106,10 +106,14 @@ impl log::Log for Logger {
 static MSG_SENDER: OnceCell<Mutex<std::sync::mpsc::Sender<Message>>> = OnceCell::new();
 
 fn panic_hook(info: &std::panic::PanicInfo) {
-    let payload = if let Some(payload) = info.payload().downcast_ref::<&str>() {
-        payload
-    } else {
-        "no payload, sorry :/"
+    let message = info
+        .message()
+        .map(ToString::to_string)
+        .or_else(|| info.payload().downcast_ref::<&str>().map(|s| s.to_string()));
+
+    let message = match message.as_ref() {
+        Some(m) => m,
+        None => "no message, sorry :/",
     };
 
     let aslr_slide = crate::hook::get_game_aslr_offset();
@@ -126,7 +130,7 @@ Please don't ignore this! There are a few different ways you can help out. You c
 Below is some information that might help explain the problem.
 
 ASLR slide (game): {aslr_slide:#x}
-Payload (downcast): {payload}
+Message: {message}
 Time: {time}
 Backtrace: see below
 
