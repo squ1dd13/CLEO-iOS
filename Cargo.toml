@@ -13,6 +13,10 @@ crate-type = ["staticlib"]
 [features]
 debug = []
 
+[patch.crates-io]
+# The fork fixes a bug that prevents building for iOS.
+dobby-sys = { git = "https://github.com/squ1dd13/dobby-sys" }
+
 [dependencies]
 bincode = "1.0"
 serde = { version = "1.0", features = ["derive"] }
@@ -39,3 +43,4 @@ fluent = { git = "https://github.com/squ1dd13/fluent-rs" }
 fluent-bundle = { git = "https://github.com/squ1dd13/fluent-rs" }
 unic-langid = { version = "0.9.1", features = ["macros"] }
 vector2d = "2.2.0"
+hlhook = { git = "https://github.com/squ1dd13/hlhook" }

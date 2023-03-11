@@ -4,23 +4,12 @@
 use cached::proc_macro::cached;
 use dlopen::symbor::Library;
 use eyre::Context;
-use log::error;
 
 fn get_single_symbol<T: Copy>(path: &str, sym_name: &str) -> eyre::Result<T> {
     let lib = Library::open(path).wrap_err_with(|| format!("failed to open library {path}"))?;
     let symbol = unsafe { lib.symbol::<T>(sym_name) }
         .wrap_err_with(|| format!("unable to find {sym_name} in {path}"))?;
     Ok(*symbol)
-}
-
-#[cached(result = true)]
-fn get_raw_hook_fn() -> eyre::Result<usize> {
-    get_single_symbol("libsubstrate.dylib", "MSHookFunction")
-}
-
-#[cached(result = true)]
-fn get_shit_raw_hook_fn() -> eyre::Result<usize> {
-    get_single_symbol("libhooker.dylib", "LHHookFunctions")
 }
 
 #[cached(result = true)]
@@ -42,87 +31,6 @@ pub fn get_game_aslr_offset() -> usize {
     // The value we need is always the smaller of the two, so find that instead of checking the iOS
     // version.
     get_aslr_offset(0).min(get_aslr_offset(1))
-}
-
-#[repr(C)]
-enum ShitHookError {
-    Ok,
-    SelNotFound,
-    FuncTooShort,
-    BadInstruction,
-    PagingError,
-    NoSymbol,
-}
-
-impl std::fmt::Display for ShitHookError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let s = match self {
-            ShitHookError::Ok => "hook successful",
-            ShitHookError::SelNotFound => "objective-c selector not found",
-            ShitHookError::FuncTooShort => "function too short to hook",
-            ShitHookError::BadInstruction => "bad instruction found at start of function",
-            ShitHookError::PagingError => "error handling memory pages",
-            ShitHookError::NoSymbol => "no symbol given",
-        };
-
-        f.write_str(s)
-    }
-}
-
-// Represents libhooker's struct LHFunctionHook.
-#[repr(C)]
-struct ShitFunctionHook<FuncType> {
-    function: FuncType,
-    replacement: FuncType,
-    old_ptr: usize,
-    options: usize,
-}
-
-fn gen_shit_hook_fn<FuncType>() -> fn(FuncType, FuncType, &mut Option<FuncType>) {
-    |function, replacement, original| {
-        let hook_struct = ShitFunctionHook {
-            function,
-            replacement,
-            old_ptr: unsafe { std::mem::transmute(original) },
-            options: 0,
-        };
-
-        unsafe {
-            let hook_fn: fn(*const ShitFunctionHook<FuncType>, i32) -> ShitHookError =
-                std::mem::transmute(get_shit_raw_hook_fn().expect("need a hook function"));
-            let struct_ptr: *const ShitFunctionHook<FuncType> = &hook_struct;
-
-            let res = hook_fn(struct_ptr, 1);
-
-            // SelNotFound is the default return value: we hook one function and if there are no
-            // errors the return value should be the number of functions hooked, which is 1, which
-            // is SelNotFound. If the return value is something else, there's an error. Ignoring
-            // SelNotFound is fine because LHHookFunctions does not deal with selectors and thus
-            // could never return that error.
-            if !matches!(res, ShitHookError::SelNotFound) {
-                error!("hook failed: {}", res);
-            }
-        }
-    }
-}
-
-fn get_hook_fn<FuncType>() -> fn(FuncType, FuncType, &mut Option<FuncType>) {
-    let shit_hook = get_shit_raw_hook_fn();
-
-    if shit_hook.is_ok() {
-        return gen_shit_hook_fn();
-    }
-
-    let raw = get_raw_hook_fn().expect("get_hook_fn: get_raw_hook_fn failed");
-
-    // Reinterpret cast the address to get a function pointer.
-    // We get the address as a usize so that it can be cached once and then reused
-    //  to get different signatures.
-    // hack: manual transmute
-    unsafe {
-        let addr_ptr: *const usize = &raw;
-        *(addr_ptr as *const fn(FuncType, FuncType, &mut Option<FuncType>))
-    }
 }
 
 #[derive(Debug)]
@@ -163,14 +71,25 @@ impl<FuncType: std::fmt::Debug> Target<FuncType> {
         unsafe { std::mem::transmute_copy(&self.get_absolute()) }
     }
 
-    pub fn hook_hard(&self, replacement: FuncType) {
+    pub fn hook_hard(&self, replacement: FuncType)
+    where
+        FuncType: Copy,
+    {
         log::debug!("installing hard hook on target {:?}", self);
-        get_hook_fn::<FuncType>()(self.get_as_fn(), replacement, &mut None);
+        unsafe {
+            let _ = hlhook::install_hook(self.get_as_fn(), replacement).unwrap();
+        }
     }
 
-    pub fn hook_soft(&self, replacement: FuncType, original_out: &mut Option<FuncType>) {
+    pub fn hook_soft(&self, replacement: FuncType, original_out: &mut Option<FuncType>)
+    where
+        FuncType: Copy,
+    {
         log::debug!("installing soft hook on target {:?}", self);
-        get_hook_fn::<FuncType>()(self.get_as_fn(), replacement, original_out);
+        unsafe {
+            let trampoline = hlhook::install_hook(self.get_as_fn(), replacement).unwrap();
+            *original_out = Some(trampoline);
+        }
     }
 }
 
