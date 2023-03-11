@@ -152,25 +152,28 @@ impl Shader {
     fn write(self, contents: &str) -> std::io::Result<()> {
         std::fs::write(self.file_path(), contents)
     }
-}
 
-/// Returns a pointer to the game's shader string buffer.
-fn shader_buffer() -> *const i8 {
-    crate::hook::slide(0x100934e68)
+    /// Returns a pointer to the buffer that the game uses for this shader.
+    fn buffer(self) -> *const i8 {
+        let static_addr = match self {
+            Shader::Fragment(_) => 0x100934e68,
+            Shader::Vertex(_) => 0x100936e69,
+        };
+
+        crate::hook::slide(static_addr)
+    }
 }
 
 /// Returns the shader buffer as a string slice.
-fn read_shader_buffer() -> &'static str {
-    unsafe { CStr::from_ptr(shader_buffer()) }
+fn read_shader_buffer(buffer: *const i8) -> &'static str {
+    unsafe { CStr::from_ptr(buffer) }
         .to_str()
         .unwrap_or("/* unable to read shader buffer */")
 }
 
 /// Overwrites the contents of the shader buffer with `source`.
-fn replace_shader_buffer(source: &str) -> Result<(), std::ffi::NulError> {
+fn replace_shader_buffer(buffer: *mut i8, source: &str) -> Result<(), std::ffi::NulError> {
     let c_string = std::ffi::CString::new(source)?;
-
-    let buffer = shader_buffer() as *mut i8;
 
     for (i, byte) in c_string.into_bytes_with_nul().into_iter().enumerate() {
         unsafe { buffer.add(i).write(byte as i8) };
@@ -183,20 +186,21 @@ fn replace_shader_buffer(source: &str) -> Result<(), std::ffi::NulError> {
 /// there is no replacement.
 fn debug_shader(shader: Shader) {
     let file_name = shader.file_name();
+    let buffer = shader.buffer();
 
     log::info!("handling shader {file_name}");
 
     if let Ok(custom_shader) = shader.read_custom() {
-        if custom_shader.as_str() != read_shader_buffer() {
+        if custom_shader.as_str() != read_shader_buffer(buffer) {
             log::info!("shader differs: {file_name}");
         }
 
-        if let Err(err) = replace_shader_buffer(&custom_shader) {
+        if let Err(err) = replace_shader_buffer(buffer as *mut i8, &custom_shader) {
             log::warn!("not modifying shader buffer because shader was invalid: {err:?}");
         }
     } else {
         // If there was no custom shader to read, write the current shader to disk.
-        if let Err(err) = shader.write(read_shader_buffer()) {
+        if let Err(err) = shader.write(read_shader_buffer(buffer)) {
             log::warn!("could not dump shader: {err:?}");
         }
     }
