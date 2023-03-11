@@ -263,6 +263,11 @@ fn create_archive_dirs() {
     }
 }
 
+/// Returns the path to the directory where we store game shaders.
+pub fn shaders_path() -> PathBuf {
+    get_documents_path("shaders")
+}
+
 pub fn get_log_path() -> PathBuf {
     let mut dir_path = find_cleo_dir_path();
     dir_path.push("cleo.log");
@@ -288,6 +293,12 @@ pub fn init() {
 
     log::info!("Creating archive folders...");
     create_archive_dirs();
+
+    log::info!("Creating shader directory...");
+
+    if let Err(err) = std::fs::create_dir_all(shaders_path()) {
+        log::error!("failed to create shader dir: {:?}", err);
+    }
 
     log::info!("Finding and loading resources...");
     let all_resources = ModResource::flatten_dir(&cleo_path).unwrap();

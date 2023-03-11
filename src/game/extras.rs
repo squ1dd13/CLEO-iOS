@@ -7,6 +7,7 @@ use crate::{
     meta::settings::{FpsVisibility, Options},
     targets,
 };
+use std::ffi::CStr;
 
 // CTimer::GetCyclesPerMillisecond is called between the FPS limit being set and when it is
 // enforced, so if we overwrite the limit here, our new value will be enforced.
@@ -116,27 +117,104 @@ fn display_fps() {
     crate::hook::slide::<fn(f32, f32, *const u16)>(0x1003809c8)(x, y, bytes.as_ptr());
 }
 
-fn write_fragment_shader(mask: u32) {
-    call_original!(crate::targets::write_fragment_shader, mask);
+/// A game shader.
+#[derive(Clone, Copy)]
+enum Shader {
+    /// Fragment shader with bitmask.
+    Fragment(u32),
 
-    let real_address = crate::hook::slide::<*mut u8>(0x100934e68);
+    /// Vertex shader with bitmask.
+    Vertex(u32),
+}
 
-    unsafe {
-        let shader = std::ffi::CStr::from_ptr(real_address.cast())
-            .to_str()
-            .unwrap_or("unable to get value")
-            .to_string();
+impl Shader {
+    /// Returns the name of the file used to store the shader.
+    fn file_name(self) -> String {
+        let (mask, ext) = match self {
+            Shader::Fragment(mask) => (mask, "frag"),
+            Shader::Vertex(mask) => (mask, "vert"),
+        };
 
-        // Shader changes can be made here by replacing lines. (If CLEO ever does include
-        //  any real ability for shader modding, it will be more refined than this.)
+        format!("{mask:032b}.{ext}")
+    }
 
-        let c_string = std::ffi::CString::new(shader).expect("CString::new failed");
-        let bytes = c_string.as_bytes_with_nul();
+    /// Returns the path of the file that this shader can be read from or written to.
+    fn file_path(self) -> std::path::PathBuf {
+        crate::meta::resources::shaders_path().join(self.file_name())
+    }
 
-        for (i, byte) in bytes.iter().enumerate() {
-            real_address.add(i).write(*byte);
+    /// Returns the contents of the shader's file.
+    fn read_custom(self) -> std::io::Result<String> {
+        std::fs::read_to_string(self.file_path())
+    }
+
+    /// Writes `contents` to the shader's file on disk.
+    fn write(self, contents: &str) -> std::io::Result<()> {
+        std::fs::write(self.file_path(), contents)
+    }
+}
+
+/// Returns a pointer to the game's shader string buffer.
+fn shader_buffer() -> *const i8 {
+    crate::hook::slide(0x100934e68)
+}
+
+/// Returns the shader buffer as a string slice.
+fn read_shader_buffer() -> &'static str {
+    unsafe { CStr::from_ptr(shader_buffer()) }
+        .to_str()
+        .unwrap_or("/* unable to read shader buffer */")
+}
+
+/// Overwrites the contents of the shader buffer with `source`.
+fn replace_shader_buffer(source: &str) -> Result<(), std::ffi::NulError> {
+    let c_string = std::ffi::CString::new(source)?;
+
+    let buffer = shader_buffer() as *mut i8;
+
+    for (i, byte) in c_string.into_bytes_with_nul().into_iter().enumerate() {
+        unsafe { buffer.add(i).write(byte as i8) };
+    }
+
+    Ok(())
+}
+
+/// Replaces the shader's code if there is a replacement on disk, or dumps the shader to disk if
+/// there is no replacement.
+fn debug_shader(shader: Shader) {
+    let file_name = shader.file_name();
+
+    log::info!("handling shader {file_name}");
+
+    if let Ok(custom_shader) = shader.read_custom() {
+        if custom_shader.as_str() != read_shader_buffer() {
+            log::info!("shader differs: {file_name}");
+        }
+
+        if let Err(err) = replace_shader_buffer(&custom_shader) {
+            log::warn!("not modifying shader buffer because shader was invalid: {err:?}");
+        }
+    } else {
+        // If there was no custom shader to read, write the current shader to disk.
+        if let Err(err) = shader.write(read_shader_buffer()) {
+            log::warn!("could not dump shader: {err:?}");
         }
     }
+}
+
+fn write_fragment_shader(mask: u32) {
+    // Write the shader into the buffer.
+    call_original!(crate::targets::write_fragment_shader, mask);
+
+    let shader = Shader::Fragment(mask);
+    debug_shader(shader);
+}
+
+fn write_vertex_shader(mask: u32) {
+    call_original!(crate::targets::write_vertex_shader, mask);
+
+    let shader = Shader::Vertex(mask);
+    debug_shader(shader);
 }
 
 fn set_loading_messages(msg_1: *const c_char, msg_2: *const c_char) {
@@ -161,7 +239,12 @@ pub fn init() {
 
     targets::idle::install(idle);
     targets::cycles_per_millisecond::install(cycles_per_millisecond);
-    targets::write_fragment_shader::install(write_fragment_shader);
+
+    if cfg!(feature = "debug") {
+        targets::write_fragment_shader::install(write_fragment_shader);
+        targets::write_vertex_shader::install(write_vertex_shader);
+    }
+
     targets::display_fps::install(display_fps);
     targets::loading_messages::install(set_loading_messages);
 
