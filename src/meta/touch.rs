@@ -255,7 +255,7 @@ impl TouchInterface {
                 // Only map if the tracked touch was last updated before the new event. Otherwise,
                 // we could end up applying two events from the same frame to a single tracked
                 // touch.
-                (tracked.last_changed() < event_info.timestamp).then_some((index, {
+                (tracked.last_changed() <= event_info.timestamp).then_some((index, {
                     // Don't bother square rooting the distance here, because the comparison result
                     // is the same whether or not we square root, and sqrt is slow.
                     (event_info.position - tracked.current_position()).length_squared()

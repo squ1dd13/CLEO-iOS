@@ -195,6 +195,7 @@ pub enum Language {
     Thai,
     Turkish,
     Vietnamese,
+    Minecraft,
 }
 
 impl Language {
@@ -213,6 +214,7 @@ impl Language {
             "th" => Language::Thai,
             "tr" => Language::Turkish,
             "vi" => Language::Vietnamese,
+            "mc" => Language::Minecraft,
             _ => return None,
         })
     }
@@ -231,6 +233,7 @@ impl Language {
             Language::Thai => "th",
             Language::Turkish => "tr",
             Language::Vietnamese => "vi",
+            Language::Minecraft => "mc",
         }
         .parse()
         .unwrap()
@@ -250,6 +253,7 @@ impl Language {
             Language::Thai => include_str!("../../loc/th.ftl"),
             Language::Turkish => include_str!("../../loc/tr.ftl"),
             Language::Vietnamese => include_str!("../../loc/vi.ftl"),
+            Language::Minecraft => include_str!("../../loc/mc.ftl"),
         }
     }
 
@@ -291,7 +295,7 @@ impl Language {
 
             // Chalet Comprime has support for rich Latin alphabets, so English, Spanish and Dutch
             // are fine. Our Turkish translation uses only ASCII, so it's fine too.
-            Language::Dutch | Language::English | Language::Spanish | Language::Turkish => {
+            Language::Dutch | Language::English | Language::Spanish | Language::Turkish | Language::Minecraft => {
                 FontSet {
                     title_font: Font::Pricedown,
                     title_size: STD_TITLE,
@@ -461,7 +465,10 @@ impl Language {
             Language::Czech => Some(Language::Slovak),
 
             // 5 million
-            Language::Slovak => None,
+            Language::Slovak => Some(Language::Minecraft),
+            
+            // 0
+            Language::Minecraft => None,
         }
     }
 }
