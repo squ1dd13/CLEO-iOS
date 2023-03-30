@@ -137,7 +137,7 @@ script-mode-opt-break = ⎓ᔑᓭℸ
 ## FPS lock option
 
 fps-lock-opt-title = ⎓!¡ᓭ ꖎ╎ᒲ╎ℸ
-fps-lock-opt-desc = The maximum framerate the game will run at. 30 FPS looks worse but saves battery.
+fps-lock-opt-desc = ℸ⍑ᒷ ᒲᔑ̇/╎ᒲ⚍ᒲ ⎓∷ᔑᒲᒷ∷ᔑℸᒷ ℸ⍑ᒷ ⊣ᔑᒲᒷ ∴╎ꖎꖎ ∷⚍リ ᔑℸ. 30 ⎓!¡ᓭ ꖎ𝙹𝙹ꖌᓭ ∴𝙹∷ᓭᒷ ʖ⚍ℸ ᓭᔑ⍊ᒷᓭ ʖᔑℸℸᒷ∷||.
 
 fps-lock-opt-30 = 30 ⎓!¡ᓭ
 fps-lock-opt-60 = 60 ⎓!¡ᓭ
