@@ -295,7 +295,7 @@ impl Language {
 
             // Chalet Comprime has support for rich Latin alphabets, so English, Spanish and Dutch
             // are fine. Our Turkish translation uses only ASCII, so it's fine too.
-            Language::Dutch | Language::English | Language::Spanish | Language::Turkish => {
+            Language::Dutch | Language::English | Language::Spanish | Language::Turkish | Language::Minecraft => {
                 FontSet {
                     title_font: Font::Pricedown,
                     title_size: STD_TITLE,
