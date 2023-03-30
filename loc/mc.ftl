@@ -1,7 +1,7 @@
 ### ==== Language settings ====
 
 # Used in the settings menu to show the name of the language.
-language-name = ᓭℸᔑリ↸ᔑ∷↸ ⊣ᔑꖎᔑᓵℸ╎ᓵ ᔑꖎ!¡⍑ᔑʖᒷℸ (Standard Galactic Alphabet)
+language-name = Standard Galactic Alphabet
 
 # Shown when this language has been selected automatically.
 language-auto-name = ᔑ⚍ℸ𝙹ᒲᔑℸ╎ᓵ ({ language-name })
