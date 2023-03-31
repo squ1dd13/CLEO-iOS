@@ -189,13 +189,13 @@ pub enum Language {
     Czech,
     Dutch,
     English,
+    Galactic,
     Khmer,
     Slovak,
     Spanish,
     Thai,
     Turkish,
     Vietnamese,
-    Minecraft,
 }
 
 impl Language {
@@ -208,13 +208,13 @@ impl Language {
             "cz" => Language::Czech,
             "nl" => Language::Dutch,
             "en" => Language::English,
+            "mc" => Language::Galactic,
             "km" => Language::Khmer,
             "sk" => Language::Slovak,
             "es" => Language::Spanish,
             "th" => Language::Thai,
             "tr" => Language::Turkish,
             "vi" => Language::Vietnamese,
-            "mc" => Language::Minecraft,
             _ => return None,
         })
     }
@@ -227,13 +227,13 @@ impl Language {
             Language::Czech => "cz",
             Language::Dutch => "nl",
             Language::English => "en",
+            Language::Galactic => "mc",
             Language::Khmer => "km",
             Language::Slovak => "sk",
             Language::Spanish => "es",
             Language::Thai => "th",
             Language::Turkish => "tr",
             Language::Vietnamese => "vi",
-            Language::Minecraft => "mc",
         }
         .parse()
         .unwrap()
@@ -247,13 +247,13 @@ impl Language {
             Language::Czech => include_str!("../../loc/cz.ftl"),
             Language::Dutch => include_str!("../../loc/nl.ftl"),
             Language::English => include_str!("../../loc/en.ftl"),
+            Language::Galactic => include_str!("../../loc/mc.ftl"),
             Language::Khmer => include_str!("../../loc/km.ftl"),
             Language::Slovak => include_str!("../../loc/sk.ftl"),
             Language::Spanish => include_str!("../../loc/es.ftl"),
             Language::Thai => include_str!("../../loc/th.ftl"),
             Language::Turkish => include_str!("../../loc/tr.ftl"),
             Language::Vietnamese => include_str!("../../loc/vi.ftl"),
-            Language::Minecraft => include_str!("../../loc/mc.ftl"),
         }
     }
 
@@ -295,18 +295,20 @@ impl Language {
 
             // Chalet Comprime has support for rich Latin alphabets, so English, Spanish and Dutch
             // are fine. Our Turkish translation uses only ASCII, so it's fine too.
-            Language::Dutch | Language::English | Language::Spanish | Language::Turkish | Language::Minecraft => {
-                FontSet {
-                    title_font: Font::Pricedown,
-                    title_size: STD_TITLE,
-                    small_font: Font::AvenirNextMedium,
-                    small_size: STD_SMALL,
-                    text_font: Font::ChaletComprime,
-                    text_size: STD_TEXT,
-                    subtitle_font: Font::ChaletComprime,
-                    subtitle_size: STD_SUBTITLE + 2.0,
-                }
-            }
+            Language::Dutch
+            | Language::English
+            | Language::Galactic
+            | Language::Spanish
+            | Language::Turkish => FontSet {
+                title_font: Font::Pricedown,
+                title_size: STD_TITLE,
+                small_font: Font::AvenirNextMedium,
+                small_size: STD_SMALL,
+                text_font: Font::ChaletComprime,
+                text_size: STD_TEXT,
+                subtitle_font: Font::ChaletComprime,
+                subtitle_size: STD_SUBTITLE + 2.0,
+            },
 
             // Khmer characters always fall back to Khmer Sangam MN, because it's the only font
             // that has them (I think), so the only reason to use it explicitly is for the Latin
@@ -465,10 +467,10 @@ impl Language {
             Language::Czech => Some(Language::Slovak),
 
             // 5 million
-            Language::Slovak => Some(Language::Minecraft),
-            
-            // 0
-            Language::Minecraft => None,
+            Language::Slovak => Some(Language::Galactic),
+
+            // No speakers
+            Language::Galactic => None,
         }
     }
 }
