@@ -16,7 +16,9 @@ mod logging;
 mod meta;
 
 mod targets {
-    use super::*;
+    #![allow(clippy::unreadable_literal)]
+
+    use super::{c_char, create_hard_target, create_soft_target, Object, Sel};
 
     create_soft_target!(script_tick, 0x1001d0f40, fn());
 
@@ -107,11 +109,10 @@ fn load() {
     // Load the logging system before everything else so we can log from constructors.
     logging::init();
 
-    match hook::can_hook() {
-        true => log::info!("hook test successful! CLEO should work ok :)"),
-        false => {
-            log::error!("hook test failed! CLEO probably won't work :( please report this error!")
-        }
+    if hook::can_hook() {
+        log::info!("hook test successful! CLEO should work ok :)");
+    } else {
+        log::error!("hook test failed! CLEO probably won't work :( please report this error!");
     }
 
     log::info!(
