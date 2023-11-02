@@ -8,6 +8,7 @@ import tempfile
 args = sys.argv[1:]
 
 verbose = "--verbose" in args
+rootless = "--rootless" in args
 
 build_cmd = ["cargo"]
 
@@ -114,18 +115,26 @@ if package:
         debian_dir = os.path.join(package_dir, "DEBIAN")
         os.mkdir(debian_dir)
 
-        dylib_dir = os.path.join(
-            package_dir, "Library/MobileSubstrate/DynamicLibraries"
-        )
+        dylib_dir_path = "Library/MobileSubstrate/DynamicLibraries"
+
+        if rootless:
+            dylib_dir_path = "var/jb/" + dylib_dir_path
+
+        dylib_dir = os.path.join(package_dir, dylib_dir_path)
+
         os.makedirs(dylib_dir)
 
-        control_path = os.path.join(cleo_dir, "deb/control")
-        shutil.copy(control_path, debian_dir)
+        control_ext = "rootless" if rootless else "rootful"
+
+        control_path = os.path.join(cleo_dir, "deb/control." + control_ext)
+        shutil.copy(control_path, os.path.join(debian_dir, "control"))
 
         shutil.copy(plist_path, os.path.join(dylib_dir, "CLEO.plist"))
         shutil.copy(dylib_path, os.path.join(dylib_dir, "CLEO.dylib"))
 
-        deb_path = os.path.join(output_dir, "cleo.deb")
+        deb_name = "cleo.rootless.deb" if rootless else "cleo.rootful.deb"
+
+        deb_path = os.path.join(output_dir, deb_name)
 
         # If there's an old .deb file, remove it.
         if os.path.exists(deb_path):
@@ -138,11 +147,9 @@ if package:
 
     if install:
         host = force_var("CLEO_INSTALL_HOST")
-        copy_to_device(host, deb_path, "/User/Downloads/cleo.deb")
+        copy_to_device(host, deb_path, "/tmp/cleo.deb")
 
-        install_cmd = (
-            "dpkg -i /User/Downloads/cleo.deb && rm -f /User/Downloads/cleo.deb"
-        )
+        install_cmd = "dpkg -i /tmp/cleo.deb && rm -f /tmp/cleo.deb"
 
         shell_cmd = ["exec \$SHELL -l -c", single_quoted(install_cmd)]
         shell_cmd = " ".join(shell_cmd)
@@ -158,10 +165,11 @@ elif install:
 
     host = force_var("CLEO_INSTALL_HOST")
 
-    copy_to_device(
-        host, plist_path, "/Library/MobileSubstrate/DynamicLibraries/CLEO.plist"
+    target = (
+        "/var/jb/Library/MobileSubstrate/DynamicLibraries/CLEO"
+        if rootless
+        else "/Library/MobileSubstrate/DynamicLibraries/CLEO"
     )
 
-    copy_to_device(
-        host, dylib_path, "/Library/MobileSubstrate/DynamicLibraries/CLEO.dylib"
-    )
+    copy_to_device(host, plist_path, target + ".plist")
+    copy_to_device(host, dylib_path, target + ".dylib")

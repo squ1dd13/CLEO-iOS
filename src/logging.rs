@@ -184,7 +184,7 @@ pub fn init() {
 
         if let Some(socket) = &socket {
             if let Some(bin) = msg.pack() {
-                let _ = socket.send_to(&bin, "192.168.1.183:4568");
+                let _ = socket.send_to(&bin, "172.16.0.48:4568");
             }
         }
     });

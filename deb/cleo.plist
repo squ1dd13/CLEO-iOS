@@ -1,1 +1,1 @@
-{ Filter = { Executables = ( "gta3sa", "gtasager" ); }; }
+{ Filter = { Executables = ( "gta3sa", "gtasager", "gtasa" ); }; }
