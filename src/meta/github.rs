@@ -89,11 +89,7 @@ impl Version {
             let alpha_str = alpha_segments.next()?;
 
             // If the alpha number isn't present, we take it to be zero.
-            let alpha_rev = alpha_segments
-                .next()
-                .map(|ver| ver.parse())
-                .unwrap_or(Ok(0))
-                .ok()?;
+            let alpha_rev = alpha_segments.next().map_or(Ok(0), str::parse).ok()?;
 
             Some((alpha_str, alpha_rev))
         } else {
@@ -119,7 +115,7 @@ impl Version {
 
     /// Returns the URL of the release on GitHub.
     pub fn url(self) -> String {
-        format!("https://github.com/squ1dd13/CLEO-iOS/releases/tag/{}", self)
+        format!("https://github.com/squ1dd13/CLEO-iOS/releases/tag/{self}")
     }
 
     /// Returns true if this version is a stable release.
@@ -314,7 +310,7 @@ fn fetch_available_update() -> Result<Option<Version>> {
     // If the user wants to receive alpha updates, just find the latest version, regardless of
     // whether it is alpha or stable.
     fetch_releases().map(|releases| {
-        let release = releases.first().cloned()?;
+        let release = releases.first().copied()?;
 
         // Only return the release if it's actually an update.
         if release > current_version {

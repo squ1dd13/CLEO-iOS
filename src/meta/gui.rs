@@ -4,8 +4,9 @@
 use crate::meta::language::MessageKey;
 use log::trace;
 use objc::{
+    class, msg_send,
     runtime::{Object, Sel},
-    *,
+    sel,
 };
 use std::os::raw::c_long;
 
@@ -229,7 +230,7 @@ pub fn exit_to_homescreen() {
 
             dispatch::Queue::main().exec_after(std::time::Duration::from_millis(200), || {
                 std::process::exit(0);
-            })
+            });
         });
     }
 }
