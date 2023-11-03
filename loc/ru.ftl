@@ -154,7 +154,7 @@ fps-counter-opt-enabled = Вкл.
 
 ## Menu
 
-cheat-tab-title = Cheats
+cheat-tab-title = Читы
 
 # Two lines of text shown at the top of the cheats menu.
 cheat-menu-warning = Использование читов может привести к вылетам и даже к потере игрового прогресса.
