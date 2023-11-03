@@ -123,14 +123,14 @@ script-csa-forced-running = Прин. работает
 
 ## Script settings
 
-script-mode-opt-title = Script Processing Mode
-script-mode-opt-desc = Changes how CLEO processes script code. Try changing this if you're experiencing issues with scripts.
+script-mode-opt-title = Режим процесса скрипта
+script-mode-opt-desc = Изменяет процесс скрипта для CLEO. Попытайтесь поменять это, если у вас возникают проблемы со скриптами.
 
 # In "don't break" mode, CLEO won't try to reduce script lag. This might be more stable sometimes.
-script-mode-opt-dont-break = Slow
+script-mode-opt-dont-break = Медленно
 
 # In "break" mode, CLEO will try to reduce script lag caused by long loops in script code.
-script-mode-opt-break = Fast
+script-mode-opt-break = Быстро
 
 ### ==== FPS ====
 
