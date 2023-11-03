@@ -79,7 +79,7 @@ pub fn init() {
 
     if let Err(err) = loader.load_all() {
         log::error!("{:?}", err);
-        panic!();
+        panic!("failed to load all languages: {err:?}");
     }
 
     // Set the language override based on the langauge chosen in the settings.
@@ -191,6 +191,7 @@ pub enum Language {
     English,
     Galactic,
     Khmer,
+    Russian,
     Slovak,
     Spanish,
     Thai,
@@ -229,6 +230,7 @@ impl Language {
             Language::English => "en",
             Language::Galactic => "mc",
             Language::Khmer => "km",
+            Language::Russian => "ru",
             Language::Slovak => "sk",
             Language::Spanish => "es",
             Language::Thai => "th",
@@ -249,6 +251,7 @@ impl Language {
             Language::English => include_str!("../../loc/en.ftl"),
             Language::Galactic => include_str!("../../loc/mc.ftl"),
             Language::Khmer => include_str!("../../loc/km.ftl"),
+            Language::Russian => include_str!("../../loc/ru.ftl"),
             Language::Slovak => include_str!("../../loc/sk.ftl"),
             Language::Spanish => include_str!("../../loc/es.ftl"),
             Language::Thai => include_str!("../../loc/th.ftl"),
@@ -266,8 +269,8 @@ impl Language {
         const STD_SUBTITLE: f64 = 17.0;
 
         match self {
-            // Czech, Slovak and Vietnamese need a font that covers all of the accented characters.
-            // Arabic always makes use of Geeza Pro (I think) so we could just leave it with Chalet
+            // Czech and Slovak need a font that covers all of the accented characters. Arabic
+            // always makes use of Geeza Pro (I think) so we could just leave it with Chalet
             // Comprime, but Avenir Next has easier-to-read Latin letters.
             Language::Arabic | Language::Czech | Language::Slovak => FontSet {
                 title_font: Font::AvenirNextHeavy,
@@ -294,10 +297,12 @@ impl Language {
             },
 
             // Chalet Comprime has support for rich Latin alphabets, so English, Spanish and Dutch
-            // are fine. Our Turkish translation uses only ASCII, so it's fine too.
+            // are fine. Our Turkish translation uses only ASCII, so it's fine too. Russian also
+            // seems to work OK.
             Language::Dutch
             | Language::English
             | Language::Galactic
+            | Language::Russian
             | Language::Spanish
             | Language::Turkish => FontSet {
                 title_font: Font::Pricedown,
@@ -446,7 +451,10 @@ impl Language {
             Language::Spanish => Some(Language::Arabic),
 
             // 371 million
-            Language::Arabic => Some(Language::Turkish),
+            Language::Arabic => Some(Language::Russian),
+
+            // 260 million
+            Language::Russian => Some(Language::Turkish),
 
             // 88 million
             Language::Turkish => Some(Language::Vietnamese),
